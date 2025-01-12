@@ -129,8 +129,7 @@ export default function LoginPage() {
             </Button>
 
             <Button variant="outline" className="w-full" type="button">
-              <Image src="/google.svg" alt="Google" width={20} height={20} className="mr-2" />
-              Log in with Google
+              Log in dengan Google
             </Button>
           </form>
         </Form>
@@ -145,3 +144,4 @@ export default function LoginPage() {
     </div>
   );
 }
+   
