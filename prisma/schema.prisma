@@ -8,7 +8,7 @@ datasource db {
 }
 
 model User {
-  id       Int          @id @default(autoincrement())
+  id       String          @id @default(cuid())
   username String       @unique
   password String
   level     String
@@ -16,7 +16,7 @@ model User {
 }
 
 model Produk {
-  id              Int               @id @default(autoincrement())
+  id              String               @id @default(cuid())
   nama            String
   harga           Int
   stok            Int
@@ -24,20 +24,20 @@ model Produk {
 }
 
 model Penjualan {
-  id              Int               @id @default(autoincrement())
+  id              String               @id @default(cuid())
   tanggal         DateTime          @default(now())
   total_harga     Int
   user            User?             @relation(fields: [idUser], references: [id])
-  idUser          Int?
+  idUser          String?
   detailPenjualan DetailPenjualan[]
 }
 
 model DetailPenjualan {
-  id          Int       @id @default(autoincrement())
+  id          String       @id @default(cuid())
   penjualan   Penjualan @relation(fields: [idPenjualan], references: [id])
-  idPenjualan Int
+  idPenjualan String
   produk      Produk    @relation(fields: [idProduk], references: [id])
-  idProduk    Int
+  idProduk    String
   kuantitas   Int
   subtotal    Int
 }
