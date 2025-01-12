@@ -67,7 +67,7 @@ export default function LoginPage() {
             <h1>Logo</h1>
           </div>
           <h1 className="text-2xl font-semibold">Welcome back!</h1>
-          <p className="mt-2 text-sm text-muted-foreground">Please enter your details</p>
+          <p className="mt-2 text-sm text-muted-foreground">Silakan masukkan detail Anda</p>
         </div>
 
         {/* Form */}
@@ -83,7 +83,7 @@ export default function LoginPage() {
                     <FormControl>
                       <Input placeholder="Username" {...field} />
                     </FormControl>
-                    <FormDescription>This is your public display name.</FormDescription>
+                    <FormDescription>Ini adalah nama tampilan publik Anda.</FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -105,7 +105,7 @@ export default function LoginPage() {
                         </button>
                       </div>
                     </FormControl>
-                    <FormDescription>This is your private password.</FormDescription>
+                    <FormDescription>Ini adalah kata sandi pribadi Anda.</FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -116,11 +116,11 @@ export default function LoginPage() {
               <div className="flex items-center space-x-2">
                 <Checkbox id="remember" />
                 <label htmlFor="remember" className="text-sm text-muted-foreground">
-                  Remember for 30 days
+                  Ingat selama 30 hari
                 </label>
               </div>
               <Link href="/forgot-password" className="text-sm text-muted-foreground hover:text-foreground">
-                Forgot password?
+                Lupa password?
               </Link>
             </div>
 
@@ -129,13 +129,13 @@ export default function LoginPage() {
             </Button>
 
             <Button variant="outline" className="w-full" type="button">
-              Log in with Google
+              Log in dengan Google
             </Button>
           </form>
         </Form>
 
         <p className="text-center text-sm text-muted-foreground">
-          Don&apos;t have an account?{" "}
+          Belum punya akun?{" "}
           <Link href="/register" className="text-foreground hover:underline">
             Sign Up
           </Link>
