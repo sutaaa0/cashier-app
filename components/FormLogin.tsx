@@ -1,95 +1,5 @@
-// "use client";
-// import React from 'react'
-// import { zodResolver } from "@hookform/resolvers/zod";
-// import { useForm } from "react-hook-form";
-// import { z } from "zod";
-// import { toast } from "@/hooks/use-toast";
-// import { Button } from "@/components/ui/button";
-// import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-// import { Input } from "@/components/ui/input";
-// import { Login } from "@/server/actions";
-
-// const FormSchema = z.object({
-//   username: z.string().min(2, {
-//     message: "Username must be at least 2 characters.",
-//   }),
-//   password: z.string().min(8, { message: "Password must be at least 8 characters." }),
-// });
-
-// const FormLogin = () => {
-// const form = useForm<z.infer<typeof FormSchema>>({
-//     resolver: zodResolver(FormSchema),
-//     defaultValues: {
-//       username: "",
-//       password: "",
-//     },
-//   });
-
-//   async function onSubmit(data: z.infer<typeof FormSchema>) {
-//     try {
-//       const newUser = await Login(data.username, data.password, );
-
-//       if(newUser.status === "Success") {
-//         toast({
-//           title: "Success",
-//           description: "Successfully registered new user.",
-//         });
-//       } else {
-//         toast({
-//           title: "Error",
-//           description: "Failed to register new user.",
-//         });
-//       }
-
-//     } catch (error) {
-//       console.log(error);
-//     }
-//   }
-
-//   return (
-//       <Form {...form}>
-//         <form onSubmit={form.handleSubmit(onSubmit)} className="w-2/3 space-y-6">
-//           <FormField
-//             control={form.control}
-//             name="username"
-//             render={({ field }) => (
-//               <FormItem>
-//                 <FormLabel>Username</FormLabel>
-//                 <FormControl>
-//                   <Input placeholder="Username" {...field} />
-//                 </FormControl>
-//                 <FormDescription>This is your public display name.</FormDescription>
-//                 <FormMessage />
-//               </FormItem>
-//             )}
-//           />
-
-//           <FormField
-//             control={form.control}
-//             name="password"
-//             render={({ field }) => (
-//               <FormItem>
-//                 <FormLabel>Password</FormLabel>
-//                 <FormControl>
-//                   <Input placeholder="Password" {...field} />
-//                 </FormControl>
-//                 <FormDescription>This is your public display name.</FormDescription>
-//                 <FormMessage />
-//               </FormItem>
-//             )}
-//           />
-//           <Button type="submit">Submit</Button>
-//         </form>
-//       </Form>
-//   )
-// }
-
-// export default FormLogin
-
 "use client";
-
 import * as React from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -219,7 +129,6 @@ export default function LoginPage() {
             </Button>
 
             <Button variant="outline" className="w-full" type="button">
-              <Image src="/google.svg" alt="Google" width={20} height={20} className="mr-2" />
               Log in with Google
             </Button>
           </form>
