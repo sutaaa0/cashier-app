@@ -2,8 +2,23 @@
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/db";
 import bcrypt from "bcryptjs";
-import { createToken } from "@/lib/jwt";
-import jwt from "jsonwebtoken";
+import * as jose from 'jose';
+
+// Create JWT token using jose
+async function createToken(payload: { userId: string, username: string, role: string }) {
+  const secret = new TextEncoder().encode(process.env.JWT_SECRET);
+  return await new jose.SignJWT(payload)
+    .setProtectedHeader({ alg: 'HS256' })
+    .setExpirationTime('30d')
+    .sign(secret);
+}
+
+// Verify JWT token using jose
+async function verifyToken(token: string) {
+  const secret = new TextEncoder().encode(process.env.JWT_SECRET);
+  const { payload } = await jose.jwtVerify(token, secret);
+  return payload;
+}
 
 export async function Register(username: string, password: string, level: string) {
   try {
@@ -44,8 +59,7 @@ export async function Login(username: string, password: string) {
       return { status: "Failed", message: "Password salah", code: 401 };
     }
 
-    // Buat token
-    const token = createToken({
+    const token = await createToken({
       userId: user.id,
       username: user.username,
       role: user.level,
@@ -74,9 +88,7 @@ export async function Login(username: string, password: string) {
 
 export async function Logout() {
   try {
-    // Hapus cookie token
     (await cookies()).delete("token");
-
     return {
       status: "Success",
       message: "Berhasil logout",
@@ -101,12 +113,11 @@ export async function getCurrentUser() {
   }
 
   try {
-    if (!process.env.JWT_SECRET) {
-      throw new Error("JWT_SECRET is not defined");
-    }
-    const decoded = jwt.verify(token.value as string, process.env.JWT_SECRET as string) as unknown as jwt.JwtPayload & { userId: string };
+    const payload = await verifyToken(token.value);
+    if (!payload) return null;
+
     const user = await prisma.user.findUnique({
-      where: { id: decoded.userId },
+      where: { id: payload.userId as string },
     });
     return user;
   } catch (error) {
