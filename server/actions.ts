@@ -2,6 +2,7 @@
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/db";
 import bcrypt from "bcryptjs";
+<<<<<<< HEAD
 import * as jose from 'jose';
 
 // Create JWT token using jose
@@ -43,6 +44,34 @@ export async function Register(username: string, password: string, level: string
   }
 }
 
+=======
+import { createToken } from "@/lib/jwt";
+import jwt from "jsonwebtoken";
+
+export async function Register(username: string, password: string, level: string) {
+  try {
+    const userExists = await prisma.user.findUnique({
+      where: { username },
+    });
+
+    if (userExists) {
+      return { status: "Failed", message: "User already exists", code: 400 };
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const user = await prisma.user.create({
+      data: { username, password: hashedPassword, level },
+    });
+
+    return { status: "Success", data: user, code: 200 };
+  } catch (error) {
+    console.error("Error registering user:", error);
+    return { status: "Failed", message: "Gagal", code: 500 };
+  }
+}
+
+>>>>>>> 2356d831e984267b1eeff2ee7a36959fb1aedfec
 export async function Login(username: string, password: string) {
   try {
     const user = await prisma.user.findUnique({
@@ -59,7 +88,12 @@ export async function Login(username: string, password: string) {
       return { status: "Failed", message: "Password salah", code: 401 };
     }
 
+<<<<<<< HEAD
     const token = await createToken({
+=======
+    // Buat token
+    const token = createToken({
+>>>>>>> 2356d831e984267b1eeff2ee7a36959fb1aedfec
       userId: user.id,
       username: user.username,
       role: user.level,
@@ -88,7 +122,13 @@ export async function Login(username: string, password: string) {
 
 export async function Logout() {
   try {
+<<<<<<< HEAD
     (await cookies()).delete("token");
+=======
+    // Hapus cookie token
+    (await cookies()).delete("token");
+
+>>>>>>> 2356d831e984267b1eeff2ee7a36959fb1aedfec
     return {
       status: "Success",
       message: "Berhasil logout",
@@ -113,15 +153,28 @@ export async function getCurrentUser() {
   }
 
   try {
+<<<<<<< HEAD
     const payload = await verifyToken(token.value);
     if (!payload) return null;
 
     const user = await prisma.user.findUnique({
       where: { id: payload.userId as string },
+=======
+    if (!process.env.JWT_SECRET) {
+      throw new Error("JWT_SECRET is not defined");
+    }
+    const decoded = jwt.verify(token.value as string, process.env.JWT_SECRET as string) as unknown as jwt.JwtPayload & { userId: string };
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.userId },
+>>>>>>> 2356d831e984267b1eeff2ee7a36959fb1aedfec
     });
     return user;
   } catch (error) {
     console.error('Invalid token:', error);
     return null;
   }
+<<<<<<< HEAD
 }
+=======
+}
+>>>>>>> 2356d831e984267b1eeff2ee7a36959fb1aedfec

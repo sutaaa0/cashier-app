@@ -129,7 +129,8 @@ export default function LoginPage() {
             </Button>
 
             <Button variant="outline" className="w-full" type="button">
-              Log in dengan Google
+              <Image src="/google.svg" alt="Google" width={20} height={20} className="mr-2" />
+              Log in with Google
             </Button>
           </form>
         </Form>

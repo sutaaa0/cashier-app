@@ -22,7 +22,10 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cookie": "^1.0.2",
+<<<<<<< HEAD
     "date-fns": "^4.1.0",
+=======
+>>>>>>> 2356d831e984267b1eeff2ee7a36959fb1aedfec
     "jose": "^5.9.6",
     "jsonwebtoken": "^9.0.2",
     "lucide-react": "^0.469.0",
