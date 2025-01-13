@@ -2,15 +2,12 @@
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/db";
 import bcrypt from "bcryptjs";
-import * as jose from 'jose';
+import * as jose from "jose";
 
 // Create JWT token using jose
-async function createToken(payload: { userId: number, username: string, role: string }) {
+async function createToken(payload: { userId: number; username: string; role: string }) {
   const secret = new TextEncoder().encode(process.env.JWT_SECRET);
-  return await new jose.SignJWT(payload)
-    .setProtectedHeader({ alg: 'HS256' })
-    .setExpirationTime('30d')
-    .sign(secret);
+  return await new jose.SignJWT(payload).setProtectedHeader({ alg: "HS256" }).setExpirationTime("30d").sign(secret);
 }
 
 // Verify JWT token using jose
@@ -86,14 +83,16 @@ export async function Login(username: string, password: string) {
 
 export async function Logout() {
   try {
-    (await cookies()).delete("token");
+    const cookieStore = await cookies();
+    cookieStore.delete("token");
+
     return {
       status: "Success",
       message: "Berhasil logout",
       code: 200,
     };
   } catch (error) {
-    console.error("Error saat logout:", error);
+    console.error("Error saat logout:", `${error}`);
     return {
       status: "Failed",
       message: "Gagal logout",
@@ -104,7 +103,7 @@ export async function Logout() {
 
 export async function getCurrentUser() {
   const cookieStore = await cookies();
-  const token = cookieStore.get('token');
+  const token = cookieStore.get("token");
 
   if (!token) {
     return null;
@@ -116,24 +115,26 @@ export async function getCurrentUser() {
 
     const user = await prisma.user.findUnique({
       where: { id: payload.userId as number },
+      select: {
+        id: true,
+        username: true,
+        level: true,
+      },
     });
     return user;
   } catch (error) {
-    console.error('Invalid token:', error);
-    return null;
+    if (error) {
+      return null;
+    }
   }
 }
 
 export async function getProducts() {
-  return await prisma.produk.findMany()
+  return await prisma.produk.findMany();
 }
 
-export async function createOrder(orderData: {
-  pelangganId: number,
-  total_harga: number,
-  items: { produkId: number, kuantitas: number, subtotal: number }[]
-}) {
-  const { pelangganId, total_harga, items } = orderData
+export async function createOrder(orderData: { pelangganId: number; total_harga: number; items: { produkId: number; kuantitas: number; subtotal: number }[] }) {
+  const { pelangganId, total_harga, items } = orderData;
 
   return await prisma.$transaction(async (prisma) => {
     const penjualan = await prisma.penjualan.create({
@@ -141,39 +142,33 @@ export async function createOrder(orderData: {
         pelangganId,
         total_harga,
       },
-    })
+    });
 
     await prisma.detailPenjualan.createMany({
-      data: items.map(item => ({
+      data: items.map((item) => ({
         penjualanId: penjualan.penjualanId,
-        ...item
-      }))
-    })
+        ...item,
+      })),
+    });
 
     // Update stock
     for (const item of items) {
       await prisma.produk.update({
         where: { produkId: item.produkId },
-        data: { stok: { decrement: item.kuantitas } }
-      })
+        data: { stok: { decrement: item.kuantitas } },
+      });
     }
 
-    return penjualan
-  })
+    return penjualan;
+  });
 }
 
 export async function getCustomers() {
-  return await prisma.pelanggan.findMany()
+  return await prisma.pelanggan.findMany();
 }
 
-export async function createCustomer(customerData: {
-  nama: string,
-  alamat: string,
-  nomorTelepon: string
-}) {
+export async function createCustomer(customerData: { nama: string; alamat: string; nomorTelepon: string }) {
   return await prisma.pelanggan.create({
-    data: customerData
-  })
+    data: customerData,
+  });
 }
-
-
