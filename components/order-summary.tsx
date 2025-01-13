@@ -1,22 +1,14 @@
 'use client'
-
-import {
-  // Select,
-  // SelectContent,
-  // SelectItem,
-  // SelectTrigger,
-  // SelectValue,
-} from "@/components/ui/select"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Pencil, Minus, Plus, Trash2 } from 'lucide-react'
 import Image from "next/image"
-import type { Order, MenuItem } from "@/types/menu"
+import type { Order, Produk } from "@/types/menu"
 
 interface OrderSummaryProps {
   order: Order
   onUpdateQuantity?: (itemId: string, quantity: number) => void
-  onEditItem?: (item: MenuItem) => void
+  onEditItem?: (item: Produk) => void
   onDeleteItem?: (itemId: string) => void
   onPlaceOrder?: () => void
 }
