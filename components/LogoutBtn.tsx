@@ -4,10 +4,6 @@ import React from 'react'
 import { Button } from './ui/button'
 import { Logout } from '@/server/actions'
 import { toast } from '@/hooks/use-toast'
-<<<<<<< HEAD
-import { redirect } from 'next/navigation';
-=======
->>>>>>> 2356d831e984267b1eeff2ee7a36959fb1aedfec
 
 const LogoutBtn = () => {
 
@@ -19,11 +15,6 @@ const LogoutBtn = () => {
                 title: 'Logout success',
                 description: 'You have been logged out',
             })
-<<<<<<< HEAD
-
-            redirect('/login')
-=======
->>>>>>> 2356d831e984267b1eeff2ee7a36959fb1aedfec
         }
     }
 
