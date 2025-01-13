@@ -5,7 +5,8 @@ import React from "react";
 const page = async () => {
   const currentUser = await getCurrentUser();
 
-  console.log("User saat ini :",currentUser);
+  console.log(currentUser);
+
 
   return (
     <div className="container mx-auto flex justify-center items-center h-screen">
