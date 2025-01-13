@@ -5,7 +5,7 @@ import bcrypt from "bcryptjs";
 import * as jose from 'jose';
 
 // Create JWT token using jose
-async function createToken(payload: { userId: string, username: string, role: string }) {
+async function createToken(payload: { userId: number, username: string, role: string }) {
   const secret = new TextEncoder().encode(process.env.JWT_SECRET);
   return await new jose.SignJWT(payload)
     .setProtectedHeader({ alg: 'HS256' })
@@ -38,8 +38,7 @@ export async function Register(username: string, password: string, level: string
 
     return { status: "Success", data: user, code: 200 };
   } catch (error) {
-    console.error("Error registering user:", error);
-    return { status: "Failed", message: "Gagal", code: 500 };
+    return { status: "Failed", message: `${error}`, code: 500 };
   }
 }
 
@@ -81,8 +80,7 @@ export async function Login(username: string, password: string) {
       code: 200,
     };
   } catch (error) {
-    console.error("Error saat login:", error);
-    return { status: "Failed", message: "Gagal login", code: 500 };
+    return { status: "Failed", message: `${error}`, code: 500 };
   }
 }
 
@@ -117,7 +115,7 @@ export async function getCurrentUser() {
     if (!payload) return null;
 
     const user = await prisma.user.findUnique({
-      where: { id: payload.userId as string },
+      where: { id: payload.userId as number },
     });
     return user;
   } catch (error) {
@@ -125,3 +123,57 @@ export async function getCurrentUser() {
     return null;
   }
 }
+
+export async function getProducts() {
+  return await prisma.produk.findMany()
+}
+
+export async function createOrder(orderData: {
+  pelangganId: number,
+  total_harga: number,
+  items: { produkId: number, kuantitas: number, subtotal: number }[]
+}) {
+  const { pelangganId, total_harga, items } = orderData
+
+  return await prisma.$transaction(async (prisma) => {
+    const penjualan = await prisma.penjualan.create({
+      data: {
+        pelangganId,
+        total_harga,
+      },
+    })
+
+    await prisma.detailPenjualan.createMany({
+      data: items.map(item => ({
+        penjualanId: penjualan.penjualanId,
+        ...item
+      }))
+    })
+
+    // Update stock
+    for (const item of items) {
+      await prisma.produk.update({
+        where: { produkId: item.produkId },
+        data: { stok: { decrement: item.kuantitas } }
+      })
+    }
+
+    return penjualan
+  })
+}
+
+export async function getCustomers() {
+  return await prisma.pelanggan.findMany()
+}
+
+export async function createCustomer(customerData: {
+  nama: string,
+  alamat: string,
+  nomorTelepon: string
+}) {
+  return await prisma.pelanggan.create({
+    data: customerData
+  })
+}
+
+
