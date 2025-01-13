@@ -7,7 +7,7 @@ import { ProductGrid } from "@/components/product-grid";
 import { OrderSummary } from "@/components/order-summary";
 import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
-import type { MenuItem, Order, OrderItem } from "@/types/menu";
+import type { Order, OrderItem, Produk } from "@/types/menu";
 import { toast } from "@/hooks/use-toast";
 
 const generateOrderNumber = () => {
@@ -31,7 +31,7 @@ const Pos = () => {
     }));
   }, []);
 
-  const products: MenuItem[] = [
+  const products: Produk[] = [
     {
       id: "1",
       name: "kue kering",
@@ -55,7 +55,7 @@ const Pos = () => {
     },
   ];
 
-  const addToOrder = (product: MenuItem) => {
+  const addToOrder = (product: Produk) => {
     setOrder((prev) => {
       const existingItem = prev.items.find((item) => item.id === product.id);
 
@@ -136,10 +136,13 @@ const Pos = () => {
       return;
     }
 
+    console.log(order)
+
     toast({
       title: "Order Placed",
       description: `Order #${order.id} has been placed successfully. Total: $${order.total.toFixed(2)}`,
     });
+
 
     // Reset order with new ID
     setOrder({
@@ -154,6 +157,9 @@ const Pos = () => {
     product.name.toLowerCase().includes(searchQuery.toLowerCase()) &&
     (selectedCategory === "All Menu" || product.category === selectedCategory)
   );
+
+
+  
 
   return (
     <div className="h-screen flex flex-col">
