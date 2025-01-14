@@ -3,6 +3,8 @@ import { cookies } from "next/headers";
 import { prisma } from "@/lib/db";
 import bcrypt from "bcryptjs";
 import * as jose from "jose";
+import { Penjualan, Produk } from "@prisma/client";
+import { CreateOrderDetail, Product } from "@/types/types";
 
 // Create JWT token using jose
 async function createToken(payload: { userId: number; username: string; role: string }) {
@@ -129,46 +131,130 @@ export async function getCurrentUser() {
   }
 }
 
-export async function getProducts() {
-  return await prisma.produk.findMany();
+// Transform Prisma Product to frontend Product format
+function transformProduct(product: Produk): Product {
+  return {
+    produkId: product.produkId,
+    nama: product.nama,
+    harga: product.harga,
+    kategori: product.kategori,
+    image: product.image,
+    stok: product.stok
+  };
 }
 
-export async function createOrder(orderData: { pelangganId: number; total_harga: number; items: { produkId: number; kuantitas: number; subtotal: number }[] }) {
-  const { pelangganId, total_harga, items } = orderData;
+// Get all products
+export async function getProducts() {
+  const products = await prisma.produk.findMany({
+    orderBy: { nama: 'asc' }
+  });
+  return products;
+}
 
-  return await prisma.$transaction(async (prisma) => {
-    const penjualan = await prisma.penjualan.create({
+export async function createOrder(orderData: Penjualan) {
+  try {
+    return await prisma.$transaction(async (prisma) => {
+      // Ensure customer exists
+      let pelanggan = await prisma.pelanggan.findUnique({
+        where: { pelangganId: orderData.pelangganId }
+      });
+
+      if (!pelanggan) {
+        pelanggan = await prisma.pelanggan.create({
+          data: {
+            nama: "Walk-in Customer",
+            alamat: "-",
+            nomorTelepon: "-"
+          }
+        });
+      }
+
+      // Create order with valid customer
+      const penjualan = await prisma.penjualan.create({
+        data: {
+          pelangganId: pelanggan.pelangganId,
+          total_harga: orderData.total_harga,
+          tanggalPenjualan: new Date(),
+          detailPenjualan: {
+            create: orderData.detailPenjualan.map(item => ({
+              produkId: item.produkId,
+              kuantitas: item.kuantitas,
+              subtotal: item.subtotal
+            }))
+          }
+        },
+        include: {
+          detailPenjualan: true
+        }
+      });
+
+      return penjualan;
+    });
+  } catch (error) {
+    console.error("Error creating order:", error);
+    throw error;
+  }
+}
+
+export async function createDetailOrder(detailOrderData: CreateOrderDetail) {
+  return await prisma.detailPenjualan.create({
+    data: {
+      penjualanId: detailOrderData.penjualanId,
+      produkId: detailOrderData.produkId,
+      kuantitas: detailOrderData.kuantitas,
+      subtotal: detailOrderData.subtotal
+    }
+  });
+}
+
+// Get products by category
+export async function getProductsByCategory(category: string): Promise<Product[]> {
+  const products = await prisma.produk.findMany({
+    where: {
+      kategori: category === "All Menu" ? undefined : category
+    }
+  });
+  return products.map(transformProduct);
+}
+
+// Search products
+export async function searchProducts(query: string): Promise<Product[]> {
+  const products = await prisma.produk.findMany({
+    where: {
+      nama: {
+        contains: query,
+        mode: 'insensitive'
+      }
+    }
+  });
+  return products.map(transformProduct);
+}
+
+// Get product stock
+export async function getProductStock(productId: string): Promise<number> {
+  const product = await prisma.produk.findUnique({
+    where: { produkId: parseInt(productId) },
+    select: { stok: true }
+  });
+  return product?.stok ?? 0;
+}
+
+export async function createCustomer(customerData: { 
+  nama: string; 
+  alamat: string; 
+  nomorTelepon: string 
+}) {
+  try {
+    const customer = await prisma.pelanggan.create({
       data: {
-        pelangganId,
-        total_harga,
+        nama: customerData.nama,
+        alamat: customerData.alamat,
+        nomorTelepon: customerData.nomorTelepon,
       },
     });
-
-    await prisma.detailPenjualan.createMany({
-      data: items.map((item) => ({
-        penjualanId: penjualan.penjualanId,
-        ...item,
-      })),
-    });
-
-    // Update stock
-    for (const item of items) {
-      await prisma.produk.update({
-        where: { produkId: item.produkId },
-        data: { stok: { decrement: item.kuantitas } },
-      });
-    }
-
-    return penjualan;
-  });
-}
-
-export async function getCustomers() {
-  return await prisma.pelanggan.findMany();
-}
-
-export async function createCustomer(customerData: { nama: string; alamat: string; nomorTelepon: string }) {
-  return await prisma.pelanggan.create({
-    data: customerData,
-  });
+    return { status: "Success", data: customer, code: 200 };
+  } catch (error) {
+    console.error("Error creating customer:", error);
+    return { status: "Failed", message: "Gagal membuat pelanggan", code: 500 };
+  }
 }
