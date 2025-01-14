@@ -25,12 +25,10 @@ export function CategoryNav({ selected = "All Menu", onSelect }: { selected: str
         <button
           key={category.name}
           onClick={() => onSelect(category.name)}
-          className={cn("flex flex-col items-center min-w-[100px] p-4 rounded-lg transition-colors", selected === category.name ? "bg-primary text-primary-foreground" : "bg-background hover:bg-muted")}
+          className={cn("flex flex-col items-center min-w-[100px] p-4 rounded-lg transition-colors", selected === category.name ? "border border-primary" : "bg-background hover:bg-muted")}
         >
-          <div className="flex items-center gap-x-3">
-            <span>{category.icon}</span>
-            <span className="text-xl mt-2">{category.name}</span>
-          </div>
+          <span>{category.icon}</span>
+          <span className="text-xl mt-2">{category.name}</span>
           <span className="text-sm text-muted-foreground mt-3">{category.count} Items</span>
         </button>
       ))}
