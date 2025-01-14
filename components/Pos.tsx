@@ -7,159 +7,172 @@ import { ProductGrid } from "@/components/product-grid";
 import { OrderSummary } from "@/components/order-summary";
 import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
-import type { Order, OrderItem, Produk } from "@/types/menu";
 import { toast } from "@/hooks/use-toast";
+import { createOrder, getProducts } from "@/server/actions";
+import { Produk as PrismaProduk, Penjualan, DetailPenjualan } from "@prisma/client";
 
-const generateOrderNumber = () => {
-  return Math.floor(Math.random() * 900 + 100).toString();
-};
+interface Produk extends PrismaProduk {
+  image: string;
+}
 
 const Pos = () => {
   const [selectedCategory, setSelectedCategory] = useState("All Menu");
+  const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
-  const [order, setOrder] = useState<Order>({
-    id: "000",
-    items: [],
-    total: 0,
-    tax: 0,
+  const [products, setProducts] = useState<Produk[]>([]);
+
+  const [order, setOrder] = useState<
+    Penjualan & {
+      detailPenjualan: (DetailPenjualan & { produk: Produk })[];
+    }
+  >({
+    penjualanId: 0,
+    tanggalPenjualan: new Date(),
+    total_harga: 0,
+    pelangganId: 0,
+    detailPenjualan: [],
   });
 
   useEffect(() => {
-    setOrder(prev => ({
-      ...prev,
-      id: generateOrderNumber()
-    }));
+    fetchProducts();
   }, []);
 
-  const products: Produk[] = [
-    {
-      id: "1",
-      name: "kue kering",
-      price: 5.5,
-      category: "Cookie",
-      image: "/cookies1.png",
-    },
-    {
-      id: "2",
-      name: "Beef Crowich",
-      price: 5.5,
-      category: "Cookie",
-      image: "/cookies1.png",
-    },
-    {
-      id: "3",
-      name: "Beef Crowich",
-      price: 5.5,
-      category: "Cookie",
-      image: "/cookies1.png",
-    },
-  ];
+  const fetchProducts = async () => {
+    try {
+      setIsLoading(true);
+      const data = await getProducts();
+      setProducts(data || []);
+    } catch (error) {
+      console.error("Error fetching products:", error);
+      toast({
+        title: "Error",
+        description: "Gagal mengambil data produk",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const addToOrder = (product: Produk) => {
     setOrder((prev) => {
-      const existingItem = prev.items.find((item) => item.id === product.id);
+      const existingItem = prev.detailPenjualan.find((item) => item.produkId === product.produkId);
 
-      let newItems: OrderItem[];
+      let newDetailPenjualan: (DetailPenjualan & { produk: Produk })[];
       if (existingItem) {
-        newItems = prev.items.map((item) => 
-          item.id === product.id 
-            ? { ...item, quantity: item.quantity + 1 } 
+        newDetailPenjualan = prev.detailPenjualan.map((item) =>
+          item.produkId === product.produkId
+            ? {
+                ...item,
+                kuantitas: item.kuantitas + 1,
+                subtotal: (item.kuantitas + 1) * product.harga,
+              }
             : item
         );
       } else {
-        newItems = [...prev.items, { ...product, quantity: 1 }];
+        newDetailPenjualan = [
+          ...prev.detailPenjualan,
+          {
+            detailId: 0,
+            penjualanId: prev.penjualanId,
+            produkId: product.produkId,
+            kuantitas: 1,
+            subtotal: product.harga,
+            produk: product,
+          },
+        ];
       }
 
-      const total = newItems.reduce((sum, item) => 
-        sum + item.price * item.quantity, 0
-      );
-      const tax = total * 0.1;
+      const total_harga = newDetailPenjualan.reduce((sum, item) => sum + item.subtotal, 0);
 
       return {
         ...prev,
-        items: newItems,
-        total,
-        tax,
+        detailPenjualan: newDetailPenjualan,
+        total_harga,
       };
     });
   };
 
-  const handleUpdateQuantity = (itemId: string, newQuantity: number) => {
+  const handleUpdateQuantity = (produkId: number, newQuantity: number) => {
     setOrder((prevOrder) => {
-      const updatedItems = prevOrder.items.map((item) => 
-        item.id === itemId 
-          ? { ...item, quantity: newQuantity } 
-          : item
-      );
+      const updatedDetailPenjualan = prevOrder.detailPenjualan.map((item) => {
+        if (item.produkId === produkId) {
+          const product = products.find((p) => p.produkId === produkId);
+          return {
+            ...item,
+            kuantitas: newQuantity,
+            subtotal: newQuantity * (product?.harga || 0),
+          };
+        }
+        return item;
+      });
 
-      const newTotal = updatedItems.reduce((sum, item) => 
-        sum + item.price * item.quantity, 0
-      );
-      const newTax = newTotal * 0.1;
+      const newTotal = updatedDetailPenjualan.reduce((sum, item) => sum + item.subtotal, 0);
 
       return {
         ...prevOrder,
-        items: updatedItems,
-        total: newTotal,
-        tax: newTax,
+        detailPenjualan: updatedDetailPenjualan,
+        total_harga: newTotal,
       };
     });
   };
 
-  const handleDeleteItem = (itemId: string) => {
+  const handleDeleteItem = (produkId: number) => {
     setOrder((prevOrder) => {
-      const updatedItems = prevOrder.items.filter((item) => 
-        item.id !== itemId
-      );
+      const updatedDetailPenjualan = prevOrder.detailPenjualan.filter((item) => item.produkId !== produkId);
 
-      const newTotal = updatedItems.reduce((sum, item) => 
-        sum + item.price * item.quantity, 0
-      );
-      const newTax = newTotal * 0.1;
+      const newTotal = updatedDetailPenjualan.reduce((sum, item) => sum + item.subtotal, 0);
 
       return {
         ...prevOrder,
-        items: updatedItems,
-        total: newTotal,
-        tax: newTax,
+        detailPenjualan: updatedDetailPenjualan,
+        total_harga: newTotal,
       };
     });
   };
 
-  const handlePlaceOrder = () => {
-    if (order.items.length === 0) {
+  const handlePlaceOrder = async (customerData: { pelangganId: number }) => {
+    if (order.detailPenjualan.length === 0) {
       toast({
         title: "Error",
-        description: "Please add items to the order first",
+        description: "Silahkan tambahkan produk terlebih dahulu",
         variant: "destructive",
       });
       return;
     }
 
-    console.log(order)
+    try {
+      const penjualan = await createOrder({
+        ...order,
+        pelangganId: customerData.pelangganId, // Ensure valid pelangganId
+      });
 
-    toast({
-      title: "Order Placed",
-      description: `Order #${order.id} has been placed successfully. Total: $${order.total.toFixed(2)}`,
-    });
+      if (penjualan) {
+        toast({
+          title: "Berhasil",
+          description: `Pesanan berhasil dibuat. Total: Rp${order.total_harga.toLocaleString()}`,
+        });
+      }
 
-
-    // Reset order with new ID
-    setOrder({
-      id: generateOrderNumber(),
-      items: [],
-      total: 0,
-      tax: 0,
-    });
+      // Reset order
+      setOrder({
+        penjualanId: 0,
+        tanggalPenjualan: new Date(),
+        total_harga: 0,
+        pelangganId: 1, // Reset to default customer
+        detailPenjualan: [],
+      });
+    } catch (error) {
+      console.error(error);
+      toast({
+        title: "Error",
+        description: "Gagal membuat pesanan. Silahkan coba lagi.",
+        variant: "destructive",
+      });
+    }
   };
 
-  const filteredProducts = products.filter((product) => 
-    product.name.toLowerCase().includes(searchQuery.toLowerCase()) &&
-    (selectedCategory === "All Menu" || product.category === selectedCategory)
-  );
-
-
-  
+  const filteredProducts = products.filter((product) => (product?.nama || "").toLowerCase().includes(searchQuery.toLowerCase()) && (selectedCategory === "All Menu" || product?.kategori === selectedCategory));
 
   return (
     <div className="h-screen flex flex-col">
@@ -170,24 +183,12 @@ const Pos = () => {
           <div className="px-4 pb-4">
             <div className="relative">
               <Search className="absolute left-2 top-3 h-6 w-6 text-muted-foreground" />
-              <Input
-                placeholder="Search something sweet on your mind..."
-                className="pl-9 h-12"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
+              <Input placeholder="Cari produk..." className="pl-9 h-12" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
             </div>
           </div>
-          <div className="flex-1 overflow-auto">
-            <ProductGrid products={filteredProducts} onSelect={addToOrder} />
-          </div>
+          <div className="flex-1 overflow-auto">{isLoading ? <div className="flex items-center justify-center h-full">Loading...</div> : <ProductGrid products={filteredProducts} onProductSelect={addToOrder} />}</div>
         </div>
-        <OrderSummary 
-          order={order}
-          onUpdateQuantity={handleUpdateQuantity}
-          onDeleteItem={handleDeleteItem}
-          onPlaceOrder={handlePlaceOrder}
-        />
+        <OrderSummary order={order} onUpdateQuantity={handleUpdateQuantity} onDeleteItem={handleDeleteItem} onPlaceOrder={handlePlaceOrder} />
       </div>
     </div>
   );
