@@ -349,13 +349,6 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-// Type for the response
-interface ActionResponse {
-  status: "Success" | "Error";
-  message: string;
-  data?: any;
-}
-
 // Helper function to upload image to Cloudinary
 async function uploadToCloudinary(file: File): Promise<string> {
   try {
@@ -388,48 +381,44 @@ async function uploadToCloudinary(file: File): Promise<string> {
 }
 
 // Server action to add a new product
-export async function addProduct(formData: { name: string; price: number; stock: number; category: string; image: File }): Promise<ActionResponse> {
-  try {
-    // Upload image to Cloudinary
-    const imageUrl = await uploadToCloudinary(formData.image);
+interface ActionResponse {
+  status: "Success" | "Error";
+  message: string;
+  data?: any;
+}
 
-    // Create product in database
+export async function addProduct(
+  formData: {
+    name: string;
+    price: number;
+    stock: number;
+    category: string;
+    imageUrl: string; // Sekarang menerima URL gambar langsung
+  }
+): Promise<ActionResponse> {
+  try {
     const product = await prisma.produk.create({
       data: {
         nama: formData.name,
         harga: formData.price,
         stok: formData.stock,
         kategori: formData.category,
-        image: imageUrl,
+        image: formData.imageUrl,
       },
     });
 
-    // Revalidate the products page
-    revalidatePath("/dashboard-admin");
-
-    const getProduk = await getProducts();
-    if(getProduk) {
-      console.log("berhasil")
-    }
+    revalidatePath('/dashboard-admin');
 
     return {
       status: "Success",
-      message: "Product added successfully",
+      message: "Produk berhasil ditambahkan",
       data: product,
     };
   } catch (error) {
-    console.error("Error adding product:", error);
+    console.error('Error menambahkan produk:', error);
     return {
       status: "Error",
-      message: error instanceof Error ? error.message : "Failed to add product",
+      message: error instanceof Error ? error.message : "Gagal menambahkan produk",
     };
   }
-}
-
-export async function testing() {
-
-  revalidatePath("/testing");
-  return {
-    status: "Success",
-  };
 }
