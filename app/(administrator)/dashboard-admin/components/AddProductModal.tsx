@@ -1,38 +1,75 @@
 import React, { useState, useRef } from 'react'
 import { X, Upload } from 'lucide-react'
+import { toast } from '@/hooks/use-toast'
+import { addProduct } from '@/server/actions'
+import { useRouter } from 'next/navigation'
 
 interface AddProductModalProps {
   isOpen: boolean
   onClose: () => void
-  onAddProduct: (product: any) => void
 }
 
-export function AddProductModal({ isOpen, onClose, onAddProduct }: AddProductModalProps) {
+export function AddProductModal({ isOpen, onClose, }: AddProductModalProps) {
   const [productName, setProductName] = useState('')
   const [price, setPrice] = useState('')
   const [stock, setStock] = useState('')
   const [category, setCategory] = useState('')
   const [image, setImage] = useState<File | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const router = useRouter();
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    const newProduct = {
+  // Update the handleSubmit function in your AddProductModal component
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+  
+  if (!image) {
+    toast({
+      title: "Error",
+      description: "Please select an image",
+      variant: "destructive",
+    });
+    return;
+  }
+
+  try {
+    const result = await addProduct({
       name: productName,
       price: parseFloat(price),
       stock: parseInt(stock, 10),
       category,
-      image: image
+      image: image,
+    });
+
+    if (result.status === "Success") {
+      toast({
+        title: "Success",
+        description: "Product added successfully",
+      });
+      onClose();
+      // Reset form
+      setProductName('');
+      setPrice('');
+      setStock('');
+      setCategory('');
+      setImage(null);
+
+      router.refresh();
+    } else {
+      toast({
+        title: "Error",
+        description: result.message,
+        variant: "destructive",
+      });
     }
-    onAddProduct(newProduct)
-    onClose()
-    // Reset form
-    setProductName('')
-    setPrice('')
-    setStock('')
-    setCategory('')
-    setImage(null)
+  } catch (error) {
+    console.log(error);
+    toast({
+      title: "Error",
+      description: "Failed to add product",
+      variant: "destructive",
+    });
   }
+};
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
