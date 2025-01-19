@@ -19,24 +19,33 @@ model Pelanggan {
   nama             String @default("Guest")
   alamat           String?
   nomorTelepon     String?
+  points         Int         @default(0)
   penjualan        Penjualan[]
 }
 
+model Guest {
+  guestId        Int         @id @default(autoincrement())
+  penjualan      Penjualan[]
+}
+
 model Penjualan {
-  penjualanId        Int            @id @default(autoincrement())
+  penjualanId        Int               @id @default(autoincrement())
   tanggalPenjualan   DateTime          @default(now())
   total_harga        Float
-  pelangganId        Int
-  pelanggan          Pelanggan       @relation(fields: [pelangganId], references: [pelangganId])
+  pelangganId        Int?
+  guestId            Int?
+  pelanggan          Pelanggan?        @relation(fields: [pelangganId], references: [pelangganId])
+  guest              Guest?            @relation(fields: [guestId], references: [guestId])
   detailPenjualan    DetailPenjualan[]
 }
+
 
 model DetailPenjualan {
   detailId          Int       @id @default(autoincrement())
   penjualanId       Int
   penjualan         Penjualan  @relation(fields: [penjualanId], references: [penjualanId])
   produkId          Int
-  produk            Produk    @relation(fields: [produkId], references: [produkId])
+  produk            Produk    @relation(fields: [produkId], references: [produkId], onDelete: Restrict)
   kuantitas         Int
   subtotal          Int
 }
@@ -47,8 +56,9 @@ model Produk {
   harga           Int
   stok            Int
   kategori        String
+  isDeleted       Boolean           @default(false) // Soft delete
   image           String
-  detailPenjualan DetailPenjualan[]
+  detailPenjualan DetailPenjualan[] 
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
 }
