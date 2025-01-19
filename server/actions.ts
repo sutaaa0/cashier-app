@@ -3,8 +3,20 @@ import { cookies } from "next/headers";
 import { prisma } from "@/lib/db";
 import bcrypt from "bcryptjs";
 import * as jose from "jose";
-import { Penjualan, Produk } from "@prisma/client";
+import { Produk } from "@prisma/client";
 import { CreateOrderDetail, Product } from "@/types/types";
+import { revalidatePath } from "next/cache";
+
+export type Penjualan = {
+  pelangganId?: number;
+  guestId?: number;
+  total_harga: number;
+  detailPenjualan: Array<{
+    produkId: number;
+    kuantitas: number;
+    subtotal: number;
+  }>;
+};
 
 // Create JWT token using jose
 async function createToken(payload: { userId: number; username: string; role: string }) {
@@ -139,61 +151,20 @@ function transformProduct(product: Produk): Product {
     harga: product.harga,
     kategori: product.kategori,
     image: product.image,
-    stok: product.stok
+    stok: product.stok,
   };
 }
 
 // Get all products
 export async function getProducts() {
   const products = await prisma.produk.findMany({
-    orderBy: { nama: 'asc' }
+    orderBy: { nama: "asc" },
+    where: {
+      isDeleted: false,
+    },
   });
+
   return products;
-}
-
-export async function createOrder(orderData: Penjualan) {
-  try {
-    return await prisma.$transaction(async (prisma) => {
-      // Ensure customer exists
-      let pelanggan = await prisma.pelanggan.findUnique({
-        where: { pelangganId: orderData.pelangganId }
-      });
-
-      if (!pelanggan) {
-        pelanggan = await prisma.pelanggan.create({
-          data: {
-            nama: "Walk-in Customer",
-            alamat: "-",
-            nomorTelepon: "-"
-          }
-        });
-      }
-
-      // Create order with valid customer
-      const penjualan = await prisma.penjualan.create({
-        data: {
-          pelangganId: pelanggan.pelangganId,
-          total_harga: orderData.total_harga,
-          tanggalPenjualan: new Date(),
-          detailPenjualan: {
-            create: orderData.detailPenjualan.map(item => ({
-              produkId: item.produkId,
-              kuantitas: item.kuantitas,
-              subtotal: item.subtotal
-            }))
-          }
-        },
-        include: {
-          detailPenjualan: true
-        }
-      });
-
-      return penjualan;
-    });
-  } catch (error) {
-    console.error("Error creating order:", error);
-    throw error;
-  }
 }
 
 export async function createDetailOrder(detailOrderData: CreateOrderDetail) {
@@ -202,8 +173,8 @@ export async function createDetailOrder(detailOrderData: CreateOrderDetail) {
       penjualanId: detailOrderData.penjualanId,
       produkId: detailOrderData.produkId,
       kuantitas: detailOrderData.kuantitas,
-      subtotal: detailOrderData.subtotal
-    }
+      subtotal: detailOrderData.subtotal,
+    },
   });
 }
 
@@ -211,8 +182,8 @@ export async function createDetailOrder(detailOrderData: CreateOrderDetail) {
 export async function getProductsByCategory(category: string): Promise<Product[]> {
   const products = await prisma.produk.findMany({
     where: {
-      kategori: category === "All Menu" ? undefined : category
-    }
+      kategori: category === "All Menu" ? undefined : category,
+    },
   });
   return products.map(transformProduct);
 }
@@ -223,9 +194,9 @@ export async function searchProducts(query: string): Promise<Product[]> {
     where: {
       nama: {
         contains: query,
-        mode: 'insensitive'
-      }
-    }
+        mode: "insensitive",
+      },
+    },
   });
   return products.map(transformProduct);
 }
@@ -234,27 +205,137 @@ export async function searchProducts(query: string): Promise<Product[]> {
 export async function getProductStock(productId: string): Promise<number> {
   const product = await prisma.produk.findUnique({
     where: { produkId: parseInt(productId) },
-    select: { stok: true }
+    select: { stok: true },
   });
   return product?.stok ?? 0;
 }
 
-export async function createCustomer(customerData: { 
-  nama: string; 
-  alamat: string; 
-  nomorTelepon: string 
-}) {
+export async function deleteProduct(productId: number) {
+  const deleteProduk = await prisma.produk.update({
+    where: {
+      produkId: productId,
+    },
+    data: {
+      isDeleted: true,
+    },
+  });
+
+  return {
+    status: "Success",
+    data: deleteProduk,
+  };
+}
+
+export async function createOrder(orderData: Penjualan & { redeemedPoints?: number }) {
+  console.log("server actions createOrder:", orderData);
+  try {
+    return await prisma.$transaction(async (prisma) => {
+      let penjualanData: any = {
+        total_harga: orderData.total_harga,
+        tanggalPenjualan: new Date(),
+        detailPenjualan: {
+          create: orderData.detailPenjualan.map((item) => ({
+            produkId: item.produkId,
+            kuantitas: item.kuantitas,
+            subtotal: item.subtotal,
+          })),
+        },
+      };
+
+      if (orderData.pelangganId) {
+        // For member purchases
+        const pelanggan = await prisma.pelanggan.findUnique({
+          where: { pelangganId: orderData.pelangganId },
+        });
+
+        if (!pelanggan) {
+          throw new Error("Customer not found");
+        }
+
+        penjualanData.pelangganId = orderData.pelangganId;
+
+        // Calculate points to be awarded (200 rupiah = 1 point)
+        const pointsToAward = Math.floor(orderData.total_harga / 200);
+        console.log("Server : Points to award:", pointsToAward);
+
+        // Update member's points
+        await prisma.pelanggan.update({
+          where: { pelangganId: orderData.pelangganId },
+          data: { points: { increment: pointsToAward } },
+        });
+
+        // Apply redeemed points if any
+        if (orderData.redeemedPoints && orderData.redeemedPoints > 0) {
+          penjualanData.total_harga = Math.max(penjualanData.total_harga - orderData.redeemedPoints, 0);
+        }
+      } else if (orderData.guestId) {
+        // For guest purchases
+        penjualanData.guestId = orderData.guestId;
+      } else {
+        // If neither pelangganId nor guestId is provided, create a new guest
+        const guest = await prisma.guest.create({ data: {} });
+        penjualanData.guestId = guest.guestId;
+      }
+
+      const penjualan = await prisma.penjualan.create({
+        data: penjualanData,
+        include: {
+          detailPenjualan: true,
+          pelanggan: true,
+          guest: true,
+        },
+      });
+
+      return penjualan;
+    });
+  } catch (error) {
+    console.error("Error creating order:", error);
+    throw error;
+  }
+}
+
+export async function getCustomers(query: string) {
+  const customers = await prisma.pelanggan.findMany({
+    where: {
+      OR: [{ nama: { contains: query, mode: "insensitive" } }, { nomorTelepon: { contains: query, mode: "insensitive" } }],
+    },
+  });
+  return customers;
+}
+
+export async function createCustomer(customerData: { nama: string; alamat: string; nomorTelepon: string }) {
   try {
     const customer = await prisma.pelanggan.create({
-      data: {
-        nama: customerData.nama,
-        alamat: customerData.alamat,
-        nomorTelepon: customerData.nomorTelepon,
-      },
+      data: customerData,
     });
-    return { status: "Success", data: customer, code: 200 };
+    return { status: "Success", data: customer };
   } catch (error) {
     console.error("Error creating customer:", error);
-    return { status: "Failed", message: "Gagal membuat pelanggan", code: 500 };
+    return { status: "Error", message: "Failed to create customer" };
   }
+}
+
+export async function getMemberPoints(pelangganId: number) {
+  const member = await prisma.pelanggan.findUnique({
+    where: { pelangganId },
+    select: { points: true },
+  });
+  return member?.points || 0;
+}
+
+export async function redeemPoints(pelangganId: number, pointsToRedeem: number) {
+  const member = await prisma.pelanggan.findUnique({
+    where: { pelangganId },
+  });
+
+  if (!member || member.points < pointsToRedeem) {
+    throw new Error("Insufficient points");
+  }
+
+  await prisma.pelanggan.update({
+    where: { pelangganId },
+    data: { points: { decrement: pointsToRedeem } },
+  });
+
+  return pointsToRedeem;
 }
