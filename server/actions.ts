@@ -6,6 +6,8 @@ import * as jose from "jose";
 import { Produk } from "@prisma/client";
 import { CreateOrderDetail, Product } from "@/types/types";
 import { revalidatePath } from "next/cache";
+import { v2 as cloudinary } from "cloudinary";
+import { get } from "http";
 
 export type Penjualan = {
   pelangganId?: number;
@@ -338,4 +340,96 @@ export async function redeemPoints(pelangganId: number, pointsToRedeem: number) 
   });
 
   return pointsToRedeem;
+}
+
+// Configure Cloudinary
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
+
+// Type for the response
+interface ActionResponse {
+  status: "Success" | "Error";
+  message: string;
+  data?: any;
+}
+
+// Helper function to upload image to Cloudinary
+async function uploadToCloudinary(file: File): Promise<string> {
+  try {
+    // Convert file to base64
+    const bytes = await file.arrayBuffer();
+    const buffer = Buffer.from(bytes);
+    const base64String = buffer.toString("base64");
+    const dataURI = `data:${file.type};base64,${base64String}`;
+
+    // Upload to Cloudinary
+    const result = await new Promise((resolve, reject) => {
+      cloudinary.uploader.upload(
+        dataURI,
+        {
+          folder: "products", // Customize your folder name
+        },
+        (error, result) => {
+          if (error) reject(error);
+          resolve(result);
+        }
+      );
+    });
+
+    // Return the secure URL from Cloudinary
+    return (result as any).secure_url;
+  } catch (error) {
+    console.error("Error uploading to Cloudinary:", error);
+    throw new Error("Failed to upload image");
+  }
+}
+
+// Server action to add a new product
+export async function addProduct(formData: { name: string; price: number; stock: number; category: string; image: File }): Promise<ActionResponse> {
+  try {
+    // Upload image to Cloudinary
+    const imageUrl = await uploadToCloudinary(formData.image);
+
+    // Create product in database
+    const product = await prisma.produk.create({
+      data: {
+        nama: formData.name,
+        harga: formData.price,
+        stok: formData.stock,
+        kategori: formData.category,
+        image: imageUrl,
+      },
+    });
+
+    // Revalidate the products page
+    revalidatePath("/dashboard-admin");
+
+    const getProduk = await getProducts();
+    if(getProduk) {
+      console.log("berhasil")
+    }
+
+    return {
+      status: "Success",
+      message: "Product added successfully",
+      data: product,
+    };
+  } catch (error) {
+    console.error("Error adding product:", error);
+    return {
+      status: "Error",
+      message: error instanceof Error ? error.message : "Failed to add product",
+    };
+  }
+}
+
+export async function testing() {
+
+  revalidatePath("/testing");
+  return {
+    status: "Success",
+  };
 }
