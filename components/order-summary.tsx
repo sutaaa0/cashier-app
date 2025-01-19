@@ -1,142 +1,205 @@
-"use client";
+"use client"
 
-import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Pencil, Minus, Plus, Trash2 } from "lucide-react";
-import Image from "next/image";
-import { Penjualan, DetailPenjualan, Produk } from "@prisma/client";
-import { CustomerInput } from "./CustomerInput";
-import { createCustomer } from "@/server/actions";
-import { toast } from "@/hooks/use-toast";
+import { useState, forwardRef, useImperativeHandle, useCallback } from "react"
+import Image from "next/image"
+import { Pencil, Minus, Plus, Trash2 } from 'lucide-react'
+import { Penjualan, DetailPenjualan, Produk } from "@prisma/client"
+import { NeoCustomerInput } from "./CustomerInput"
+import { toast } from "@/hooks/use-toast"
+import { getMemberPoints, redeemPoints } from "@/server/actions"
 
 interface OrderSummaryProps {
-  order: Penjualan & { detailPenjualan: (DetailPenjualan & { produk: Produk })[] };
-  onUpdateQuantity?: (produkId: number, quantity: number) => void;
-  onEditItem?: (item: DetailPenjualan & { produk: Produk }) => void;
-  onDeleteItem?: (produkId: number) => void;
-  onPlaceOrder?: (customerData: { nama: string; alamat: string; nomorTelepon: string }) => void;
+  order: Penjualan & { detailPenjualan: (DetailPenjualan & { produk: Produk })[] }
+  onUpdateQuantity?: (produkId: number, quantity: number) => void
+  onEditItem?: (item: DetailPenjualan & { produk: Produk }) => void
+  onDeleteItem?: (produkId: number) => void
+  onPlaceOrder?: (orderData: Penjualan & { redeemedPoints?: number; pelangganId?: number; guestId?: number }) => void
+  isLoading: boolean
 }
 
-export function OrderSummary({ order, onUpdateQuantity, onEditItem, onDeleteItem, onPlaceOrder }: OrderSummaryProps) {
-  const [showCustomerInput, setShowCustomerInput] = useState(false);
-  const [customerData, setCustomerData] = useState<{ nama: string; alamat: string; nomorTelepon: string } | null>(null);
+export const NeoOrderSummary = forwardRef<{ resetCustomerData: () => void }, OrderSummaryProps>(
+  ({ order, onUpdateQuantity, onEditItem, onDeleteItem, onPlaceOrder, isLoading }, ref) => {
+    const [showCustomerInput, setShowCustomerInput] = useState(false)
+    const [customerData, setCustomerData] = useState<{ pelangganId?: number; guestId?: number; nama?: string; alamat?: string; nomorTelepon?: string } | null>(null)
+    const [memberPoints, setMemberPoints] = useState(0)
+    const [redeemedPoints, setRedeemedPoints] = useState(0)
 
-  const formatTotal = (amount: number) => {
-    return new Intl.NumberFormat("id-ID", {
-      style: "currency",
-      currency: "IDR",
-    }).format(amount);
-  };
-
-  const handleCustomerSubmit = async (data: { nama: string; alamat: string; nomorTelepon: string }) => {
-    try {
-      const result = await createCustomer(data);
-      if (result.status === "Success") {
-        setCustomerData(data);
-        setShowCustomerInput(false);
-        
-        if (onPlaceOrder) {
-          onPlaceOrder(result.data);
-        }
-      } else {
-        throw new Error(result.message);
+    useImperativeHandle(ref, () => ({
+      resetCustomerData: () => {
+        setCustomerData(null)
+        setShowCustomerInput(false)
+        setMemberPoints(0)
+        setRedeemedPoints(0)
       }
-    } catch (error) {
-      console.log(error);
+    }))
+
+    const formatTotal = (amount: number) => {
+      return new Intl.NumberFormat("id-ID", {
+        style: "currency",
+        currency: "IDR",
+      }).format(amount)
+    }
+
+    const handleCustomerSubmit = async (data: { pelangganId?: number; guestId?: number; nama?: string; alamat?: string; nomorTelepon?: string }) => {
+      setCustomerData(data)
+      setShowCustomerInput(false)
+      if (data.pelangganId) {
+        const points = await getMemberPoints(data.pelangganId)
+        setMemberPoints(points)
+      }
       toast({
-        title: "Error",
-        description: "Gagal menyimpan data pelanggan",
-        variant: "destructive"
-      });
+        title: "Berhasil",
+        description: "Data pelanggan berhasil disimpan"
+      })
     }
-  };
-
-  const handlePlaceOrder = () => {
-    if (customerData && onPlaceOrder) {
-      onPlaceOrder(customerData);
-    } else {
-      setShowCustomerInput(true);
+  
+    const handlePlaceOrder = () => {
+      if (onPlaceOrder) {
+        const totalAfterDiscount = Math.max(order.total_harga - redeemedPoints, 0)
+        const hargaFinal = totalAfterDiscount + redeemedPoints
+        onPlaceOrder({
+          ...order,
+          total_harga: hargaFinal,
+          pelangganId: customerData?.pelangganId,
+          guestId: customerData?.guestId,
+          redeemedPoints: redeemedPoints,
+        })
+      }
     }
-  };
 
-  return (
-    <div className="p-4 border-l min-w-[400px] flex flex-col h-[calc(100vh-64px)]">
-      <div className="mb-4">
-        <h2 className="text-lg font-semibold">Order #{order.penjualanId}</h2>
-      </div>
+    const handleRedeemPoints = useCallback(async () => {
+      if (customerData?.pelangganId) {
+        try {
+          const points = await getMemberPoints(customerData.pelangganId)
+          if (points > 0) {
+            const redeemed = await redeemPoints(customerData.pelangganId, points)
+            setRedeemedPoints(redeemed)
+            setMemberPoints(points - redeemed)
+          }
+        } catch (error) {
+          console.error("Error redeeming points:", error)
+          toast({
+            title: "Error",
+            description: "Gagal menukarkan poin",
+            variant: "destructive",
+          })
+        }
+      }
+    }, [customerData])
 
-      <div className="flex-1 overflow-y-auto">
-        {order.detailPenjualan.length === 0 ? (
-          <div className="text-center text-muted-foreground py-8">No Item Selected</div>
-        ) : (
-          <div className="space-y-4">
-            {order.detailPenjualan.map((item) => (
-              <div key={item.produkId} className="flex items-center gap-4 bg-gray-50 p-3 rounded-lg">
-                <div className="relative w-16 h-16">
-                  <Image src={item.produk.image} alt={item.produk.nama} fill className="object-cover rounded-lg" />
-                </div>
-                <div className="flex-1">
-                  <div className="flex items-center justify-between">
-                    <h3 className="font-medium">{item.produk.nama}</h3>
-                    <div className="flex items-center gap-2">
-                      <button onClick={() => onEditItem?.(item)} className="text-gray-400 hover:text-gray-600">
-                        <Pencil className="h-4 w-4" />
-                      </button>
-                      <button onClick={() => onDeleteItem?.(item.produkId)} className="text-red-400 hover:text-red-600">
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </div>
+    return (
+      <div className="p-4 border-4 border-black min-w-[400px] flex flex-col h-[calc(100vh-64px)] bg-[#e8f1fe] font-mono">
+        <div className="flex-1 overflow-y-auto">
+          {order.detailPenjualan.length === 0 ? (
+            <div className="text-center text-black py-8 font-bold">No Item Selected</div>
+          ) : (
+            <div className="space-y-4">
+              {order.detailPenjualan.map((item) => (
+                <div key={item.produkId} className="flex items-center gap-4 bg-white p-3 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+                  <div className="relative w-16 h-16 border-2 border-black">
+                    <Image src={item.produk.image || "/placeholder.svg"} alt={item.produk.nama} fill className="object-cover" />
                   </div>
-                  <div className="text-gray-500">Rp{item.produk.harga.toLocaleString()}</div>
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between">
+                      <h3 className="font-bold">{item.produk.nama}</h3>
+                      <div className="flex items-center gap-2">
+                        <button onClick={() => onEditItem?.(item)} className="text-black hover:bg-black hover:text-white p-1">
+                          <Pencil className="h-4 w-4" />
+                        </button>
+                        <button onClick={() => onDeleteItem?.(item.produkId)} className="text-black hover:bg-black hover:text-white p-1">
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </div>
+                    <div className="text-black">Rp{item.produk.harga.toLocaleString()}</div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={() => {
+                        if (item.kuantitas > 1) {
+                          onUpdateQuantity?.(item.produkId, item.kuantitas - 1)
+                        }
+                      }}
+                      disabled={item.kuantitas <= 1}
+                      className="w-8 h-8 flex items-center justify-center border-2 border-black hover:bg-black hover:text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <Minus className="h-4 w-4" />
+                    </button>
+                    <span className="w-4 text-center">{item.kuantitas}</span>
+                    <button 
+                      onClick={() => onUpdateQuantity?.(item.produkId, item.kuantitas + 1)} 
+                      className="w-8 h-8 flex items-center justify-center border-2 border-black hover:bg-black hover:text-white"
+                    >
+                      <Plus className="h-4 w-4" />
+                    </button>
+                  </div>
                 </div>
-                <div className="flex items-center gap-3">
-                  <button
-                    onClick={() => {
-                      if (item.kuantitas > 1) {
-                        onUpdateQuantity?.(item.produkId, item.kuantitas - 1);
-                      }
-                    }}
-                    disabled={item.kuantitas <= 1}
-                    className="w-8 h-8 flex items-center justify-center border rounded-full hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <Minus className="h-4 w-4" />
-                  </button>
-                  <span className="w-4 text-center">{item.kuantitas}</span>
-                  <button onClick={() => onUpdateQuantity?.(item.produkId, item.kuantitas + 1)} className="w-8 h-8 flex items-center justify-center border rounded-full hover:bg-gray-100">
-                    <Plus className="h-4 w-4" />
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+              ))}
+            </div>
+          )}
+        </div>
 
-      <div className="space-y-4 pt-4 border-t mt-4">
-        <div className="flex justify-between text-gray-600">
-          <span>Subtotal</span>
-          <span>Rp{formatTotal(order.total_harga)}</span>
+        <div className="space-y-4 pt-4 border-t-4 border-black mt-4">
+          <div className="flex justify-between text-black font-bold">
+            <span>Subtotal</span>
+            <span>Rp{formatTotal(order.total_harga)}</span>
+          </div>
+          {redeemedPoints > 0 && (
+            <div className="flex justify-between text-green-600 font-bold">
+              <span>Potongan Poin</span>
+              <span>-Rp{formatTotal(redeemedPoints)}</span>
+            </div>
+          )}
+          <div className="flex justify-between font-bold text-xl">
+            <span>TOTAL</span>
+            <span>Rp{formatTotal(order.total_harga - redeemedPoints)}</span>
+          </div>
+          {customerData?.pelangganId && (
+            <div className="flex justify-between items-center">
+              <span className="font-bold">Poin Member: {memberPoints}</span>
+              <button 
+                onClick={handleRedeemPoints} 
+                disabled={memberPoints === 0 || redeemedPoints > 0}
+                className="px-4 py-2 bg-black text-white font-bold border-2 border-black hover:bg-white hover:text-black transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Tukar Poin
+              </button>
+            </div>
+          )}
+          <div className="flex items-center gap-2">
+            <input 
+              placeholder="Add Promo or Voucher" 
+              className="w-full px-4 py-2 border-2 border-black focus:outline-none focus:ring-2 focus:ring-black font-bold"  
+            />
+            <button className="px-4 py-2 bg-black text-white font-bold border-2 border-black hover:bg-white hover:text-black transition-colors">
+              Apply
+            </button>
+          </div>
+          <button className="w-full px-4 py-2 bg-black text-white font-bold border-2 border-black hover:bg-white hover:text-black transition-colors">
+            Payment Method
+          </button>
+          {showCustomerInput ? (
+            <NeoCustomerInput onSubmit={handleCustomerSubmit} onCancel={() => setShowCustomerInput(false)} />
+          ) : (
+            <button 
+              className="w-full px-4 py-2 bg-white text-black font-bold border-2 border-black hover:bg-black hover:text-white transition-colors" 
+              onClick={() => setShowCustomerInput(true)}
+            >
+              {customerData ? `${customerData.pelangganId ? 'Member' : 'Guest'}: ${customerData.nama || 'Unknown'}` : "Enter Customer Information"}
+            </button>
+          )}
+          <button 
+            className="w-full px-4 py-2 bg-black text-white font-bold border-2 border-black hover:bg-white hover:text-black transition-colors" 
+            onClick={handlePlaceOrder} 
+            disabled={isLoading}
+          >
+            {isLoading ? "Processing..." : "Place Order"}
+          </button>
         </div>
-        <div className="flex justify-between font-bold">
-          <span>TOTAL</span>
-          <span>Rp{order.total_harga.toLocaleString()}</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <Input placeholder="Add Promo or Voucher" />
-          <Button variant="outline" className="shrink-0">
-            Apply
-          </Button>
-        </div>
-        <Button className="w-full">Payment Method</Button>
-        {showCustomerInput ? (
-          <CustomerInput onSubmit={handleCustomerSubmit} onCancel={() => setShowCustomerInput(false)} />
-        ) : (
-          <Button className="w-full" variant="default" onClick={handlePlaceOrder}>
-            {customerData ? "Place Order" : "Enter Customer Information"}
-          </Button>
-        )}
       </div>
-    </div>
-  );
-}
+    )
+  }
+)
+
+NeoOrderSummary.displayName = 'NeoOrderSummary'
+
