@@ -52,8 +52,6 @@ export function ProductManagement() {
     }
   };
 
-  const handleAddProduct = (product: Produk) => {};
-
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -100,7 +98,7 @@ export function ProductManagement() {
           </div>
         ))}
       </div>
-      <AddProductModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onAddProduct={handleAddProduct} />
+      <AddProductModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
     </div>
   );
 }
