@@ -1,15 +1,14 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Header } from "@/components/header";
 import { CategoryNav } from "@/components/category-nav";
 import { ProductGrid } from "@/components/product-grid";
-import { OrderSummary } from "@/components/order-summary";
-import { Input } from "@/components/ui/input";
-import { Search } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { createOrder, getProducts } from "@/server/actions";
 import { Produk as PrismaProduk, Penjualan, DetailPenjualan } from "@prisma/client";
+import { NeoSearchInput } from "./InputSearch";
+import { NeoOrderSummary } from "./order-summary";
 
 interface Produk extends PrismaProduk {
   image: string;
@@ -17,7 +16,7 @@ interface Produk extends PrismaProduk {
 
 const Pos = () => {
   const [selectedCategory, setSelectedCategory] = useState("All Menu");
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(true); // Added isLoading state
   const [searchQuery, setSearchQuery] = useState("");
   const [products, setProducts] = useState<Produk[]>([]);
 
@@ -29,12 +28,15 @@ const Pos = () => {
     penjualanId: 0,
     tanggalPenjualan: new Date(),
     total_harga: 0,
-    pelangganId: 0,
+    pelangganId: null,
+    guestId: null,
     detailPenjualan: [],
   });
 
+  const orderSummaryRef = useRef<{ resetCustomerData: () => void } | null>(null);
+
   useEffect(() => {
-    fetchProducts();
+      fetchProducts();
   }, []);
 
   const fetchProducts = async () => {
@@ -131,8 +133,8 @@ const Pos = () => {
     });
   };
 
-  const handlePlaceOrder = async (customerData: { pelangganId: number }) => {
-    if (order.detailPenjualan.length === 0) {
+  const handlePlaceOrder = async (orderData: Penjualan & { redeemedPoints?: number }) => {
+    if (orderData.detailPenjualan.length === 0) {
       toast({
         title: "Error",
         description: "Silahkan tambahkan produk terlebih dahulu",
@@ -142,56 +144,87 @@ const Pos = () => {
     }
 
     try {
-      const penjualan = await createOrder({
-        ...order,
-        pelangganId: customerData.pelangganId, // Ensure valid pelangganId
-      });
+      setIsLoading(true);
+      console.log("Creating order with data:", orderData);
+    
+      // Ensure all required fields are present
+      const orderPayload = {
+        ...orderData,
+        pelangganId: orderData.pelangganId || null,
+        guestId: orderData.guestId || null,
+        total_harga: orderData.total_harga,
+        redeemedPoints: orderData.redeemedPoints || 0,
+        detailPenjualan: orderData.detailPenjualan.map(item => ({
+          produkId: item.produkId,
+          kuantitas: item.kuantitas,
+          subtotal: item.subtotal
+        }))
+      };
+
+      const penjualan = await createOrder(orderPayload);
 
       if (penjualan) {
         toast({
           title: "Berhasil",
-          description: `Pesanan berhasil dibuat. Total: Rp${order.total_harga.toLocaleString()}`,
+          description: `Pesanan berhasil dibuat. Total: Rp${(penjualan.total_harga).toLocaleString()}`,
         });
-      }
 
-      // Reset order
-      setOrder({
-        penjualanId: 0,
-        tanggalPenjualan: new Date(),
-        total_harga: 0,
-        pelangganId: 1, // Reset to default customer
-        detailPenjualan: [],
-      });
+        // Reset order and customer data
+        setOrder({
+          penjualanId: 0,
+          tanggalPenjualan: new Date(),
+          total_harga: 0,
+          pelangganId: null,
+          guestId: null,
+          detailPenjualan: [],
+        });
+
+        // Reset customer data in OrderSummary
+        if (orderSummaryRef.current) {
+          orderSummaryRef.current.resetCustomerData();
+        }
+      } else {
+        throw new Error("Failed to create order");
+      }
     } catch (error) {
-      console.error(error);
+      console.error("Error creating order:", error);
       toast({
         title: "Error",
-        description: "Gagal membuat pesanan. Silahkan coba lagi.",
+        description: "Gagal membuat pesanan. Silakan coba lagi.",
         variant: "destructive",
       });
+    } finally {
+      setIsLoading(false);
     }
   };
+
+  const handleSearch = (query: string) => {
+    setSearchQuery(query)
+  }
 
   const filteredProducts = products.filter((product) => (product?.nama || "").toLowerCase().includes(searchQuery.toLowerCase()) && (selectedCategory === "All Menu" || product?.kategori === selectedCategory));
 
   return (
-    <div className="h-screen flex flex-col">
+    <div className="h-screen flex flex-col bg-white">
       <Header />
       <div className="flex flex-1 overflow-hidden">
         <div className="flex-1 flex flex-col overflow-hidden">
           <CategoryNav selected={selectedCategory} onSelect={setSelectedCategory} />
-          <div className="px-4 pb-4">
-            <div className="relative">
-              <Search className="absolute left-2 top-3 h-6 w-6 text-muted-foreground" />
-              <Input placeholder="Cari produk..." className="pl-9 h-12" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
-            </div>
-          </div>
+          <NeoSearchInput onSearch={handleSearch}  />
           <div className="flex-1 overflow-auto">{isLoading ? <div className="flex items-center justify-center h-full">Loading...</div> : <ProductGrid products={filteredProducts} onProductSelect={addToOrder} />}</div>
         </div>
-        <OrderSummary order={order} onUpdateQuantity={handleUpdateQuantity} onDeleteItem={handleDeleteItem} onPlaceOrder={handlePlaceOrder} />
+        <NeoOrderSummary 
+          ref={orderSummaryRef} 
+          order={order} 
+          onUpdateQuantity={handleUpdateQuantity} 
+          onDeleteItem={handleDeleteItem} 
+          onPlaceOrder={handlePlaceOrder}
+          isLoading={isLoading}
+        />
       </div>
     </div>
   );
 };
 
 export default Pos;
+
