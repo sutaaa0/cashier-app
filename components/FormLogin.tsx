@@ -42,7 +42,7 @@ export default function LoginPage() {
           description: "Successfully registered new user.",
         });
 
-        router.push("/home");
+        router.push("/kasir");
 
         console.log(newUser);
       } else {
@@ -81,7 +81,8 @@ export default function LoginPage() {
                   <FormItem>
                     <FormLabel>Username</FormLabel>
                     <FormControl>
-                      <Input placeholder="Username" {...field} />
+                      {/* <Input placeholder="Username" {...field} /> */}
+                      <input {...field} className="w-[25rem] border-black border-2 p-2.5 focus:outline-none focus:shadow-[2px_2px_0px_rgba(0,0,0,1)] focus:bg-[#FFA6F6] active:shadow-[2px_2px_0px_rgba(0,0,0,1)]" placeholder="you@example.com" />
                     </FormControl>
                     <FormDescription>Ini adalah nama tampilan publik Anda.</FormDescription>
                     <FormMessage />
@@ -99,7 +100,9 @@ export default function LoginPage() {
                     <FormLabel>Psssword</FormLabel>
                     <FormControl>
                       <div className="relative">
-                        <Input type={showPassword ? "text" : "password"} placeholder="Password" {...field} />
+                        {/* <Input type={showPassword ? "text" : "password"} placeholder="Password" {...field} />
+                       */}
+                        <input {...field}  type={showPassword ? "text" : "password"} placeholder="Password" {...field}className="w-[25rem] border-black border-2 p-2.5 focus:outline-none focus:shadow-[2px_2px_0px_rgba(0,0,0,1)] focus:bg-[#FFA6F6]  active:shadow-[2px_2px_0px_rgba(0,0,0,1)]" placeholder="you@example.com" />
                         <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-2.5 text-muted-foreground hover:text-foreground">
                           {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                         </button>
@@ -124,11 +127,11 @@ export default function LoginPage() {
               </Link>
             </div>
 
-            <Button className="w-full bg-black text-white hover:bg-black/90" type="submit">
+            <Button className="w-full" type="submit">
               Log in
             </Button>
 
-            <Button variant="outline" className="w-full" type="button">
+            <Button variant="neutral" className="w-full" type="button">
               Log in dengan Google
             </Button>
           </form>
@@ -144,4 +147,3 @@ export default function LoginPage() {
     </div>
   );
 }
-   

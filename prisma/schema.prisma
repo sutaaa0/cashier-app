@@ -8,36 +8,57 @@ datasource db {
 }
 
 model User {
-  id       String          @id @default(cuid())
-  username String       @unique
-  password String
+  id        Int          @id @default(autoincrement())
+  username  String          @unique
+  password  String
   level     String
-  penjualan Penjualan[]
 }
 
-model Produk {
-  id              String               @id @default(cuid())
-  nama            String
-  harga           Int
-  stok            Int
-  detailPenjualan DetailPenjualan[]
+model Pelanggan {
+  pelangganId      Int @id @default(autoincrement())
+  nama             String @default("Guest")
+  alamat           String?
+  nomorTelepon     String?
+  points         Int         @default(0)
+  penjualan        Penjualan[]
+}
+
+model Guest {
+  guestId        Int         @id @default(autoincrement())
+  penjualan      Penjualan[]
 }
 
 model Penjualan {
-  id              String               @id @default(cuid())
-  tanggal         DateTime          @default(now())
-  total_harga     Int
-  user            User?             @relation(fields: [idUser], references: [id])
-  idUser          String?
-  detailPenjualan DetailPenjualan[]
+  penjualanId        Int               @id @default(autoincrement())
+  tanggalPenjualan   DateTime          @default(now())
+  total_harga        Float
+  pelangganId        Int?
+  guestId            Int?
+  pelanggan          Pelanggan?        @relation(fields: [pelangganId], references: [pelangganId])
+  guest              Guest?            @relation(fields: [guestId], references: [guestId])
+  detailPenjualan    DetailPenjualan[]
 }
 
+
 model DetailPenjualan {
-  id          String       @id @default(cuid())
-  penjualan   Penjualan @relation(fields: [idPenjualan], references: [id])
-  idPenjualan String
-  produk      Produk    @relation(fields: [idProduk], references: [id])
-  idProduk    String
-  kuantitas   Int
-  subtotal    Int
+  detailId          Int       @id @default(autoincrement())
+  penjualanId       Int
+  penjualan         Penjualan  @relation(fields: [penjualanId], references: [penjualanId])
+  produkId          Int
+  produk            Produk    @relation(fields: [produkId], references: [produkId], onDelete: Restrict)
+  kuantitas         Int
+  subtotal          Int
+}
+
+model Produk {
+  produkId        Int               @id @default(autoincrement())
+  nama            String
+  harga           Int
+  stok            Int
+  kategori        String
+  isDeleted       Boolean           @default(false) // Soft delete
+  image           String
+  detailPenjualan DetailPenjualan[] 
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
 }

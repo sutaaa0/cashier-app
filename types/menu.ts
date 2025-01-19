@@ -1,4 +1,4 @@
-export interface MenuItem {
+export interface Produk {
     id: string
     name: string
     price: number
@@ -6,7 +6,7 @@ export interface MenuItem {
     image: string
   }
   
-  export interface OrderItem extends MenuItem {
+  export interface OrderItem extends Produk {
     quantity: number
   }
   

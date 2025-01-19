@@ -1,0 +1,4 @@
+-- AlterTable
+ALTER TABLE "Pelanggan" ALTER COLUMN "nama" SET DEFAULT 'Guest',
+ALTER COLUMN "alamat" DROP NOT NULL,
+ALTER COLUMN "nomorTelepon" DROP NOT NULL;
