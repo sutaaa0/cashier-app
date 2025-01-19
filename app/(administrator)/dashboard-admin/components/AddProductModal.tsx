@@ -2,7 +2,6 @@ import React, { useState, useRef } from 'react'
 import { X, Upload } from 'lucide-react'
 import { toast } from '@/hooks/use-toast'
 import { addProduct } from '@/server/actions'
-import { useRouter } from 'next/navigation'
 
 interface AddProductModalProps {
   isOpen: boolean
@@ -16,34 +15,50 @@ export function AddProductModal({ isOpen, onClose, }: AddProductModalProps) {
   const [category, setCategory] = useState('')
   const [image, setImage] = useState<File | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const router = useRouter();
 
   // Update the handleSubmit function in your AddProductModal component
+// Perbarui fungsi handleSubmit di komponen AddProductModal
 const handleSubmit = async (e: React.FormEvent) => {
   e.preventDefault();
   
   if (!image) {
     toast({
       title: "Error",
-      description: "Please select an image",
+      description: "Silahkan pilih gambar",
       variant: "destructive",
     });
     return;
   }
 
   try {
+    // Upload gambar terlebih dahulu
+    const formData = new FormData();
+    formData.append("file", image);
+
+    const uploadResponse = await fetch("/api/upload", {
+      method: "POST",
+      body: formData,
+    });
+
+    if (!uploadResponse.ok) {
+      throw new Error("Gagal mengupload gambar");
+    }
+
+    const uploadResult = await uploadResponse.json();
+
+    // Setelah upload berhasil, tambahkan produk
     const result = await addProduct({
       name: productName,
       price: parseFloat(price),
       stock: parseInt(stock, 10),
       category,
-      image: image,
+      imageUrl: uploadResult.secure_url,
     });
 
     if (result.status === "Success") {
       toast({
-        title: "Success",
-        description: "Product added successfully",
+        title: "Berhasil",
+        description: "Produk berhasil ditambahkan",
       });
       onClose();
       // Reset form
@@ -52,8 +67,6 @@ const handleSubmit = async (e: React.FormEvent) => {
       setStock('');
       setCategory('');
       setImage(null);
-
-      router.refresh();
     } else {
       toast({
         title: "Error",
@@ -65,12 +78,11 @@ const handleSubmit = async (e: React.FormEvent) => {
     console.log(error);
     toast({
       title: "Error",
-      description: "Failed to add product",
+      description: "Gagal menambahkan produk",
       variant: "destructive",
     });
   }
 };
-
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       setImage(e.target.files[0])
