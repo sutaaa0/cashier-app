@@ -1,102 +1,122 @@
-"use client";
-
-import { useEffect, useState } from "react";
-import { Coffee, Trash2, Edit, Plus, Tag } from "lucide-react";
-import Image from "next/image";
-import { AddProductModal } from "@/app/(administrator)/dashboard-admin/components/AddProductModal";
-import { Produk } from "@prisma/client";
-import { deleteProduct, getProducts, updateProduct } from "@/server/actions";
-import { toast } from "@/hooks/use-toast";
-import { useRouter } from "next/navigation";
-import { EditProductModal } from "./EditProductModal";
-import { DeleteConfirmModal } from "./DeleteConfirmModal";
+"use client"
+import { useEffect, useState } from "react"
+import { Coffee, Trash2, Edit, Plus, Tag } from "lucide-react"
+import Image from "next/image"
+import { AddProductModal } from "@/app/(administrator)/dashboard-admin/components/AddProductModal"
+import type { Produk } from "@prisma/client"
+import { deleteProduct, getProducts, updateProduct } from "@/server/actions"
+import { toast } from "@/hooks/use-toast"
+import { EditProductModal } from "./EditProductModal"
+import { DeleteConfirmModal } from "./DeleteConfirmModal"
+import { NeoProgressIndicator } from "./NeoProgresIndicator"
 
 export function ProductManagement() {
-  const [produk, setProduk] = useState<Produk[]>([]);
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  const [selectedProduct, setSelectedProduct] = useState<Produk | null>(null);
-  const router = useRouter();
+  const [produk, setProduk] = useState<Produk[]>([])
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false)
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false)
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
+  const [selectedProduct, setSelectedProduct] = useState<Produk | null>(null)
+  const [isLoading, setIsLoading] = useState(false)
+  const [loadingMessage, setLoadingMessage] = useState("")
 
   useEffect(() => {
-    fetchProducts();
-  }, []);
+    fetchProducts()
+  }, [])
 
   const fetchProducts = async () => {
+    setIsLoading(true)
+    setLoadingMessage("Fetching products...")
     try {
-      const produk = await getProducts();
-      setProduk(produk);
-      return;
-    } catch (error) {
-      throw error;
-    }
-  };
-
-  const handleDeleteClick = (product: Produk) => {
-    setSelectedProduct(product);
-    setIsDeleteModalOpen(true);
-  };
-
-  const handleDeleteProduct = async () => {
-    if (selectedProduct) {
-      try {
-        const deleteProduk = await deleteProduct(selectedProduct.produkId);
-
-        if (deleteProduk.status === "Success") {
-          toast({
-            title: "Success",
-            description: "Produk berhasil dihapus",
-          });
-          fetchProducts();
-        } else {
-          toast({
-            title: "Error",
-            description: "Produk gagal dihapus",
-            variant: "destructive",
-          });
-        }
-      } catch (error) {
-        throw error;
-      }
-    }
-
-    setIsDeleteModalOpen(false);
-    setSelectedProduct(null);
-  };
-
-  const handleEditClick = (product: Produk) => {
-    setSelectedProduct(product);
-    setIsEditModalOpen(true);
-  };
-
-  const handleEditProduct = async (updatedProduct: any) => {
-    try {
-      const result = await updateProduct(updatedProduct);
-
-      if (result.status === "Success") {
-        toast({
-          title: "Berhasil",
-          description: "Produk berhasil diupdate",
-        });
-        fetchProducts();
-        setIsEditModalOpen(false);
-      } else {
-        toast({
-          title: "Error",
-          description: "Gagal mengupdate produk",
-          variant: "destructive",
-        });
-      }
+      const produk = await getProducts()
+      setProduk(produk)
     } catch (error) {
       console.log(error);
       toast({
         title: "Error",
-        description: "Gagal mengupdate produk",
+        description: "Failed to fetch products",
         variant: "destructive",
-      });
+      })
+    } finally {
+      setIsLoading(false)
     }
-  };
+  }
+
+  const handleDeleteClick = (product: Produk) => {
+    setSelectedProduct(product)
+    setIsDeleteModalOpen(true)
+  }
+
+  const handleDeleteProduct = async () => {
+    if (selectedProduct) {
+      setIsLoading(true)
+      setLoadingMessage("Deleting product...")
+      try {
+        const deleteProduk = await deleteProduct(selectedProduct.produkId)
+
+        if (deleteProduk.status === "Success") {
+          toast({
+            title: "Success",
+            description: "Product deleted successfully",
+          })
+          fetchProducts()
+        } else {
+          toast({
+            title: "Error",
+            description: "Failed to delete product",
+            variant: "destructive",
+          })
+        }
+      } catch (error) {
+        console.log(error);
+        toast({
+          title: "Error",
+          description: "An error occurred while deleting the product",
+          variant: "destructive",
+        })
+      } finally {
+        setIsLoading(false)
+        setIsDeleteModalOpen(false)
+        setSelectedProduct(null)
+      }
+    }
+  }
+
+  const handleEditClick = (product: Produk) => {
+    setSelectedProduct(product)
+    setIsEditModalOpen(true)
+  }
+
+  const handleEditProduct = async (updatedProduct: any) => {
+    setIsLoading(true)
+    setLoadingMessage("Updating product...")
+    try {
+      const result = await updateProduct(updatedProduct)
+
+      if (result.status === "Success") {
+        toast({
+          title: "Success",
+          description: "Product updated successfully",
+        })
+        fetchProducts()
+        setIsEditModalOpen(false)
+      } else {
+        toast({
+          title: "Error",
+          description: "Failed to update product",
+          variant: "destructive",
+        })
+      }
+    } catch (error) {
+      console.log(error)
+      toast({
+        title: "Error",
+        description: "An error occurred while updating the product",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -112,11 +132,24 @@ export function ProductManagement() {
       </div>
       <div className="grid gap-4">
         {produk.map((product) => (
-          <div key={product.produkId} className="bg-white border-[3px] border-black p-4 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+          <div
+            key={product.produkId}
+            className="bg-white border-[3px] border-black p-4 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]"
+          >
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-4">
                 <div className="w-16 h-16 bg-[#93B8F3] border-[3px] border-black flex items-center justify-center overflow-hidden">
-                  {product.image ? <Image src={product.image || "/placeholder.svg"} alt={product.nama} width={100} height={100} className="w-full h-full object-cover" /> : <Coffee size={32} />}
+                  {product.image ? (
+                    <Image
+                      src={product.image || "/placeholder.svg"}
+                      alt={product.nama}
+                      width={100}
+                      height={100}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <Coffee size={32} />
+                  )}
                 </div>
                 <div>
                   <h3 className="font-bold text-lg">{product.nama}</h3>
@@ -147,13 +180,32 @@ export function ProductManagement() {
           </div>
         ))}
       </div>
-      {/* Modal Add Product yang sudah ada */}
-      <AddProductModal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} />
-
-      {/* Modal Edit Product */}
-      {selectedProduct && <EditProductModal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} product={selectedProduct} onEditProduct={handleEditProduct} />}
-
-      <DeleteConfirmModal isOpen={isDeleteModalOpen} onClose={() => setIsDeleteModalOpen(false)} onConfirm={handleDeleteProduct} itemName={selectedProduct?.nama || ""} subject="Produk" />
+      <AddProductModal
+        isOpen={isAddModalOpen}
+        onClose={() => setIsAddModalOpen(false)}
+        onProductAdded={() => {
+          setIsLoading(true)
+          setLoadingMessage("Adding new product...")
+          fetchProducts()
+        }}
+      />
+      {selectedProduct && (
+        <EditProductModal
+          isOpen={isEditModalOpen}
+          onClose={() => setIsEditModalOpen(false)}
+          product={selectedProduct}
+          onEditProduct={handleEditProduct}
+        />
+      )}
+      <DeleteConfirmModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        onConfirm={handleDeleteProduct}
+        itemName={selectedProduct?.nama || ""}
+        subject="Product"
+      />
+      <NeoProgressIndicator isLoading={isLoading} message={loadingMessage} />
     </div>
-  );
+  )
 }
+
