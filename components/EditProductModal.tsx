@@ -1,8 +1,9 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { X, Upload } from 'lucide-react';
-import Image from 'next/image';
-import { toast } from '@/hooks/use-toast';
-import { Produk } from '@prisma/client';
+import React, { useState, useRef, useEffect } from "react";
+import { X, Upload } from "lucide-react";
+import Image from "next/image";
+import { toast } from "@/hooks/use-toast";
+import { Produk } from "@prisma/client";
+import { NeoProgressIndicator } from "./NeoProgresIndicator";
 
 interface EditProductModalProps {
   isOpen: boolean;
@@ -18,6 +19,7 @@ export function EditProductModal({ isOpen, onClose, product, onEditProduct }: Ed
   const [category, setCategory] = useState(product.kategori);
   const [image, setImage] = useState<File | null>(null);
   const [currentImageUrl, setCurrentImageUrl] = useState(product.image);
+  const [isLoading, setIsLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Reset form ketika produk berubah
@@ -33,6 +35,7 @@ export function EditProductModal({ isOpen, onClose, product, onEditProduct }: Ed
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    setIsLoading(true);
     try {
       let imageUrl = currentImageUrl;
 
@@ -66,14 +69,15 @@ export function EditProductModal({ isOpen, onClose, product, onEditProduct }: Ed
 
       await onEditProduct(updatedProduct);
       onClose();
-
     } catch (error) {
-        console.log(error);
+      console.log(error);
       toast({
         title: "Error",
         description: "Gagal mengupdate produk",
         variant: "destructive",
       });
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -96,18 +100,15 @@ export function EditProductModal({ isOpen, onClose, product, onEditProduct }: Ed
         </div>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label htmlFor="productName" className="block mb-1 font-bold">Product Name</label>
-            <input
-              type="text"
-              id="productName"
-              value={productName}
-              onChange={(e) => setProductName(e.target.value)}
-              className="w-full p-2 border-[3px] border-black rounded focus:outline-none focus:ring-2 focus:ring-[#93B8F3]"
-              required
-            />
+            <label htmlFor="productName" className="block mb-1 font-bold">
+              Product Name
+            </label>
+            <input type="text" id="productName" value={productName} onChange={(e) => setProductName(e.target.value)} className="w-full p-2 border-[3px] border-black rounded focus:outline-none focus:ring-2 focus:ring-[#93B8F3]" required />
           </div>
           <div>
-            <label htmlFor="price" className="block mb-1 font-bold">Price</label>
+            <label htmlFor="price" className="block mb-1 font-bold">
+              Price
+            </label>
             <input
               type="number"
               id="price"
@@ -120,49 +121,25 @@ export function EditProductModal({ isOpen, onClose, product, onEditProduct }: Ed
             />
           </div>
           <div>
-            <label htmlFor="stock" className="block mb-1 font-bold">Stock</label>
-            <input
-              type="number"
-              id="stock"
-              value={stock}
-              onChange={(e) => setStock(e.target.value)}
-              className="w-full p-2 border-[3px] border-black rounded focus:outline-none focus:ring-2 focus:ring-[#93B8F3]"
-              required
-              min="0"
-            />
+            <label htmlFor="stock" className="block mb-1 font-bold">
+              Stock
+            </label>
+            <input type="number" id="stock" value={stock} onChange={(e) => setStock(e.target.value)} className="w-full p-2 border-[3px] border-black rounded focus:outline-none focus:ring-2 focus:ring-[#93B8F3]" required min="0" />
           </div>
           <div>
-            <label htmlFor="category" className="block mb-1 font-bold">Category</label>
-            <input
-              type="text"
-              id="category"
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-              className="w-full p-2 border-[3px] border-black rounded focus:outline-none focus:ring-2 focus:ring-[#93B8F3]"
-              required
-            />
+            <label htmlFor="category" className="block mb-1 font-bold">
+              Category
+            </label>
+            <input type="text" id="category" value={category} onChange={(e) => setCategory(e.target.value)} className="w-full p-2 border-[3px] border-black rounded focus:outline-none focus:ring-2 focus:ring-[#93B8F3]" required />
           </div>
           <div>
             <label className="block mb-1 font-bold">Current Image</label>
             {currentImageUrl && (
               <div className="mb-2">
-                <Image
-                  src={currentImageUrl}
-                  alt="Current product"
-                  width={100}
-                  height={100}
-                  className="border-2 border-black rounded"
-                />
+                <Image src={currentImageUrl} alt="Current product" width={100} height={100} className="border-2 border-black rounded" />
               </div>
             )}
-            <input
-              type="file"
-              id="image"
-              onChange={handleImageChange}
-              className="hidden"
-              accept="image/*"
-              ref={fileInputRef}
-            />
+            <input type="file" id="image" onChange={handleImageChange} className="hidden" accept="image/*" ref={fileInputRef} />
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
@@ -181,6 +158,7 @@ export function EditProductModal({ isOpen, onClose, product, onEditProduct }: Ed
           </button>
         </form>
       </div>
+      <NeoProgressIndicator isLoading={isLoading} message="Adding new product..." />
     </div>
   );
 }
