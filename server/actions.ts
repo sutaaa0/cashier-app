@@ -7,7 +7,6 @@ import { Produk } from "@prisma/client";
 import { CreateOrderDetail, Product } from "@/types/types";
 import { revalidatePath } from "next/cache";
 import { v2 as cloudinary } from "cloudinary";
-import { get } from "http";
 
 export type Penjualan = {
   pelangganId?: number;
@@ -349,37 +348,6 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-// Helper function to upload image to Cloudinary
-async function uploadToCloudinary(file: File): Promise<string> {
-  try {
-    // Convert file to base64
-    const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
-    const base64String = buffer.toString("base64");
-    const dataURI = `data:${file.type};base64,${base64String}`;
-
-    // Upload to Cloudinary
-    const result = await new Promise((resolve, reject) => {
-      cloudinary.uploader.upload(
-        dataURI,
-        {
-          folder: "products", // Customize your folder name
-        },
-        (error, result) => {
-          if (error) reject(error);
-          resolve(result);
-        }
-      );
-    });
-
-    // Return the secure URL from Cloudinary
-    return (result as any).secure_url;
-  } catch (error) {
-    console.error("Error uploading to Cloudinary:", error);
-    throw new Error("Failed to upload image");
-  }
-}
-
 // Server action to add a new product
 interface ActionResponse {
   status: "Success" | "Error";
@@ -420,5 +388,185 @@ export async function addProduct(
       status: "Error",
       message: error instanceof Error ? error.message : "Gagal menambahkan produk",
     };
+  }
+}
+
+export async function updateProduct(
+  formData: {
+    id: number;
+    name: string;
+    price: number;
+    stock: number;
+    category: string;
+    imageUrl: string;
+  }
+): Promise<ActionResponse> {
+  try {
+    const product = await prisma.produk.update({
+      where: {
+        produkId: formData.id,
+      },
+      data: {
+        nama: formData.name,
+        harga: formData.price,
+        stok: formData.stock,
+        kategori: formData.category,
+        image: formData.imageUrl,
+      },
+    });
+
+    revalidatePath('/dashboard-admin');
+
+    return {
+      status: "Success",
+      message: "Produk berhasil diupdate",
+      data: product,
+    };
+  } catch (error) {
+    console.error('Error mengupdate produk:', error);
+    return {
+      status: "Error",
+      message: error instanceof Error ? error.message : "Gagal mengupdate produk",
+    };
+  }
+}
+
+interface ActionResponse {
+  status: "Success" | "Error";
+  message: string;
+  data?: any;
+}
+
+export async function addUser(formData: {
+  username: string;
+  password: string;
+  level: string;
+}): Promise<ActionResponse> {
+  try {
+    // Cek apakah username sudah ada
+    const existingUser = await prisma.user.findUnique({
+      where: { username: formData.username },
+    });
+
+    if (existingUser) {
+      return {
+        status: "Error",
+        message: "Username sudah digunakan",
+      };
+    }
+
+    // Hash password
+    const hashedPassword = await bcrypt.hash(formData.password, 10);
+
+    const user = await prisma.user.create({
+      data: {
+        username: formData.username,
+        password: hashedPassword,
+        level: formData.level,
+      },
+    });
+
+    revalidatePath('/dashboard-admin');
+
+    return {
+      status: "Success",
+      message: "User berhasil ditambahkan",
+      data: user,
+    };
+  } catch (error) {
+    console.error('Error menambahkan user:', error);
+    return {
+      status: "Error",
+      message: error instanceof Error ? error.message : "Gagal menambahkan user",
+    };
+  }
+}
+
+export async function updateUser(formData: {
+  id: number;
+  username: string;
+  password?: string;
+  level: string;
+}): Promise<ActionResponse> {
+  try {
+    // Cek apakah username sudah ada (kecuali untuk user yang sedang diupdate)
+    const existingUser = await prisma.user.findFirst({
+      where: {
+        username: formData.username,
+        NOT: { id: formData.id },
+      },
+    });
+
+    if (existingUser) {
+      return {
+        status: "Error",
+        message: "Username sudah digunakan",
+      };
+    }
+
+    const updateData: any = {
+      username: formData.username,
+      level: formData.level,
+    };
+
+    // Hanya update password jika ada password baru
+    if (formData.password) {
+      updateData.password = await bcrypt.hash(formData.password, 10);
+    }
+
+    const user = await prisma.user.update({
+      where: { id: formData.id },
+      data: updateData,
+    });
+
+    revalidatePath('/dashboard-admin');
+
+    return {
+      status: "Success",
+      message: "User berhasil diupdate",
+      data: user,
+    };
+  } catch (error) {
+    console.error('Error mengupdate user:', error);
+    return {
+      status: "Error",
+      message: error instanceof Error ? error.message : "Gagal mengupdate user",
+    };
+  }
+}
+
+export async function deleteUser(id: number): Promise<ActionResponse> {
+  try {
+    await prisma.user.delete({
+      where: { id },
+    });
+
+    revalidatePath('/dashboard-admin');
+
+    return {
+      status: "Success",
+      message: "User berhasil dihapus",
+    };
+  } catch (error) {
+    console.error('Error menghapus user:', error);
+    return {
+      status: "Error",
+      message: error instanceof Error ? error.message : "Gagal menghapus user",
+    };
+  }
+}
+
+export async function getUsers() {
+  try {
+    const users = await prisma.user.findMany({
+      select: {
+        id: true,
+        username: true,
+        level: true,
+      },
+    });
+    return users;
+  } catch (error) {
+    throw error;
   }
 }
