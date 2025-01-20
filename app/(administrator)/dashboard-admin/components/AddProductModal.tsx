@@ -1,88 +1,96 @@
-import React, { useState, useRef } from 'react'
-import { X, Upload } from 'lucide-react'
-import { toast } from '@/hooks/use-toast'
-import { addProduct } from '@/server/actions'
+"use client"
+
+import type React from "react"
+import { useState, useRef } from "react"
+import { X, Upload } from "lucide-react"
+import { toast } from "@/hooks/use-toast"
+import { addProduct } from "@/server/actions"
+import { NeoProgressIndicator } from "../../../../components/NeoProgresIndicator"
 
 interface AddProductModalProps {
   isOpen: boolean
   onClose: () => void
+  onProductAdded: () => void
 }
 
-export function AddProductModal({ isOpen, onClose, }: AddProductModalProps) {
-  const [productName, setProductName] = useState('')
-  const [price, setPrice] = useState('')
-  const [stock, setStock] = useState('')
-  const [category, setCategory] = useState('')
+export function AddProductModal({ isOpen, onClose, onProductAdded }: AddProductModalProps) {
+  const [productName, setProductName] = useState("")
+  const [price, setPrice] = useState("")
+  const [stock, setStock] = useState("")
+  const [category, setCategory] = useState("")
   const [image, setImage] = useState<File | null>(null)
+  const [isLoading, setIsLoading] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  // Update the handleSubmit function in your AddProductModal component
-// Perbarui fungsi handleSubmit di komponen AddProductModal
-const handleSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
-  
-  if (!image) {
-    toast({
-      title: "Error",
-      description: "Silahkan pilih gambar",
-      variant: "destructive",
-    });
-    return;
-  }
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
 
-  try {
-    // Upload gambar terlebih dahulu
-    const formData = new FormData();
-    formData.append("file", image);
-
-    const uploadResponse = await fetch("/api/upload", {
-      method: "POST",
-      body: formData,
-    });
-
-    if (!uploadResponse.ok) {
-      throw new Error("Gagal mengupload gambar");
-    }
-
-    const uploadResult = await uploadResponse.json();
-
-    // Setelah upload berhasil, tambahkan produk
-    const result = await addProduct({
-      name: productName,
-      price: parseFloat(price),
-      stock: parseInt(stock, 10),
-      category,
-      imageUrl: uploadResult.secure_url,
-    });
-
-    if (result.status === "Success") {
-      toast({
-        title: "Berhasil",
-        description: "Produk berhasil ditambahkan",
-      });
-      onClose();
-      // Reset form
-      setProductName('');
-      setPrice('');
-      setStock('');
-      setCategory('');
-      setImage(null);
-    } else {
+    if (!image) {
       toast({
         title: "Error",
-        description: result.message,
+        description: "Please select an image",
         variant: "destructive",
-      });
+      })
+      return
     }
-  } catch (error) {
-    console.log(error);
-    toast({
-      title: "Error",
-      description: "Gagal menambahkan produk",
-      variant: "destructive",
-    });
+
+    setIsLoading(true)
+
+    try {
+      const formData = new FormData()
+      formData.append("file", image)
+
+      const uploadResponse = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      })
+
+      if (!uploadResponse.ok) {
+        throw new Error("Failed to upload image")
+      }
+
+      const uploadResult = await uploadResponse.json()
+
+      const result = await addProduct({
+        name: productName,
+        price: Number.parseFloat(price),
+        stock: Number.parseInt(stock, 10),
+        category,
+        imageUrl: uploadResult.secure_url,
+      })
+
+      if (result.status === "Success") {
+        toast({
+          title: "Success",
+          description: "Product added successfully",
+        })
+        onClose()
+        onProductAdded()
+        // Reset form
+        setProductName("")
+        setPrice("")
+        setStock("")
+        setCategory("")
+        setImage(null)
+      } else {
+        toast({
+          title: "Error",
+          description: result.message,
+          variant: "destructive",
+        })
+      }
+    } catch (error) {
+      console.log(error)
+      toast({
+        title: "Error",
+        description: "Failed to add product",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
+    }
   }
-};
+
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       setImage(e.target.files[0])
@@ -102,7 +110,9 @@ const handleSubmit = async (e: React.FormEvent) => {
         </div>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label htmlFor="productName" className="block mb-1 font-bold">Product Name</label>
+            <label htmlFor="productName" className="block mb-1 font-bold">
+              Product Name
+            </label>
             <input
               type="text"
               id="productName"
@@ -113,7 +123,9 @@ const handleSubmit = async (e: React.FormEvent) => {
             />
           </div>
           <div>
-            <label htmlFor="price" className="block mb-1 font-bold">Price</label>
+            <label htmlFor="price" className="block mb-1 font-bold">
+              Price
+            </label>
             <input
               type="number"
               id="price"
@@ -126,7 +138,9 @@ const handleSubmit = async (e: React.FormEvent) => {
             />
           </div>
           <div>
-            <label htmlFor="stock" className="block mb-1 font-bold">Initial Stock</label>
+            <label htmlFor="stock" className="block mb-1 font-bold">
+              Initial Stock
+            </label>
             <input
               type="number"
               id="stock"
@@ -138,7 +152,9 @@ const handleSubmit = async (e: React.FormEvent) => {
             />
           </div>
           <div>
-            <label htmlFor="category" className="block mb-1 font-bold">Category</label>
+            <label htmlFor="category" className="block mb-1 font-bold">
+              Category
+            </label>
             <input
               type="text"
               id="category"
@@ -149,7 +165,9 @@ const handleSubmit = async (e: React.FormEvent) => {
             />
           </div>
           <div>
-            <label htmlFor="image" className="block mb-1 font-bold">Product Image</label>
+            <label htmlFor="image" className="block mb-1 font-bold">
+              Product Image
+            </label>
             <input
               type="file"
               id="image"
@@ -164,7 +182,7 @@ const handleSubmit = async (e: React.FormEvent) => {
               className="w-full px-4 py-2 bg-white font-bold border-[3px] border-black rounded shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none transition-all flex items-center justify-center gap-2"
             >
               <Upload size={20} />
-              {image ? 'Change Image' : 'Upload Image'}
+              {image ? "Change Image" : "Upload Image"}
             </button>
             {image && <p className="mt-2 text-sm">{image.name}</p>}
           </div>
@@ -176,6 +194,7 @@ const handleSubmit = async (e: React.FormEvent) => {
           </button>
         </form>
       </div>
+      <NeoProgressIndicator isLoading={isLoading} message="Adding new product..." />
     </div>
   )
 }
