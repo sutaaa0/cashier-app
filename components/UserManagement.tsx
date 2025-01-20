@@ -1,12 +1,11 @@
 "use client";
-
-import { useState, useEffect } from 'react';
-import { User, Trash2, Edit, Plus } from 'lucide-react';
-import { AddUserModal } from './AddUserModal';
-import { EditUserModal } from './EditUserModal';
-import { DeleteConfirmModal } from './DeleteConfirmModal';
-import { deleteUser, getUsers } from '@/server/actions';
-import { toast } from '@/hooks/use-toast';
+import { useState, useEffect } from "react";
+import { User, Trash2, Edit, Plus } from "lucide-react";
+import { AddUserModal } from "./AddUserModal";
+import { EditUserModal } from "./EditUserModal";
+import { DeleteConfirmModal } from "./DeleteConfirmModal";
+import { deleteUser, getUsers } from "@/server/actions";
+import { toast } from "@/hooks/use-toast";
 
 interface UserData {
   id: number;
@@ -94,11 +93,8 @@ export function UserManagement() {
       </div>
 
       <div className="grid gap-4">
-        {users.map(user => (
-          <div 
-            key={user.id} 
-            className="bg-white border-[3px] border-black p-4 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]"
-          >
+        {users.map((user) => (
+          <div key={user.id} className="bg-white border-[3px] border-black p-4 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-4">
                 <div className="w-12 h-12 bg-[#93B8F3] border-[3px] border-black rounded-full flex items-center justify-center">
@@ -106,13 +102,11 @@ export function UserManagement() {
                 </div>
                 <div>
                   <h3 className="font-bold text-lg">{user.username}</h3>
-                  <span className="inline-block px-2 py-1 bg-gray-100 rounded-full text-sm font-medium capitalize">
-                    {user.level}
-                  </span>
+                  <span className="inline-block px-2 py-1 bg-gray-100 rounded-full text-sm font-medium capitalize">{user.level}</span>
                 </div>
               </div>
               <div className="space-x-2">
-                <button 
+                <button
                   onClick={() => handleEditClick(user)}
                   className="p-2 bg-[#93B8F3] border-[3px] border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none transition-all"
                 >
@@ -153,14 +147,7 @@ export function UserManagement() {
       )}
 
       {/* Modal Konfirmasi Hapus */}
-      <DeleteConfirmModal
-        isOpen={isDeleteModalOpen}
-        onClose={() => setIsDeleteModalOpen(false)}
-        onConfirm={handleDeleteConfirm}
-        itemName={userToDelete?.username || ''}
-        subject='User'
-      />
+      <DeleteConfirmModal isOpen={isDeleteModalOpen} onClose={() => setIsDeleteModalOpen(false)} onConfirm={handleDeleteConfirm} itemName={userToDelete?.username || ""} subject="User" />
     </div>
   );
 }
-
