@@ -3,8 +3,6 @@ import * as React from "react";
 import Link from "next/link";
 import { Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "./ui/form";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -42,7 +40,7 @@ export default function LoginPage() {
           description: "Successfully registered new user.",
         });
 
-        router.push("/kasir");
+        router.push("/");
 
         console.log(newUser);
       } else {
@@ -63,9 +61,6 @@ export default function LoginPage() {
       <div className="w-full max-w-[400px] space-y-8">
         {/* Logo */}
         <div className="text-center">
-          <div className="mx-auto mb-6 h-8 w-8">
-            <h1>Logo</h1>
-          </div>
           <h1 className="text-2xl font-semibold">Welcome back!</h1>
           <p className="mt-2 text-sm text-muted-foreground">Silakan masukkan detail Anda</p>
         </div>
@@ -81,8 +76,7 @@ export default function LoginPage() {
                   <FormItem>
                     <FormLabel>Username</FormLabel>
                     <FormControl>
-                      {/* <Input placeholder="Username" {...field} /> */}
-                      <input {...field} className="w-[25rem] border-black border-2 p-2.5 focus:outline-none focus:shadow-[2px_2px_0px_rgba(0,0,0,1)] focus:bg-[#FFA6F6] active:shadow-[2px_2px_0px_rgba(0,0,0,1)]" placeholder="you@example.com" />
+                      <input {...field} className="w-[25rem] border-black border-2 p-2.5 focus:outline-none focus:shadow-[2px_2px_0px_rgba(0,0,0,1)] focus:bg-[#FFA6F6] active:shadow-[2px_2px_0px_rgba(0,0,0,1)]" placeholder="Username" />
                     </FormControl>
                     <FormDescription>Ini adalah nama tampilan publik Anda.</FormDescription>
                     <FormMessage />
@@ -100,11 +94,9 @@ export default function LoginPage() {
                     <FormLabel>Psssword</FormLabel>
                     <FormControl>
                       <div className="relative">
-                        {/* <Input type={showPassword ? "text" : "password"} placeholder="Password" {...field} />
-                       */}
-                        <input {...field}  type={showPassword ? "text" : "password"} placeholder="Password" {...field}className="w-[25rem] border-black border-2 p-2.5 focus:outline-none focus:shadow-[2px_2px_0px_rgba(0,0,0,1)] focus:bg-[#FFA6F6]  active:shadow-[2px_2px_0px_rgba(0,0,0,1)]" placeholder="you@example.com" />
-                        <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-2.5 text-muted-foreground hover:text-foreground">
-                          {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                        <input {...field}  type={showPassword ? "text" : "password"} placeholder="Password" {...field}className="w-[25rem] border-black border-2 p-2.5 focus:outline-none focus:shadow-[2px_2px_0px_rgba(0,0,0,1)] focus:bg-[#FFA6F6]  active:shadow-[2px_2px_0px_rgba(0,0,0,1)]" />
+                        <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-[30%] text-muted-foreground hover:text-foreground">
+                          {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                         </button>
                       </div>
                     </FormControl>
@@ -116,12 +108,6 @@ export default function LoginPage() {
             </div>
 
             <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <Checkbox id="remember" />
-                <label htmlFor="remember" className="text-sm text-muted-foreground">
-                  Ingat selama 30 hari
-                </label>
-              </div>
               <Link href="/forgot-password" className="text-sm text-muted-foreground hover:text-foreground">
                 Lupa password?
               </Link>
@@ -129,10 +115,6 @@ export default function LoginPage() {
 
             <Button className="w-full" type="submit">
               Log in
-            </Button>
-
-            <Button variant="neutral" className="w-full" type="button">
-              Log in dengan Google
             </Button>
           </form>
         </Form>
