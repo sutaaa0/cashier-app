@@ -3,7 +3,7 @@ import { cookies } from "next/headers";
 import { prisma } from "@/lib/db";
 import bcrypt from "bcryptjs";
 import * as jose from "jose";
-import { Produk } from "@prisma/client";
+import { Pelanggan, Produk } from "@prisma/client";
 import { CreateOrderDetail, Product } from "@/types/types";
 import { revalidatePath } from "next/cache";
 import { v2 as cloudinary } from "cloudinary";
@@ -157,7 +157,66 @@ function transformProduct(product: Produk): Product {
 }
 
 // Get all products
-export async function getProducts() {
+export async function getProducts(category: string) {
+  if (category === "All Menu") {
+    const products = await prisma.produk.findMany({
+      orderBy: { nama: "asc" },
+      where: {
+        isDeleted: false,
+      },
+    });
+
+    return products;
+  } else if (category === "Bread") {
+    const products = await prisma.produk.findMany({
+      orderBy: { nama: "asc" },
+      where: {
+        isDeleted: false,
+        kategori: "Bread",
+      },
+    });
+
+    return products;
+  } else if (category === "Cakes") {
+    const products = await prisma.produk.findMany({
+      orderBy: { nama: "asc" },
+      where: {
+        isDeleted: false,
+        kategori: "Cakes",
+      },
+    });
+    return products;
+  } else if (category === "Donuts") {
+    const products = await prisma.produk.findMany({
+      orderBy: { nama: "asc" },
+      where: {
+        isDeleted: false,
+        kategori: "Donuts",
+      },
+    });
+    return products;
+  } else if (category === "Pastries") {
+    const products = await prisma.produk.findMany({
+      orderBy: { nama: "asc" },
+      where: {
+        isDeleted: false,
+        kategori: "Pastries",
+      },
+    });
+    return products;
+  } else if (category === "Sandwich") {
+    const products = await prisma.produk.findMany({
+      orderBy: { nama: "asc" },
+      where: {
+        isDeleted: false,
+        kategori: "Sandwich",
+      },
+    });
+    return products;
+  }
+}
+
+export async function getAdminProduct() {
   const products = await prisma.produk.findMany({
     orderBy: { nama: "asc" },
     where: {
@@ -355,15 +414,13 @@ interface ActionResponse {
   data?: any;
 }
 
-export async function addProduct(
-  formData: {
-    name: string;
-    price: number;
-    stock: number;
-    category: string;
-    imageUrl: string; // Sekarang menerima URL gambar langsung
-  }
-): Promise<ActionResponse> {
+export async function addProduct(formData: {
+  name: string;
+  price: number;
+  stock: number;
+  category: string;
+  imageUrl: string; // Sekarang menerima URL gambar langsung
+}): Promise<ActionResponse> {
   try {
     const product = await prisma.produk.create({
       data: {
@@ -375,7 +432,7 @@ export async function addProduct(
       },
     });
 
-    revalidatePath('/dashboard-admin');
+    revalidatePath("/dashboard-admin");
 
     return {
       status: "Success",
@@ -383,7 +440,7 @@ export async function addProduct(
       data: product,
     };
   } catch (error) {
-    console.error('Error menambahkan produk:', error);
+    console.error("Error menambahkan produk:", error);
     return {
       status: "Error",
       message: error instanceof Error ? error.message : "Gagal menambahkan produk",
@@ -391,16 +448,7 @@ export async function addProduct(
   }
 }
 
-export async function updateProduct(
-  formData: {
-    id: number;
-    name: string;
-    price: number;
-    stock: number;
-    category: string;
-    imageUrl: string;
-  }
-): Promise<ActionResponse> {
+export async function updateProduct(formData: { id: number; name: string; price: number; stock: number; category: string; imageUrl: string }): Promise<ActionResponse> {
   try {
     const product = await prisma.produk.update({
       where: {
@@ -415,7 +463,7 @@ export async function updateProduct(
       },
     });
 
-    revalidatePath('/dashboard-admin');
+    revalidatePath("/dashboard-admin");
 
     return {
       status: "Success",
@@ -423,7 +471,7 @@ export async function updateProduct(
       data: product,
     };
   } catch (error) {
-    console.error('Error mengupdate produk:', error);
+    console.error("Error mengupdate produk:", error);
     return {
       status: "Error",
       message: error instanceof Error ? error.message : "Gagal mengupdate produk",
@@ -437,11 +485,7 @@ interface ActionResponse {
   data?: any;
 }
 
-export async function addUser(formData: {
-  username: string;
-  password: string;
-  level: string;
-}): Promise<ActionResponse> {
+export async function addUser(formData: { username: string; password: string; level: string }): Promise<ActionResponse> {
   try {
     // Cek apakah username sudah ada
     const existingUser = await prisma.user.findUnique({
@@ -466,7 +510,7 @@ export async function addUser(formData: {
       },
     });
 
-    revalidatePath('/dashboard-admin');
+    revalidatePath("/dashboard-admin");
 
     return {
       status: "Success",
@@ -474,7 +518,7 @@ export async function addUser(formData: {
       data: user,
     };
   } catch (error) {
-    console.error('Error menambahkan user:', error);
+    console.error("Error menambahkan user:", error);
     return {
       status: "Error",
       message: error instanceof Error ? error.message : "Gagal menambahkan user",
@@ -482,12 +526,7 @@ export async function addUser(formData: {
   }
 }
 
-export async function updateUser(formData: {
-  id: number;
-  username: string;
-  password?: string;
-  level: string;
-}): Promise<ActionResponse> {
+export async function updateUser(formData: { id: number; username: string; password?: string; level: string }): Promise<ActionResponse> {
   try {
     // Cek apakah username sudah ada (kecuali untuk user yang sedang diupdate)
     const existingUser = await prisma.user.findFirst({
@@ -519,7 +558,7 @@ export async function updateUser(formData: {
       data: updateData,
     });
 
-    revalidatePath('/dashboard-admin');
+    revalidatePath("/dashboard-admin");
 
     return {
       status: "Success",
@@ -527,7 +566,7 @@ export async function updateUser(formData: {
       data: user,
     };
   } catch (error) {
-    console.error('Error mengupdate user:', error);
+    console.error("Error mengupdate user:", error);
     return {
       status: "Error",
       message: error instanceof Error ? error.message : "Gagal mengupdate user",
@@ -541,14 +580,14 @@ export async function deleteUser(id: number): Promise<ActionResponse> {
       where: { id },
     });
 
-    revalidatePath('/dashboard-admin');
+    revalidatePath("/dashboard-admin");
 
     return {
       status: "Success",
       message: "User berhasil dihapus",
     };
   } catch (error) {
-    console.error('Error menghapus user:', error);
+    console.error("Error menghapus user:", error);
     return {
       status: "Error",
       message: error instanceof Error ? error.message : "Gagal menghapus user",
@@ -569,4 +608,325 @@ export async function getUsers() {
   } catch (error) {
     throw error;
   }
+}
+
+export async function getPelanggan() {
+  try {
+    const pelanggan = await prisma.pelanggan.findMany({
+      select: {
+        nama: true,
+        alamat: true,
+        nomorTelepon: true,
+        points: true,
+        createdAt: true,
+        pelangganId: true,
+      },
+    });
+    return pelanggan;
+  } catch (error) {
+    console.log(error);
+  }
+}
+
+export async function addPelanggan(data: { nama: string; alamat?: string; nomorTelepon?: string }) {
+  try {
+    const newPelanggan = await prisma.pelanggan.create({
+      data: {
+        nama: data.nama,
+        alamat: data.alamat,
+        nomorTelepon: data.nomorTelepon,
+      },
+    });
+    return { status: "Success", data: newPelanggan };
+  } catch (error) {
+    console.error("Error adding customer:", error);
+    return { status: "Error", message: "Failed to add customer" };
+  }
+}
+
+export async function updatePelanggan(data: Pelanggan) {
+  try {
+    const updatedPelanggan = await prisma.pelanggan.update({
+      where: { pelangganId: data.pelangganId },
+      data: {
+        nama: data.nama,
+        alamat: data.alamat,
+        nomorTelepon: data.nomorTelepon,
+        points: data.points,
+      },
+    });
+    return { status: "Success", data: updatedPelanggan };
+  } catch (error) {
+    console.error("Error updating customer:", error);
+    return { status: "Error", message: "Failed to update customer" };
+  }
+}
+
+export async function deletePelanggan(pelangganId: number) {
+  try {
+    await prisma.pelanggan.delete({
+      where: { pelangganId },
+    });
+    return { status: "Success" };
+  } catch (error) {
+    console.error("Error deleting customer:", error);
+    return { status: "Error", message: "Failed to delete customer" };
+  }
+}
+
+export async function getTransactions() {
+  try {
+    const transactions = await prisma.penjualan.findMany({
+      include: {
+        pelanggan: true,
+        guest: true,
+        detailPenjualan: {
+          include: {
+            produk: true,
+          },
+        },
+      },
+      orderBy: {
+        tanggalPenjualan: "desc",
+      },
+    });
+    return { status: "Success", data: transactions };
+  } catch (error) {
+    console.error("Error fetching transactions:", error);
+    return { status: "Error", message: "Failed to fetch transactions" };
+  }
+}
+
+interface StockData {
+  id: number;
+  name: string;
+  currentStock: number;
+  minStock: number;
+  category: string;
+  lastUpdated: string;
+}
+
+interface ApiResponse<T> {
+  status: "Success" | "Error";
+  data?: T;
+  message?: string;
+}
+
+export async function getStockItems(): Promise<ApiResponse<StockData[]>> {
+  try {
+    const products = await prisma.produk.findMany({
+      where: {
+        isDeleted: false,
+      },
+      orderBy: {
+        updatedAt: "desc",
+      },
+    });
+
+    const stockItems: StockData[] = products.map((product) => ({
+      id: product.produkId,
+      name: product.nama,
+      currentStock: product.stok,
+      minStock: 10, // You might want to add this as a column in your Produk model
+      category: product.kategori,
+      lastUpdated: product.updatedAt.toISOString(),
+    }));
+
+    return {
+      status: "Success",
+      data: stockItems,
+    };
+  } catch (error) {
+    console.error("Failed to fetch stock items:", error);
+    return {
+      status: "Error",
+      message: "Failed to fetch stock items",
+    };
+  }
+}
+
+export async function updateStockItem(id: number, newStock: number): Promise<ApiResponse<StockData>> {
+  try {
+    const updatedProduct = await prisma.produk.update({
+      where: {
+        produkId: id,
+        isDeleted: false,
+      },
+      data: {
+        stok: newStock,
+        updatedAt: new Date(),
+      },
+    });
+
+    const updatedItem: StockData = {
+      id: updatedProduct.produkId,
+      name: updatedProduct.nama,
+      currentStock: updatedProduct.stok,
+      minStock: 10, // Consistent with getStockItems
+      category: updatedProduct.kategori,
+      lastUpdated: updatedProduct.updatedAt.toISOString(),
+    };
+
+    revalidatePath("/stock-management"); // Adjust the path as needed
+
+    return {
+      status: "Success",
+      data: updatedItem,
+    };
+  } catch (error) {
+    console.error("Failed to update stock item:", error);
+    return {
+      status: "Error",
+      message: "Failed to update stock item",
+    };
+  }
+}
+
+export async function addStockItem(item: Omit<StockData, "id" | "lastUpdated">): Promise<ApiResponse<StockData>> {
+  try {
+    const newProduct = await prisma.produk.create({
+      data: {
+        nama: item.name,
+        stok: item.currentStock,
+        kategori: item.category,
+        harga: 0, // You'll need to add price to your form or set a default
+        image: "", // You'll need to add image handling or set a default
+        isDeleted: false,
+      },
+    });
+
+    const newItem: StockData = {
+      id: newProduct.produkId,
+      name: newProduct.nama,
+      currentStock: newProduct.stok,
+      minStock: item.minStock,
+      category: newProduct.kategori,
+      lastUpdated: newProduct.updatedAt.toISOString(),
+    };
+
+    revalidatePath("/stock-management"); // Adjust the path as needed
+
+    return {
+      status: "Success",
+      data: newItem,
+    };
+  } catch (error) {
+    console.error("Failed to add stock item:", error);
+    return {
+      status: "Error",
+      message: "Failed to add stock item",
+    };
+  }
+}
+
+export async function deleteStockItem(id: number): Promise<ApiResponse<void>> {
+  try {
+    await prisma.produk.update({
+      where: {
+        produkId: id,
+      },
+      data: {
+        isDeleted: true,
+      },
+    });
+
+    revalidatePath("/stock-management"); // Adjust the path as needed
+
+    return {
+      status: "Success",
+    };
+  } catch (error) {
+    console.error("Failed to delete stock item:", error);
+    return {
+      status: "Error",
+      message: "Failed to delete stock item",
+    };
+  }
+}
+
+export interface ReportData {
+  id: number;
+  name: string;
+  period: string;
+  type: "sales" | "inventory" | "customers";
+  generatedDate: string;
+  summary: string;
+  data: any;
+}
+
+export async function generateReport(type: string): Promise<ReportData> {
+  const currentDate = new Date();
+  const firstDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+
+  let reportData: any = {};
+
+  switch (type) {
+    case "sales":
+      const salesData = await prisma.penjualan.findMany({
+        where: {
+          tanggalPenjualan: {
+            gte: firstDayOfMonth,
+          },
+        },
+        include: {
+          detailPenjualan: {
+            include: {
+              produk: true,
+            },
+          },
+        },
+      });
+
+      const totalSales = salesData.reduce((sum, sale) => sum + sale.total_harga, 0);
+      
+      
+      reportData = {
+        name: "Monthly Sales Report",
+        period: currentDate.toLocaleDateString("en-US", { month: "long", year: "numeric" }),
+        type: "sales",
+        summary: `Total Sales: ${new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(totalSales)} | Orders: ${salesData.length}`,
+        data: salesData,
+      };
+      break;
+
+    case "inventory":
+      const products = await prisma.produk.findMany({
+        where: {
+          isDeleted: false,
+        },
+      });
+
+      const lowStock = products.filter((p) => p.stok < 10).length;
+      reportData = {
+        name: "Inventory Status",
+        period: `Q${Math.floor(currentDate.getMonth() / 3) + 1} ${currentDate.getFullYear()}`,
+        type: "inventory",
+        summary: `Items: ${products.length} | Low Stock: ${lowStock}`,
+        data: products,
+      };
+      break;
+
+    case "customers":
+      const customers = await prisma.pelanggan.findMany({
+        include: {
+          penjualan: true,
+        },
+      });
+
+      const totalPoints = customers.reduce((sum, customer) => sum + customer.points, 0);
+      reportData = {
+        name: "Customer Analytics",
+        period: currentDate.toLocaleDateString("en-US", { month: "long", year: "numeric" }),
+        type: "customers",
+        summary: `Total Customers: ${customers.length} | Total Points: ${totalPoints}`,
+        data: customers,
+      };
+      break;
+  }
+
+  return {
+    ...reportData,
+    id: Date.now(),
+    generatedDate: new Date().toISOString(),
+  };
 }
