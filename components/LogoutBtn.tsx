@@ -35,7 +35,7 @@ const LogoutBtn = () => {
     }
   };
 
-  return <Button onClick={handleLogout} className="font-normalaja">Logout</Button>;
+  return <Button onClick={handleLogout} className="font-normalaja ">Logout</Button>;
 };
 
 export default LogoutBtn;
