@@ -21,6 +21,7 @@ model Pelanggan {
   nomorTelepon     String?
   points         Int         @default(0)
   penjualan        Penjualan[]
+  createdAt       DateTime          @default(now())
 }
 
 model Guest {
