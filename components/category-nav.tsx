@@ -18,7 +18,7 @@ const categories: Category[] = [
     count: 110 
   },
   { 
-    name: "Breads", 
+    name: "Bread", 
     icon: <Cookie className="h-11 w-11" />, 
     color: "#f7768e",
     count: 20 
@@ -48,6 +48,7 @@ const categories: Category[] = [
     count: 20 
   },
 ]
+
 
 export function CategoryNav({ 
   selected = "All Menu", 
