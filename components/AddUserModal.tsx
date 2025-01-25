@@ -12,7 +12,7 @@ interface AddUserModalProps {
 export function AddUserModal({ isOpen, onClose }: AddUserModalProps) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [level, setLevel] = useState('cashier');
+  const [level, setLevel] = useState('PETUGAS');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -93,8 +93,8 @@ export function AddUserModal({ isOpen, onClose }: AddUserModalProps) {
               className="w-full p-2 border-[3px] border-black rounded focus:outline-none focus:ring-2 focus:ring-[#93B8F3]"
               required
             >
-              <option value="cashier">Cashier</option>
-              <option value="admin">Admin</option>
+              <option value="PETUGAS">Petugas</option>
+              <option value="ADMIN">Admin</option>
             </select>
           </div>
           <button
