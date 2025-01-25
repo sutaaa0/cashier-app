@@ -13,7 +13,7 @@ import { AdminSidebar } from '@/components/AdminSidebar'
 import { ProductManagement } from '@/components/ProductManagement'
 
 export default function AdminDashboard() {
-  const [activeSection, setActiveSection] = useState('users')
+  const [activeSection, setActiveSection] = useState('users')  
 
   const renderSection = () => {
     switch (activeSection) {
@@ -39,11 +39,11 @@ export default function AdminDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-[#E8F1FE] font-mono">
+    <div className="h-screen bg-[#E8F1FE] font-mono overflow-y-hidden">
       <AdminHeader />
       <div className="flex">
         <AdminSidebar activeSection={activeSection} setActiveSection={setActiveSection} />
-        <main className="flex-1 p-8">
+        <main className="flex-1 p-8 overflow-scroll h-screen overflow-y-scroll">
           {renderSection()}
         </main>
       </div>
