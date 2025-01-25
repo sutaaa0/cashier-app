@@ -5,10 +5,11 @@ import { Header } from "@/components/header";
 import { CategoryNav } from "@/components/category-nav";
 import { ProductGrid } from "@/components/product-grid";
 import { toast } from "@/hooks/use-toast";
-import { createOrder, getProducts } from "@/server/actions";
+import { createOrder, getCurrentUser, getProducts } from "@/server/actions";
 import { Produk as PrismaProduk, Penjualan, DetailPenjualan } from "@prisma/client";
 import { NeoSearchInput } from "./InputSearch";
 import { NeoOrderSummary } from "./order-summary";
+import { NeoProgressIndicator } from "./NeoProgresIndicator";
 
 interface Produk extends PrismaProduk {
   image: string;
@@ -37,12 +38,12 @@ const Pos = () => {
 
   useEffect(() => {
       fetchProducts();
-  }, []);
+  }, [selectedCategory]);
 
   const fetchProducts = async () => {
     try {
       setIsLoading(true);
-      const data = await getProducts();
+        const data = await getProducts(selectedCategory);
       setProducts(data || []);
     } catch (error) {
       console.error("Error fetching products:", error);
@@ -202,6 +203,8 @@ const Pos = () => {
     setSearchQuery(query)
   }
 
+  console.log("kategory yang diselect :",selectedCategory)
+
   const filteredProducts = products.filter((product) => (product?.nama || "").toLowerCase().includes(searchQuery.toLowerCase()) && (selectedCategory === "All Menu" || product?.kategori === selectedCategory));
 
   return (
@@ -211,7 +214,7 @@ const Pos = () => {
         <div className="flex-1 flex flex-col overflow-hidden">
           <CategoryNav selected={selectedCategory} onSelect={setSelectedCategory} />
           <NeoSearchInput onSearch={handleSearch}  />
-          <div className="flex-1 overflow-auto">{isLoading ? <div className="flex items-center justify-center h-full">Loading...</div> : <ProductGrid products={filteredProducts} onProductSelect={addToOrder} />}</div>
+          <div className="flex-1 overflow-auto">{isLoading ? <NeoProgressIndicator isLoading={isLoading} /> : <ProductGrid products={filteredProducts} onProductSelect={addToOrder} />}</div>
         </div>
         <NeoOrderSummary 
           ref={orderSummaryRef} 
