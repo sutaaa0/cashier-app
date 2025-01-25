@@ -31,7 +31,7 @@ export function NeoProductCard({ product, onClick }: NeoProductCardProps) {
         <h3 className="font-bold text-lg font-mono">{product.nama}</h3>
         <div className="flex items-center justify-between">
           <span className="px-2 py-1 bg-black text-white font-mono text-sm">{product.kategori}</span>
-          <span className="font-bold font-mono text-lg">{formatRupiah(product.harga)}</span>
+          <span className="font-bold font-mono text-sm">{formatRupiah(product.harga)}</span>
         </div>
       </div>
     </div>
