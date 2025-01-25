@@ -15,6 +15,7 @@ import { ProductManagement } from '@/components/ProductManagement'
 export default function AdminDashboard() {
   const [activeSection, setActiveSection] = useState('users')  
 
+
   const renderSection = () => {
     switch (activeSection) {
       case 'users':

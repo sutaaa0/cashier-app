@@ -1,56 +1,56 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { FileText, Eye, Download, Calendar, DollarSign } from "lucide-react"
-import { getTransactions } from "@/server/actions"
-import { toast } from "@/hooks/use-toast"
-import { ViewTransactionModal } from "./ViewTransactionModal"
-import { NeoProgressIndicator } from "@/components/NeoProgresIndicator"
-import * as XLSX from "xlsx"
+import { useState, useEffect } from "react";
+import { FileText, Eye, Download, Calendar, DollarSign } from "lucide-react";
+import { getTransactions } from "@/server/actions";
+import { toast } from "@/hooks/use-toast";
+import { ViewTransactionModal } from "./ViewTransactionModal";
+import { NeoProgressIndicator } from "@/components/NeoProgresIndicator";
+import * as XLSX from "xlsx";
 
 interface TransactionData {
-  penjualanId: number
-  tanggalPenjualan: Date
-  total_harga: number
-  pelanggan?: { nama: string } | null
-  guest?: { guestId: number } | null
-  detailPenjualan: Array<{ produk: { nama: string } }>
+  penjualanId: number;
+  tanggalPenjualan: Date;
+  total_harga: number;
+  pelanggan?: { nama: string } | null;
+  guest?: { guestId: number } | null;
+  detailPenjualan: Array<{ produk: { nama: string } }>;
 }
 
 export function TransactionManagement() {
-  const [transactions, setTransactions] = useState<TransactionData[]>([])
-  const [isLoading, setIsLoading] = useState(false)
-  const [selectedTransaction, setSelectedTransaction] = useState<TransactionData | null>(null)
-  const [isViewModalOpen, setIsViewModalOpen] = useState(false)
+  const [transactions, setTransactions] = useState<TransactionData[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [selectedTransaction, setSelectedTransaction] = useState<TransactionData | null>(null);
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
 
   useEffect(() => {
-    fetchTransactions()
-  }, [])
+    fetchTransactions();
+  }, []);
 
   const fetchTransactions = async () => {
-    setIsLoading(true)
+    setIsLoading(true);
     try {
-      const result = await getTransactions()
+      const result = await getTransactions();
       if (result.status === "Success") {
-        setTransactions(result.data)
+        setTransactions(result.data);
       } else {
         toast({
           title: "Error",
           description: "Failed to fetch transactions",
           variant: "destructive",
-        })
+        });
       }
     } catch (error) {
-      console.error(error)
+      console.error(error);
       toast({
         title: "Error",
         description: "An error occurred while fetching transactions",
         variant: "destructive",
-      })
+      });
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   const convertToExcelData = (transactions: TransactionData[]) => {
     return transactions.map((transaction) => ({
@@ -59,33 +59,33 @@ export function TransactionManagement() {
       Total: transaction.total_harga.toFixed(2),
       Customer: transaction.pelanggan ? transaction.pelanggan.nama : `Guest ${transaction.guest?.guestId}`,
       Items: transaction.detailPenjualan.map((detail) => detail.produk.nama).join(", "),
-    }))
-  }
+    }));
+  };
 
   const handleExportData = () => {
-    const excelData = convertToExcelData(transactions)
-    const worksheet = XLSX.utils.json_to_sheet(excelData)
-    const workbook = XLSX.utils.book_new()
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Transactions")
+    const excelData = convertToExcelData(transactions);
+    const worksheet = XLSX.utils.json_to_sheet(excelData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Transactions");
 
     // Generate Excel file
-    const excelBuffer = XLSX.write(workbook, { bookType: "xlsx", type: "array" })
-    const data = new Blob([excelBuffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" })
+    const excelBuffer = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
+    const data = new Blob([excelBuffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
 
     // Create download link
-    const url = window.URL.createObjectURL(data)
-    const link = document.createElement("a")
-    link.href = url
-    link.setAttribute("download", `Transactions_${new Date().toISOString().split("T")[0]}.xlsx`)
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-  }
+    const url = window.URL.createObjectURL(data);
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", `Transactions_${new Date().toISOString().split("T")[0]}.xlsx`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   const handleViewTransaction = (transaction: TransactionData) => {
-    setSelectedTransaction(transaction)
-    setIsViewModalOpen(true)
-  }
+    setSelectedTransaction(transaction);
+    setIsViewModalOpen(true);
+  };
 
   return (
     <div className="space-y-6">
@@ -101,10 +101,7 @@ export function TransactionManagement() {
       </div>
       <div className="grid gap-4">
         {transactions.map((transaction) => (
-          <div
-            key={transaction.penjualanId}
-            className="bg-white border-[3px] border-black p-4 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]"
-          >
+          <div key={transaction.penjualanId} className="bg-white border-[3px] border-black p-4 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">
                 <div className="p-2 bg-[#93B8F3] border-[3px] border-black">
@@ -119,13 +116,10 @@ export function TransactionManagement() {
                       <Calendar size={16} className="mr-1" />
                       {new Date(transaction.tanggalPenjualan).toLocaleDateString()}
                     </span>
-                    <span className="flex items-center text-sm font-bold">
-                      {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(transaction.total_harga)}
-                    </span>
+                    <span className="flex items-center text-sm font-bold">{new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR" }).format(transaction.total_harga)}</span>
                   </div>
                   <p className="text-sm mt-1">
-                    {transaction.pelanggan ? transaction.pelanggan.nama : `Guest ${transaction.guest?.guestId}`} •
-                    {transaction.detailPenjualan.length} items
+                    {transaction.pelanggan ? transaction.pelanggan.nama : `Guest ${transaction.guest?.guestId}`} •{transaction.detailPenjualan.length} items
                   </p>
                 </div>
               </div>
@@ -141,15 +135,8 @@ export function TransactionManagement() {
           </div>
         ))}
       </div>
-      {selectedTransaction && (
-        <ViewTransactionModal
-          isOpen={isViewModalOpen}
-          onClose={() => setIsViewModalOpen(false)}
-          transaction={selectedTransaction}
-        />
-      )}
+      {selectedTransaction && <ViewTransactionModal isOpen={isViewModalOpen} onClose={() => setIsViewModalOpen(false)} transaction={selectedTransaction} />}
       <NeoProgressIndicator isLoading={isLoading} message="Fetching transactions..." />
     </div>
-  )
+  );
 }
-

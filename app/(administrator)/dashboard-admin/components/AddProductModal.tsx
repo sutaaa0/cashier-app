@@ -6,7 +6,6 @@ import { X, Upload } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
 import { addProduct } from "@/server/actions"
 import { NeoProgressIndicator } from "../../../../components/NeoProgresIndicator"
-
 interface AddProductModalProps {
   isOpen: boolean
   onClose: () => void
@@ -89,6 +88,7 @@ export function AddProductModal({ isOpen, onClose, onProductAdded }: AddProductM
     } finally {
       setIsLoading(false)
     }
+
   }
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {

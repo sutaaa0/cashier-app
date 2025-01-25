@@ -128,8 +128,62 @@ export const NeoOrderSummary = forwardRef<{ resetCustomerData: () => void }, Ord
               </div>
             ))}
           </div>
-        )}
+          {redeemedPoints > 0 && (
+            <div className="flex justify-between text-green-600 font-bold">
+              <span>Potongan Poin</span>
+              <span>-Rp{formatTotal(redeemedPoints)}</span>
+            </div>
+          )}
+          <div className="flex justify-between font-bold text-xl">
+            <span>TOTAL</span>
+            <span>Rp{formatTotal(order.total_harga - redeemedPoints)}</span>
+          </div>
+          {customerData?.pelangganId && (
+            <div className="flex justify-between items-center">
+              <span className="font-bold">Poin Member: {memberPoints}</span>
+              <button 
+                onClick={handleRedeemPoints} 
+                disabled={memberPoints === 0 || redeemedPoints > 0}
+                className="px-4 py-2 bg-black text-white font-bold border-2 border-black hover:bg-white hover:text-black transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Tukar Poin
+              </button>
+            </div>
+          )}
+          <div className="flex items-center gap-2">
+            <input 
+              placeholder="Add Promo or Voucher" 
+              className="w-full px-4 py-2 border-2 border-black focus:outline-none focus:ring-2 focus:ring-black font-bold"  
+            />
+            <button className="px-4 py-2 bg-black text-white font-bold border-2 border-black hover:bg-white hover:text-black transition-colors">
+              Apply
+            </button>
+          </div>
+          <button className="w-full px-4 py-2 bg-black text-white font-bold border-2 border-black hover:bg-white hover:text-black transition-colors">
+            Payment Method
+          </button>
+          {showCustomerInput ? (
+            <NeoCustomerInput onSubmit={handleCustomerSubmit} onCancel={() => setShowCustomerInput(false)} />
+          ) : (
+            <button 
+              className="w-full px-4 py-2 bg-white text-black font-bold border-2 border-black hover:bg-black hover:text-white transition-colors" 
+              onClick={() => setShowCustomerInput(true)}
+            >
+              {customerData ? `${customerData.pelangganId ? 'Member' : 'Guest'}: ${customerData.nama || 'Unknown'}` : "Enter Customer Information"}
+            </button>
+          )}
+          <button 
+            className="w-full px-4 py-2 bg-black text-white font-bold border-2 border-black hover:bg-white hover:text-black transition-colors" 
+            onClick={handlePlaceOrder} 
+            disabled={isLoading}
+          >
+            {isLoading ? "Processing..." : "Place Order"}
+          </button>
+        </div>
       </div>
+    )
+  }
+)
 
       <div className="space-y-4 pt-4 border-t-4 border-black mt-4 py-2">
         <div className="flex justify-between text-black font-bold">
@@ -178,4 +232,3 @@ export const NeoOrderSummary = forwardRef<{ resetCustomerData: () => void }, Ord
   );
 });
 
-NeoOrderSummary.displayName = "NeoOrderSummary";

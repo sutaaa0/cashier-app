@@ -204,7 +204,6 @@ const Pos = () => {
   }
 
   console.log("kategory yang diselect :",selectedCategory)
-
   const filteredProducts = products.filter((product) => (product?.nama || "").toLowerCase().includes(searchQuery.toLowerCase()) && (selectedCategory === "All Menu" || product?.kategori === selectedCategory));
 
   return (
