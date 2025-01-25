@@ -6,6 +6,7 @@ import { EditUserModal } from "./EditUserModal";
 import { DeleteConfirmModal } from "./DeleteConfirmModal";
 import { deleteUser, getUsers } from "@/server/actions";
 import { toast } from "@/hooks/use-toast";
+import { NeoProgressIndicator } from "./NeoProgresIndicator";
 
 interface UserData {
   id: number;
@@ -18,6 +19,7 @@ export function UserManagement() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(false)
   const [selectedUser, setSelectedUser] = useState<UserData | null>(null);
   const [userToDelete, setUserToDelete] = useState<UserData | null>(null);
 
@@ -27,6 +29,7 @@ export function UserManagement() {
 
   const fetchUsers = async () => {
     try {
+      setIsLoading(true)
       const userData = await getUsers();
       setUsers(userData);
     } catch (error) {
@@ -36,6 +39,8 @@ export function UserManagement() {
         description: "Gagal mengambil data user",
         variant: "destructive",
       });
+    } finally {
+      setIsLoading(false)
     }
   };
 
@@ -47,6 +52,7 @@ export function UserManagement() {
   const handleDeleteConfirm = async () => {
     if (userToDelete) {
       try {
+        setIsLoading(true)
         const response = await deleteUser(userToDelete.id);
         if (response.status === "Success") {
           toast({
@@ -68,6 +74,8 @@ export function UserManagement() {
           description: "Gagal menghapus user",
           variant: "destructive",
         });
+      } finally {
+        setIsLoading(false)
       }
     }
     setIsDeleteModalOpen(false);
@@ -148,6 +156,8 @@ export function UserManagement() {
 
       {/* Modal Konfirmasi Hapus */}
       <DeleteConfirmModal isOpen={isDeleteModalOpen} onClose={() => setIsDeleteModalOpen(false)} onConfirm={handleDeleteConfirm} itemName={userToDelete?.username || ""} subject="User" />
+
+        <NeoProgressIndicator isLoading={isLoading}/>
     </div>
   );
 }
