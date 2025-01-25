@@ -33,6 +33,8 @@ export async function middleware(request: NextRequest) {
   export const config = {
     matcher: [
       '/home',
-      '/api/:path*'
+      '/api/:path*',
+      '/dashboard-admin',
+      '/kasir',
     ]
   };
