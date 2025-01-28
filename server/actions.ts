@@ -7,6 +7,10 @@ import { Pelanggan, Produk } from "@prisma/client";
 import { CreateOrderDetail, Product } from "@/types/types";
 import { revalidatePath } from "next/cache";
 import { v2 as cloudinary } from "cloudinary";
+import { startOfDay, startOfYesterday, startOfWeek, startOfMonth, startOfLastMonth, startOfYear, startOfLastYear, subWeeks, subMonths, subYears } from "date-fns";
+
+
+
 
 export type Penjualan = {
   pelangganId?: number;
@@ -930,3 +934,85 @@ export async function generateReport(type: string): Promise<ReportData> {
     generatedDate: new Date().toISOString(),
   };
 }
+
+
+
+const getRevenue = async () => {
+  const today = new Date();
+  const startOfThisWeek = startOfWeek(today);
+  const startOfLastWeek = subWeeks(startOfThisWeek, 1);
+  const startOfThisMonth = startOfMonth(today);
+  const startOfLastMonth = subMonths(startOfThisMonth, 1);
+  const startOfThisYear = startOfYear(today);
+  const startOfLastYear = subYears(startOfThisYear, 1);
+
+  try {
+    // Mendapatkan total revenue berdasarkan tanggal
+    const revenueToday = await getRevenueForDate(today);
+    const revenueThisWeek = await getRevenueForDateRange(startOfThisWeek, today);
+    const revenueLastWeek = await getRevenueForDateRange(startOfLastWeek, startOfThisWeek);
+    const revenueThisMonth = await getRevenueForDateRange(startOfThisMonth, today);
+    const revenueLastMonth = await getRevenueForDateRange(startOfLastMonth, startOfThisMonth);
+    const revenueThisYear = await getRevenueForDateRange(startOfThisYear, today);
+    const revenueLastYear = await getRevenueForDateRange(startOfLastYear, startOfThisYear);
+
+    return {
+      today: revenueToday,
+      todayChange: calculateChangePercentage(revenueToday, revenueLastWeek), // Menggunakan revenue minggu lalu untuk perbandingan
+      thisWeek: revenueThisWeek,
+      thisWeekChange: calculateChangePercentage(revenueThisWeek, revenueLastWeek),
+      thisMonth: revenueThisMonth,
+      thisMonthChange: calculateChangePercentage(revenueThisMonth, revenueLastMonth),
+      thisYear: revenueThisYear,
+      thisYearChange: calculateChangePercentage(revenueThisYear, revenueLastYear),
+    };
+  } catch (error) {
+    console.error("Error fetching revenue data:", error);
+    throw error;
+  }
+};
+
+// Fungsi untuk menghitung persentase perubahan
+const calculateChangePercentage = (currentRevenue, previousRevenue) => {
+  if (!previousRevenue || previousRevenue === 0) return 0;
+  return ((currentRevenue - previousRevenue) / previousRevenue) * 100;
+};
+
+// Fungsi untuk mendapatkan revenue berdasarkan tanggal tertentu
+const getRevenueForDate = async (date) => {
+  const startOfDay = new Date(date.setHours(0, 0, 0, 0));
+  const endOfDay = new Date(date.setHours(23, 59, 59, 999));
+
+  const sales = await prisma.penjualan.findMany({
+    where: {
+      tanggalPenjualan: {
+        gte: startOfDay,
+        lte: endOfDay,
+      },
+    },
+    select: {
+      total_harga: true,
+    },
+  });
+
+  return sales.reduce((total, sale) => total + sale.total_harga, 0);
+};
+
+// Fungsi untuk mendapatkan revenue dalam rentang tanggal
+const getRevenueForDateRange = async (startDate, endDate) => {
+  const sales = await prisma.penjualan.findMany({
+    where: {
+      tanggalPenjualan: {
+        gte: startDate,
+        lte: endDate,
+      },
+    },
+    select: {
+      total_harga: true,
+    },
+  });
+
+  return sales.reduce((total, sale) => total + sale.total_harga, 0);
+};
+
+export { getRevenue };
