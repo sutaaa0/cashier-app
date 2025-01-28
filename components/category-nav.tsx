@@ -58,7 +58,7 @@ export function CategoryNav({
   onSelect: (category: string) => void 
 }) {
   return (
-    <div className="flex gap-x-5 p-3 px-12 overflow-x-auto">
+    <div className="flex gap-x-5 p-3 px-12 overflow-x-auto justify-center items-center">
       {categories.map((category) => (
         <button
           key={category.name}
