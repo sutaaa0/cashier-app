@@ -1,7 +1,8 @@
-import { Users, ShoppingBag, UsersIcon as Customers, FileText, Package, BarChart, Settings, BarChart2 } from 'lucide-react'
+import { Users, ShoppingBag, UsersIcon as Customers, FileText, Package, BarChart, Settings, BarChart2, LayoutDashboardIcon } from 'lucide-react'
 
 const menuItems = [
   { id: 'users', label: 'Users', icon: Users },
+  { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboardIcon },
   { id: 'products', label: 'Products', icon: ShoppingBag },
   { id: 'customers', label: 'Customers', icon: Customers },
   { id: 'transactions', label: 'Transactions', icon: FileText },
