@@ -11,13 +11,16 @@ import { ReportManagement } from './components/RepostManagement'
 import { AdminHeader } from '@/components/AdminHeader'
 import { AdminSidebar } from '@/components/AdminSidebar'
 import { ProductManagement } from '@/components/ProductManagement'
+import AdminDashboard from '@/components/AdminDashboard'
 
-export default function AdminDashboard() {
+export default function AdminPage() {
   const [activeSection, setActiveSection] = useState('users')  
 
 
   const renderSection = () => {
     switch (activeSection) {
+      case 'dashboard':
+        return <AdminDashboard />
       case 'users':
         return <UserManagement />
       case 'products':
