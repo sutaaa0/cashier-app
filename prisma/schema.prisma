@@ -8,47 +8,46 @@ datasource db {
 }
 
 model User {
-  id        Int          @id @default(autoincrement())
-  username  String          @unique
-  password  String
-  level     String
+  id       Int    @id @default(autoincrement())
+  username String @unique
+  password String
+  level    String
 }
 
 model Pelanggan {
-  pelangganId      Int @id @default(autoincrement())
-  nama             String @default("Guest")
-  alamat           String?
-  nomorTelepon     String?
-  points         Int         @default(0)
-  penjualan        Penjualan[]
-  createdAt       DateTime          @default(now())
+  pelangganId  Int         @id @default(autoincrement())
+  nama         String      @default("Guest")
+  alamat       String?
+  nomorTelepon String?
+  points       Int         @default(0)
+  penjualan    Penjualan[]
+  createdAt    DateTime    @default(now())
 }
 
 model Guest {
-  guestId        Int         @id @default(autoincrement())
-  penjualan      Penjualan[]
+  guestId   Int         @id @default(autoincrement())
+  penjualan Penjualan[]
 }
 
 model Penjualan {
-  penjualanId        Int               @id @default(autoincrement())
-  tanggalPenjualan   DateTime          @default(now())
-  total_harga        Float
-  pelangganId        Int?
-  guestId            Int?
-  pelanggan          Pelanggan?        @relation(fields: [pelangganId], references: [pelangganId])
-  guest              Guest?            @relation(fields: [guestId], references: [guestId])
-  detailPenjualan    DetailPenjualan[]
+  penjualanId      Int               @id @default(autoincrement())
+  tanggalPenjualan DateTime          @default(now())
+  total_harga      Float
+  pelangganId      Int?
+  guestId          Int?
+  pelanggan        Pelanggan?        @relation(fields: [pelangganId], references: [pelangganId])
+  guest            Guest?            @relation(fields: [guestId], references: [guestId])
+  detailPenjualan  DetailPenjualan[]
 }
 
-
 model DetailPenjualan {
-  detailId          Int       @id @default(autoincrement())
-  penjualanId       Int
-  penjualan         Penjualan  @relation(fields: [penjualanId], references: [penjualanId])
-  produkId          Int
-  produk            Produk    @relation(fields: [produkId], references: [produkId], onDelete: Restrict)
-  kuantitas         Int
-  subtotal          Int
+  detailId    Int       @id @default(autoincrement())
+  penjualanId Int
+  penjualan   Penjualan @relation(fields: [penjualanId], references: [penjualanId])
+  produkId    Int
+  produk      Produk    @relation(fields: [produkId], references: [produkId], onDelete: Restrict)
+  kuantitas   Int
+  subtotal    Int
 }
 
 model Produk {
@@ -59,7 +58,7 @@ model Produk {
   kategori        String
   isDeleted       Boolean           @default(false) // Soft delete
   image           String
-  detailPenjualan DetailPenjualan[] 
+  detailPenjualan DetailPenjualan[]
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
 }
