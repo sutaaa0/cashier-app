@@ -12,6 +12,7 @@ model User {
   username String @unique
   password String
   level    String
+  penjualan Penjualan[] 
 }
 
 model Pelanggan {
@@ -35,9 +36,11 @@ model Penjualan {
   total_harga      Float
   pelangganId      Int?
   guestId          Int?
+  userId           Int               
   pelanggan        Pelanggan?        @relation(fields: [pelangganId], references: [pelangganId])
   guest            Guest?            @relation(fields: [guestId], references: [guestId])
-  detailPenjualan  DetailPenjualan[]
+  user             User              @relation(fields: [userId], references: [id]) // Relasi dengan user
+  detailPenjualan  DetailPenjualan[] 
 }
 
 model DetailPenjualan {
@@ -50,15 +53,27 @@ model DetailPenjualan {
   subtotal    Int
 }
 
+model Kategori {
+  kategoriId Int      @id @default(autoincrement())
+  nama       String   @unique
+  icon       String   
+  produk     Produk[]
+}
+
+
 model Produk {
   produkId        Int               @id @default(autoincrement())
   nama            String
   harga           Int
   stok            Int
-  kategori        String
-  isDeleted       Boolean           @default(false) // Soft delete
+  minimumStok     Int               @default(10)  // Tambahan field baru
+  statusStok      String            @default("NORMAL") // NORMAL, LOW, CRITICAL
+  isDeleted       Boolean           @default(false)
   image           String
   detailPenjualan DetailPenjualan[]
+  kategoriId      Int
+  kategori        Kategori          @relation(fields: [kategoriId], references: [kategoriId])
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
 }
+

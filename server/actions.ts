@@ -3,18 +3,17 @@ import { cookies } from "next/headers";
 import { prisma } from "@/lib/db";
 import bcrypt from "bcryptjs";
 import * as jose from "jose";
-import { Pelanggan, Produk } from "@prisma/client";
+import { DetailPenjualan, Pelanggan, Produk } from "@prisma/client";
 import { CreateOrderDetail, Product } from "@/types/types";
 import { revalidatePath } from "next/cache";
 import { v2 as cloudinary } from "cloudinary";
-import { startOfDay, startOfYesterday, startOfWeek, startOfMonth, startOfLastMonth, startOfYear, startOfLastYear, subWeeks, subMonths, subYears } from "date-fns";
-
-
-
+import { startOfWeek, startOfMonth, startOfYear, subWeeks, subMonths, subYears, endOfWeek, endOfMonth, endOfYear, format, addDays, startOfDay, endOfDay } from "date-fns";
+import { formatInTimeZone, fromZonedTime, toDate, toZonedTime } from "date-fns-tz";
 
 export type Penjualan = {
   pelangganId?: number;
   guestId?: number;
+  userId: number;
   total_harga: number;
   detailPenjualan: Array<{
     produkId: number;
@@ -168,52 +167,22 @@ export async function getProducts(category: string) {
       where: {
         isDeleted: false,
       },
-    });
-
-    return products;
-  } else if (category === "Bread") {
-    const products = await prisma.produk.findMany({
-      orderBy: { nama: "asc" },
-      where: {
-        isDeleted: false,
-        kategori: "Bread",
-      },
-    });
-
-    return products;
-  } else if (category === "Cakes") {
-    const products = await prisma.produk.findMany({
-      orderBy: { nama: "asc" },
-      where: {
-        isDeleted: false,
-        kategori: "Cakes",
+      include: {
+        kategori: true, // sertakan data kategori
       },
     });
     return products;
-  } else if (category === "Donuts") {
+  } else {
     const products = await prisma.produk.findMany({
       orderBy: { nama: "asc" },
       where: {
         isDeleted: false,
-        kategori: "Donuts",
+        kategori: {
+          nama: category, // filter melalui relasi, bukan field string langsung
+        },
       },
-    });
-    return products;
-  } else if (category === "Pastries") {
-    const products = await prisma.produk.findMany({
-      orderBy: { nama: "asc" },
-      where: {
-        isDeleted: false,
-        kategori: "Pastries",
-      },
-    });
-    return products;
-  } else if (category === "Sandwich") {
-    const products = await prisma.produk.findMany({
-      orderBy: { nama: "asc" },
-      where: {
-        isDeleted: false,
-        kategori: "Sandwich",
+      include: {
+        kategori: true,
       },
     });
     return products;
@@ -221,14 +190,26 @@ export async function getProducts(category: string) {
 }
 
 export async function getAdminProduct() {
-  const products = await prisma.produk.findMany({
-    orderBy: { nama: "asc" },
-    where: {
-      isDeleted: false,
-    },
-  });
+  try {
+    const products = await prisma.produk.findMany({
+      orderBy: { nama: "asc" },
+      where: { isDeleted: false },
+      include: {
+        kategori: {
+          select: {
+            kategoriId: true,
+            nama: true,
+          },
+        },
+      },
+    });
 
-  return products;
+    console.log("Data produk yang dikirim:", products);
+    return products;
+  } catch (error) {
+    console.error("Error fetching products:", error);
+    throw new Error("Failed to fetch products");
+  }
 }
 
 export async function createDetailOrder(detailOrderData: CreateOrderDetail) {
@@ -246,7 +227,7 @@ export async function createDetailOrder(detailOrderData: CreateOrderDetail) {
 export async function getProductsByCategory(category: string): Promise<Product[]> {
   const products = await prisma.produk.findMany({
     where: {
-      kategori: category === "All Menu" ? undefined : category,
+      kategori: category === "All Menu" ? undefined : { nama: category },
     },
   });
   return products.map(transformProduct);
@@ -290,70 +271,130 @@ export async function deleteProduct(productId: number) {
   };
 }
 
-export async function createOrder(orderData: Penjualan & { redeemedPoints?: number }) {
-  console.log("server actions createOrder:", orderData);
+
+/**
+ * Fungsi createOrder: membuat transaksi penjualan.
+ * Jika pelanggan (member) melakukan transaksi, maka:
+ *  - Akan melakukan validasi redeem poin
+ *  - Mengurangi total harga sesuai redeem poin
+ *  - Mengurangi poin pelanggan yang digunakan
+ *  - Menghitung poin yang akan diberikan (total sebelum diskon / 200)
+ * Jika bukan member, maka guest akan diproses.
+ */
+
+export async function createOrder(orderData: Penjualan & { redeemedPoints?: number }): Promise<
+  | (Penjualan & {
+      detailPenjualan: DetailPenjualan[];
+      pointsAwarded: number;
+      pointsRedeemed: number;
+      originalTotal: number;
+      finalTotal: number;
+    })
+  | null
+> {
+  console.log("Data yang diterima di createOrder:", orderData);
   try {
-    return await prisma.$transaction(async (prisma) => {
-      let penjualanData: any = {
-        total_harga: orderData.total_harga,
+    return await prisma.$transaction(async (tx) => {
+      // Validasi data dasar
+      // if (!orderData.userId) {
+      //   throw new Error("userId tidak boleh kosong");
+      // }
+      // if (!Array.isArray(orderData.detailPenjualan) || orderData.detailPenjualan.length === 0) {
+      //   throw new Error("Detail penjualan harus berisi minimal satu item");
+      // }
+      // if (orderData.total_harga < 0) {
+      //   throw new Error("Total harga tidak boleh negatif");
+      // }
+
+      // let totalHarga = orderData.total_harga;
+      // let pointsToAward = 0;
+
+      // Jika pembeli adalah member (memiliki pelangganId)
+      // if (orderData.pelangganId) {
+      //   const pelanggan = await tx.pelanggan.findUnique({
+      //     where: { pelangganId: orderData.pelangganId },
+      //   });
+      //   if (!pelanggan) {
+      //     throw new Error("Pelanggan tidak ditemukan");
+      //   }
+
+      //   // Redeem poin jika ada
+      //   if (orderData.redeemedPoints && orderData.redeemedPoints > 0) {
+      //     console.log("Reedem poin dimulai....");
+      //     console.log("proses nya nyampe disini nih...");
+
+      //     totalHarga = Math.max(totalHarga - orderData.redeemedPoints, 0);
+      //     console.log("Total harga setelah redeem poin:", totalHarga);
+
+      //     // Kurangi poin pelanggan
+      //     await tx.pelanggan.update({
+      //       where: { pelangganId: pelanggan.pelangganId },
+      //       data: { points: { decrement: orderData.redeemedPoints } },
+      //     });
+      //     console.log("selesai...");
+      //   }
+
+      //   // Hitung poin yang akan diberikan
+      //   pointsToAward = Math.floor(orderData.total_harga / 200);
+      //   if (pointsToAward > 0) {
+      //     await tx.pelanggan.update({
+      //       where: { pelangganId: orderData.pelangganId },
+      //       data: { points: { increment: pointsToAward } },
+      //     });
+      //   }
+      // }
+
+      // Jika pembeli bukan member (guest), pastikan guestId ada
+      if (!orderData.pelangganId && !orderData.guestId) {
+        const guest = await tx.guest.create({ data: {} });
+        orderData.guestId = guest.guestId;
+      }
+
+      // Siapkan payload pembuatan penjualan
+      const penjualanData = {
         tanggalPenjualan: new Date(),
+        total_harga: orderData.total_harga,
+        userId: orderData.userId,
+        pelangganId: orderData.pelangganId !== null ? orderData.pelangganId : undefined,
+        guestId: orderData.guestId !== null ? orderData.guestId : undefined,
         detailPenjualan: {
-          create: orderData.detailPenjualan.map((item) => ({
-            produkId: item.produkId,
-            kuantitas: item.kuantitas,
-            subtotal: item.subtotal,
+          create: orderData.detailPenjualan.map((detail) => ({
+            produkId: detail.produkId,
+            kuantitas: detail.kuantitas,
+            subtotal: Math.round(detail.subtotal),
           })),
         },
       };
 
-      if (orderData.pelangganId) {
-        // For member purchases
-        const pelanggan = await prisma.pelanggan.findUnique({
-          where: { pelangganId: orderData.pelangganId },
-        });
+      console.log("Payload pembuatan penjualan:", penjualanData);
 
-        if (!pelanggan) {
-          throw new Error("Customer not found");
-        }
-
-        penjualanData.pelangganId = orderData.pelangganId;
-
-        // Calculate points to be awarded (200 rupiah = 1 point)
-        const pointsToAward = Math.floor(orderData.total_harga / 200);
-        console.log("Server : Points to award:", pointsToAward);
-
-        // Update member's points
-        await prisma.pelanggan.update({
-          where: { pelangganId: orderData.pelangganId },
-          data: { points: { increment: pointsToAward } },
-        });
-
-        // Apply redeemed points if any
-        if (orderData.redeemedPoints && orderData.redeemedPoints > 0) {
-          penjualanData.total_harga = Math.max(penjualanData.total_harga - orderData.redeemedPoints, 0);
-        }
-      } else if (orderData.guestId) {
-        // For guest purchases
-        penjualanData.guestId = orderData.guestId;
-      } else {
-        // If neither pelangganId nor guestId is provided, create a new guest
-        const guest = await prisma.guest.create({ data: {} });
-        penjualanData.guestId = guest.guestId;
-      }
-
-      const penjualan = await prisma.penjualan.create({
+      const penjualan = await tx.penjualan.create({
         data: penjualanData,
         include: {
-          detailPenjualan: true,
+          detailPenjualan: { include: { produk: true } },
           pelanggan: true,
           guest: true,
+          user: true,
         },
       });
 
-      return penjualan;
+      // Update stok produk
+      for (const detail of orderData.detailPenjualan) {
+        await tx.produk.update({
+          where: { produkId: detail.produkId },
+          data: { stok: { decrement: detail.kuantitas } },
+        });
+      }
+
+      return {
+        ...penjualan,
+        pointsRedeemed: orderData.redeemedPoints || 0,
+        originalTotal: orderData.total_harga,
+        finalTotal: orderData.total_harga,
+      };
     });
   } catch (error) {
-    console.error("Error creating order:", error);
+    console.error("Error saat membuat penjualan:", error);
     throw error;
   }
 }
@@ -387,18 +428,25 @@ export async function getMemberPoints(pelangganId: number) {
   return member?.points || 0;
 }
 
-export async function redeemPoints(pelangganId: number, pointsToRedeem: number) {
+export async function redeemPoints(pelangganId: number, pointsToRedeem: number, totalHarga: number) {
   const member = await prisma.pelanggan.findUnique({
     where: { pelangganId },
   });
 
-  if (!member || member.points < pointsToRedeem) {
-    throw new Error("Insufficient points");
+  if (!member) {
+    throw new Error("Pelanggan tidak ditemukan");
   }
 
   await prisma.pelanggan.update({
     where: { pelangganId },
     data: { points: { decrement: pointsToRedeem } },
+  });
+
+  const poinAfterDiscount = totalHarga / 200;
+
+  await prisma.pelanggan.update({
+    where: { pelangganId },
+    data: { points: { increment: poinAfterDiscount } },
   });
 
   return pointsToRedeem;
@@ -418,24 +466,50 @@ interface ActionResponse {
   data?: any;
 }
 
-export async function addProduct(formData: {
-  name: string;
-  price: number;
-  stock: number;
-  category: string;
-  imageUrl: string; // Sekarang menerima URL gambar langsung
-}): Promise<ActionResponse> {
+// Types
+interface Category {
+  kategoriId: number;
+  nama: string;
+}
+
+export async function addProduct(formData: { name: string; price: number; stock: number; minimumStok: number; categoryId: number; imageUrl: string }): Promise<{ status: string; message: string; data?: any }> {
   try {
+    if (!formData.name || !formData.price || !formData.stock || !formData.minimumStok || !formData.categoryId || !formData.imageUrl) {
+      return {
+        status: "Error",
+        message: "Semua data produk harus diisi",
+      };
+    }
+
+    if (formData.price <= 0 || formData.stock < 0 || formData.minimumStok < 0) {
+      return {
+        status: "Error",
+        message: "Harga, stok, dan minimum stok harus bernilai positif",
+      };
+    }
+
+    let statusStok: "CRITICAL" | "LOW" | "NORMAL";
+    if (formData.stock <= formData.minimumStok * 0.5) {
+      statusStok = "CRITICAL";
+    } else if (formData.stock > formData.minimumStok * 0.5 && formData.stock <= formData.minimumStok) {
+      statusStok = "LOW";
+    } else {
+      statusStok = "NORMAL";
+    }
+
     const product = await prisma.produk.create({
       data: {
         nama: formData.name,
         harga: formData.price,
         stok: formData.stock,
-        kategori: formData.category,
+        kategoriId: formData.categoryId,
         image: formData.imageUrl,
+        minimumStok: formData.minimumStok,
+        statusStok: statusStok,
       },
     });
 
+    // Memicu revalidasi path (sesuaikan dengan kebutuhan project Anda)
     revalidatePath("/dashboard-admin");
 
     return {
@@ -452,33 +526,100 @@ export async function addProduct(formData: {
   }
 }
 
-export async function updateProduct(formData: { id: number; name: string; price: number; stock: number; category: string; imageUrl: string }): Promise<ActionResponse> {
+export async function fetchCategories(): Promise<{ status: string; data?: Category[]; message?: string }> {
   try {
-    const product = await prisma.produk.update({
-      where: {
-        produkId: formData.id,
+    const categories = await prisma.kategori.findMany({
+      orderBy: { nama: "asc" },
+    });
+
+    if (!categories.length) {
+      return { status: "Error", message: "No categories found" };
+    }
+
+    return { status: "Success", data: categories };
+  } catch (error) {
+    console.error("Error fetching categories:", error);
+    return { status: "Error", message: "Failed to fetch categories" };
+  }
+}
+
+export async function updateCategory(data: { kategoriId: number; nama: string; icon?: string }) {
+  try {
+    const updatedCategory = await prisma.kategori.update({
+      where: { kategoriId: data.kategoriId },
+      data: {
+        nama: data.nama,
+        icon: data.icon || "",
+        // Karena kita tidak menyimpan color, field color bisa dibiarkan atau diabaikan
       },
+    });
+    return { status: "Success", data: updatedCategory };
+  } catch (error) {
+    console.error("Error updating category:", error);
+    return { status: "Error", message: error instanceof Error ? error.message : "Failed to update category" };
+  }
+}
+
+export async function addCategory(data: { nama: string; icon?: string; color?: string }) {
+  try {
+    // Cek apakah kategori dengan nama tersebut sudah ada
+    const existingCategory = await prisma.kategori.findUnique({
+      where: { nama: data.nama },
+    });
+
+    if (existingCategory) {
+      return { status: "Error", message: "Category already exists" };
+    }
+
+    // Buat kategori baru dengan menyertakan icon dan color jika ada,
+    // jika tidak ada, bisa disimpan sebagai string kosong (atau nilai default lainnya)
+    const newCategory = await prisma.kategori.create({
+      data: {
+        nama: data.nama,
+        icon: data.icon || "",
+      },
+    });
+
+    return { status: "Success", data: newCategory };
+  } catch (error) {
+    console.error("Error adding category:", error);
+    return { status: "Error", message: "Failed to add category" };
+  }
+}
+
+export async function updateProduct(formData: { id: number; name: string; price: number; stock: number; minimumStok: number; category: string; imageUrl: string }): Promise<{ status: string; message: string; data?: any }> {
+  try {
+    let statusStok: "CRITICAL" | "LOW" | "NORMAL";
+    if (formData.stock <= formData.minimumStok * 0.5) {
+      statusStok = "CRITICAL";
+    } else if (formData.stock > formData.minimumStok * 0.5 && formData.stock <= formData.minimumStok) {
+      statusStok = "LOW";
+    } else {
+      statusStok = "NORMAL";
+    }
+
+    const product = await prisma.produk.update({
+      where: { produkId: formData.id },
       data: {
         nama: formData.name,
         harga: formData.price,
         stok: formData.stock,
-        kategori: formData.category,
+        // Menghubungkan kategori berdasarkan nama (pastikan nama kategori bersifat unik)
+        kategori: { connect: { nama: formData.category } },
         image: formData.imageUrl,
+        minimumStok: formData.minimumStok,
+        statusStok: statusStok,
       },
     });
 
     revalidatePath("/dashboard-admin");
 
-    return {
-      status: "Success",
-      message: "Produk berhasil diupdate",
-      data: product,
-    };
+    return { status: "Success", message: "Product updated successfully", data: product };
   } catch (error) {
-    console.error("Error mengupdate produk:", error);
+    console.error("Error updating product:", error);
     return {
       status: "Error",
-      message: error instanceof Error ? error.message : "Gagal mengupdate produk",
+      message: error instanceof Error ? error.message : "Failed to update product",
     };
   }
 }
@@ -708,6 +849,7 @@ interface StockData {
   minStock: number;
   category: string;
   lastUpdated: string;
+  status?: "CRITICAL" | "LOW" | "NORMAL";
 }
 
 interface ApiResponse<T> {
@@ -722,17 +864,21 @@ export async function getStockItems(): Promise<ApiResponse<StockData[]>> {
       where: {
         isDeleted: false,
       },
+      include: {
+        kategori: true,
+      },
       orderBy: {
         updatedAt: "desc",
       },
+      take: 5
     });
 
     const stockItems: StockData[] = products.map((product) => ({
       id: product.produkId,
       name: product.nama,
       currentStock: product.stok,
-      minStock: 10, // You might want to add this as a column in your Produk model
-      category: product.kategori,
+      minStock: product.minimumStok,
+      category: product.kategori.nama,
       lastUpdated: product.updatedAt.toISOString(),
     }));
 
@@ -751,14 +897,39 @@ export async function getStockItems(): Promise<ApiResponse<StockData[]>> {
 
 export async function updateStockItem(id: number, newStock: number): Promise<ApiResponse<StockData>> {
   try {
+    // Ambil data produk untuk mendapatkan minStock
+    const product = await prisma.produk.findUnique({
+      where: { produkId: id, isDeleted: false },
+      select: { stok: true, minimumStok: true, nama: true, kategori: true, updatedAt: true },
+    });
+
+    if (!product) {
+      return {
+        status: "Error",
+        message: "Product not found",
+      };
+    }
+
+    // Tentukan status stok berdasarkan minStock
+    let statusStok: "CRITICAL" | "LOW" | "NORMAL";
+    if (newStock <= product.minimumStok * 0.5) {
+      statusStok = "CRITICAL";
+    } else if (newStock > product.minimumStok * 0.5 && newStock <= product.minimumStok) {
+      statusStok = "LOW";
+    } else {
+      statusStok = "NORMAL";
+    }
+
+    // Update produk dengan stok baru dan status yang diperbarui
     const updatedProduct = await prisma.produk.update({
-      where: {
-        produkId: id,
-        isDeleted: false,
-      },
+      where: { produkId: id },
       data: {
         stok: newStock,
+        statusStok: statusStok, // Update status stok
         updatedAt: new Date(),
+      },
+      include: {
+        kategori: true,
       },
     });
 
@@ -766,12 +937,13 @@ export async function updateStockItem(id: number, newStock: number): Promise<Api
       id: updatedProduct.produkId,
       name: updatedProduct.nama,
       currentStock: updatedProduct.stok,
-      minStock: 10, // Consistent with getStockItems
-      category: updatedProduct.kategori,
+      minStock: product.minimumStok, // Ambil dari data awal
+      category: updatedProduct.kategori.nama,
+      status: statusStok,
       lastUpdated: updatedProduct.updatedAt.toISOString(),
     };
 
-    revalidatePath("/stock-management"); // Adjust the path as needed
+    revalidatePath("/dashboard-admin"); // Sesuaikan dengan path yang benar
 
     return {
       status: "Success",
@@ -788,13 +960,27 @@ export async function updateStockItem(id: number, newStock: number): Promise<Api
 
 export async function addStockItem(item: Omit<StockData, "id" | "lastUpdated">): Promise<ApiResponse<StockData>> {
   try {
+    // Menentukan status stok berdasarkan aturan yang sudah disepakati
+    let statusStok: "CRITICAL" | "LOW" | "NORMAL";
+
+    if (item.currentStock <= item.minStock * 0.5) {
+      statusStok = "CRITICAL";
+    } else if (item.currentStock > item.minStock * 0.5 && item.currentStock <= item.minStock) {
+      statusStok = "LOW";
+    } else {
+      statusStok = "NORMAL";
+    }
+
+    console.log("Status stok:", statusStok);
+
     const newProduct = await prisma.produk.create({
       data: {
         nama: item.name,
+        statusStok: statusStok,
         stok: item.currentStock,
         kategori: item.category,
-        harga: 0, // You'll need to add price to your form or set a default
-        image: "", // You'll need to add image handling or set a default
+        harga: 0, // Nanti bisa ditambahkan input harga
+        image: "", // Tambahkan pengelolaan gambar jika diperlukan
         isDeleted: false,
       },
     });
@@ -804,11 +990,12 @@ export async function addStockItem(item: Omit<StockData, "id" | "lastUpdated">):
       name: newProduct.nama,
       currentStock: newProduct.stok,
       minStock: item.minStock,
+      status: statusStok,
       category: newProduct.kategori,
       lastUpdated: newProduct.updatedAt.toISOString(),
     };
 
-    revalidatePath("/stock-management"); // Adjust the path as needed
+    revalidatePath("/stock-management"); // Sesuaikan dengan path yang benar
 
     return {
       status: "Success",
@@ -882,13 +1069,12 @@ export async function generateReport(type: string): Promise<ReportData> {
       });
 
       const totalSales = salesData.reduce((sum, sale) => sum + sale.total_harga, 0);
-      
-      
+
       reportData = {
         name: "Monthly Sales Report",
         period: currentDate.toLocaleDateString("en-US", { month: "long", year: "numeric" }),
         type: "sales",
-        summary: `Total Sales: ${new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(totalSales)} | Orders: ${salesData.length}`,
+        summary: `Total Sales: ${new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR" }).format(totalSales)} | Orders: ${salesData.length}`,
         data: salesData,
       };
       break;
@@ -935,36 +1121,159 @@ export async function generateReport(type: string): Promise<ReportData> {
   };
 }
 
+const timeZone = "Asia/Jakarta";
 
-
-const getRevenue = async () => {
-  const today = new Date();
-  const startOfThisWeek = startOfWeek(today);
-  const startOfLastWeek = subWeeks(startOfThisWeek, 1);
-  const startOfThisMonth = startOfMonth(today);
-  const startOfLastMonth = subMonths(startOfThisMonth, 1);
-  const startOfThisYear = startOfYear(today);
-  const startOfLastYear = subYears(startOfThisYear, 1);
-
+export const getRevenue = async () => {
   try {
-    // Mendapatkan total revenue berdasarkan tanggal
-    const revenueToday = await getRevenueForDate(today);
-    const revenueThisWeek = await getRevenueForDateRange(startOfThisWeek, today);
-    const revenueLastWeek = await getRevenueForDateRange(startOfLastWeek, startOfThisWeek);
-    const revenueThisMonth = await getRevenueForDateRange(startOfThisMonth, today);
-    const revenueLastMonth = await getRevenueForDateRange(startOfLastMonth, startOfThisMonth);
-    const revenueThisYear = await getRevenueForDateRange(startOfThisYear, today);
-    const revenueLastYear = await getRevenueForDateRange(startOfLastYear, startOfThisYear);
+    // Mengambil tanggal saat ini
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const thisWeekStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay());
+    const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const thisYearStart = new Date(now.getFullYear(), 0, 1);
 
+    // Menghitung tanggal awal untuk periode sebelumnya
+    const yesterdayStart = new Date(todayStart);
+    yesterdayStart.setDate(todayStart.getDate() - 1);
+
+    const lastWeekStart = new Date(thisWeekStart);
+    lastWeekStart.setDate(thisWeekStart.getDate() - 7);
+
+    const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0);
+
+    const lastYearStart = new Date(now.getFullYear() - 1, 0, 1);
+    const lastYearEnd = new Date(now.getFullYear() - 1, 11, 31);
+
+    // Query untuk menghitung revenue berdasarkan periode
+    const todayRevenue = await prisma.penjualan.aggregate({
+      where: {
+        tanggalPenjualan: {
+          gte: todayStart,
+        },
+      },
+      _sum: {
+        total_harga: true,
+      },
+    });
+
+    const yesterdayRevenue = await prisma.penjualan.aggregate({
+      where: {
+        tanggalPenjualan: {
+          gte: yesterdayStart,
+          lt: todayStart,
+        },
+      },
+      _sum: {
+        total_harga: true,
+      },
+    });
+
+    const thisWeekRevenue = await prisma.penjualan.aggregate({
+      where: {
+        tanggalPenjualan: {
+          gte: thisWeekStart,
+        },
+      },
+      _sum: {
+        total_harga: true,
+      },
+    });
+
+    const lastWeekRevenue = await prisma.penjualan.aggregate({
+      where: {
+        tanggalPenjualan: {
+          gte: lastWeekStart,
+          lt: thisWeekStart,
+        },
+      },
+      _sum: {
+        total_harga: true,
+      },
+    });
+
+    const thisMonthRevenue = await prisma.penjualan.aggregate({
+      where: {
+        tanggalPenjualan: {
+          gte: thisMonthStart,
+        },
+      },
+      _sum: {
+        total_harga: true,
+      },
+    });
+
+    const lastMonthRevenue = await prisma.penjualan.aggregate({
+      where: {
+        tanggalPenjualan: {
+          gte: lastMonthStart,
+          lte: lastMonthEnd,
+        },
+      },
+      _sum: {
+        total_harga: true,
+      },
+    });
+
+    const thisYearRevenue = await prisma.penjualan.aggregate({
+      where: {
+        tanggalPenjualan: {
+          gte: thisYearStart,
+        },
+      },
+      _sum: {
+        total_harga: true,
+      },
+    });
+
+    const lastYearRevenue = await prisma.penjualan.aggregate({
+      where: {
+        tanggalPenjualan: {
+          gte: lastYearStart,
+          lte: lastYearEnd,
+        },
+      },
+      _sum: {
+        total_harga: true,
+      },
+    });
+
+    // Menghitung persentase perubahan
+    const calculatePercentageChange = (current: number, previous: number): number => {
+      if (previous === 0) return current !== 0 ? 100 : 0; // Handle division by zero
+      return ((current - previous) / previous) * 100;
+    };
+
+    const todayChange = calculatePercentageChange(
+      todayRevenue._sum.total_harga || 0,
+      yesterdayRevenue._sum.total_harga || 0
+    );
+
+    const thisWeekChange = calculatePercentageChange(
+      thisWeekRevenue._sum.total_harga || 0,
+      lastWeekRevenue._sum.total_harga || 0
+    );
+
+    const thisMonthChange = calculatePercentageChange(
+      thisMonthRevenue._sum.total_harga || 0,
+      lastMonthRevenue._sum.total_harga || 0
+    );
+
+    const thisYearChange = calculatePercentageChange(
+      thisYearRevenue._sum.total_harga || 0,
+      lastYearRevenue._sum.total_harga || 0
+    );
+
+    // Mengembalikan data revenue
     return {
-      today: revenueToday,
-      todayChange: calculateChangePercentage(revenueToday, revenueLastWeek), // Menggunakan revenue minggu lalu untuk perbandingan
-      thisWeek: revenueThisWeek,
-      thisWeekChange: calculateChangePercentage(revenueThisWeek, revenueLastWeek),
-      thisMonth: revenueThisMonth,
-      thisMonthChange: calculateChangePercentage(revenueThisMonth, revenueLastMonth),
-      thisYear: revenueThisYear,
-      thisYearChange: calculateChangePercentage(revenueThisYear, revenueLastYear),
+      today: todayRevenue._sum.total_harga || 0,
+      todayChange: todayChange,
+      thisWeek: thisWeekRevenue._sum.total_harga || 0,
+      thisWeekChange: thisWeekChange,
+      thisMonth: thisMonthRevenue._sum.total_harga || 0,
+      thisMonthChange: thisMonthChange,
+      thisYear: thisYearRevenue._sum.total_harga || 0,
+      thisYearChange: thisYearChange,
     };
   } catch (error) {
     console.error("Error fetching revenue data:", error);
@@ -979,40 +1288,828 @@ const calculateChangePercentage = (currentRevenue, previousRevenue) => {
 };
 
 // Fungsi untuk mendapatkan revenue berdasarkan tanggal tertentu
-const getRevenueForDate = async (date) => {
-  const startOfDay = new Date(date.setHours(0, 0, 0, 0));
-  const endOfDay = new Date(date.setHours(23, 59, 59, 999));
+const getRevenueForDate = async (date: Date) => {
+  // Konversi tanggal lokal (WIB) ke UTC
+  const localStartOfDay = startOfDay(date);
+  const localEndOfDay = endOfDay(date);
 
-  const sales = await prisma.penjualan.findMany({
+  const startOfDayUTC = fromZonedTime(localStartOfDay, timeZone);
+  const endOfDayUTC = fromZonedTime(localEndOfDay, timeZone);
+
+  const revenue = await prisma.penjualan.aggregate({
+    _sum: {
+      total_harga: true,
+    },
     where: {
       tanggalPenjualan: {
-        gte: startOfDay,
-        lte: endOfDay,
+        gte: startOfDayUTC,
+        lte: endOfDayUTC,
       },
-    },
-    select: {
-      total_harga: true,
     },
   });
 
-  return sales.reduce((total, sale) => total + sale.total_harga, 0);
+  return revenue._sum.total_harga || 0; // Pastikan tidak mengembalikan null
 };
 
 // Fungsi untuk mendapatkan revenue dalam rentang tanggal
-const getRevenueForDateRange = async (startDate, endDate) => {
-  const sales = await prisma.penjualan.findMany({
+const getRevenueForDateRange = async (startDate: Date, endDate: Date) => {
+  // Konversi tanggal lokal (WIB) ke UTC
+  const localStartOfDay = startOfDay(startDate);
+  const localEndOfDay = endOfDay(endDate);
+
+  const startOfDayUTC = fromZonedTime(localStartOfDay, timeZone);
+  const endOfDayUTC = fromZonedTime(localEndOfDay, timeZone);
+
+  const revenue = await prisma.penjualan.aggregate({
+    _sum: {
+      total_harga: true,
+    },
     where: {
       tanggalPenjualan: {
-        gte: startDate,
-        lte: endDate,
+        gte: startOfDayUTC,
+        lte: endOfDayUTC,
       },
-    },
-    select: {
-      total_harga: true,
     },
   });
 
-  return sales.reduce((total, sale) => total + sale.total_harga, 0);
+  return revenue._sum.total_harga || 0;
 };
 
-export { getRevenue };
+
+export async function getTransactionsStats() {
+  try {
+    // Get today's date at start of day
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    // Get yesterday's date
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+
+    // Get only today and yesterday counts
+    const [todayCount, yesterdayCount] = await Promise.all([
+      // Today's transactions
+      prisma.penjualan.count({
+        where: {
+          tanggalPenjualan: {
+            gte: today,
+          },
+        },
+      }),
+      // Yesterday's transactions
+      prisma.penjualan.count({
+        where: {
+          tanggalPenjualan: {
+            gte: yesterday,
+            lt: today,
+          },
+        },
+      }),
+    ]);
+
+    return {
+      today: todayCount,
+      yesterday: yesterdayCount,
+      difference: todayCount - yesterdayCount,
+    };
+  } catch (error) {
+    console.error("Error fetching transaction stats:", error);
+    throw error;
+  }
+}
+
+// /server/actions.js
+
+export async function getNewCustomersStats() {
+  try {
+    // Get today's date at start of day
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    // Get yesterday's date
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+
+    // Get new customers counts for today and yesterday
+    const [todayCount, yesterdayCount] = await Promise.all([
+      // Today's new customers
+      prisma.pelanggan.count({
+        where: {
+          createdAt: {
+            gte: today,
+          },
+          nama: {
+            not: "Guest", // Exclude guests
+          },
+        },
+      }),
+      // Yesterday's new customers
+      prisma.pelanggan.count({
+        where: {
+          createdAt: {
+            gte: yesterday,
+            lt: today,
+          },
+          nama: {
+            not: "Guest", // Exclude guests
+          },
+        },
+      }),
+    ]);
+
+    return {
+      today: todayCount,
+      yesterday: yesterdayCount,
+      difference: todayCount - yesterdayCount,
+    };
+  } catch (error) {
+    console.error("Error fetching new customers stats:", error);
+    throw error;
+  }
+}
+
+// /server/actions.js
+
+export async function getRevenueChartData(period: "daily" | "weekly" | "monthly" | "yearly") {
+  try {
+    const now = new Date();
+    let startDate: Date;
+    let data: { tanggalPenjualan: Date; total_harga: number }[];
+
+    switch (period) {
+      case "daily": {
+        // Ambil data transaksi dari awal hari ini (UTC)
+        startDate = new Date(now);
+        startDate.setHours(0, 0, 0, 0);
+
+        data = await prisma.penjualan.findMany({
+          where: { tanggalPenjualan: { gte: startDate } },
+          select: { tanggalPenjualan: true, total_harga: true },
+        });
+
+        // Inisialisasi array 24 jam dengan default 0
+        const dailyData = Array.from({ length: 24 }, (_, i) => ({
+          name: `${i.toString().padStart(2, "0")}:00`,
+          amount: 0,
+        }));
+
+        // Lakukan konversi setiap tanggal transaksi ke zona Asia/Jakarta dan agregasikan total_harga berdasarkan jam
+        data.forEach((row) => {
+          const zonedDate = toZonedTime(row.tanggalPenjualan, "Asia/Jakarta");
+          const hour = zonedDate.getHours();
+          dailyData[hour].amount += Number(row.total_harga);
+        });
+
+        return dailyData;
+      }
+
+      case "weekly": {
+        // Ambil data transaksi 7 hari terakhir (mulai dari 6 hari yang lalu sampai hari ini)
+        startDate = new Date(now);
+        startDate.setDate(now.getDate() - 6);
+        startDate.setHours(0, 0, 0, 0);
+
+        data = await prisma.penjualan.findMany({
+          where: { tanggalPenjualan: { gte: startDate } },
+          select: { tanggalPenjualan: true, total_harga: true },
+        });
+
+        // Buat map dengan key berupa string tanggal (format yyyy-MM-dd) di zona Asia/Jakarta
+        const weeklyMap: Record<string, { name: string; amount: number }> = {};
+
+        // Inisialisasi selama 7 hari dari startDate
+        for (let i = 0; i < 7; i++) {
+          const d = new Date(startDate);
+          d.setDate(d.getDate() + i);
+          const key = format(d, "yyyy-MM-dd", { timeZone: "Asia/Jakarta" });
+          // Gunakan format hari singkat (misalnya: Mon, Tue, dst)
+          const dayName = format(d, "EEE", { timeZone: "Asia/Jakarta" });
+          weeklyMap[key] = { name: dayName, amount: 0 };
+        }
+
+        // Agregasi total_harga berdasarkan tanggal (setelah konversi ke WIB)
+        data.forEach((row) => {
+          const zonedDate = toZonedTime(row.tanggalPenjualan, "Asia/Jakarta");
+          const key = format(zonedDate, "yyyy-MM-dd", { timeZone: "Asia/Jakarta" });
+          if (weeklyMap[key]) {
+            weeklyMap[key].amount += Number(row.total_harga);
+          }
+        });
+
+        return Object.values(weeklyMap);
+      }
+
+      case "monthly": {
+        // Ambil data transaksi dari awal bulan ini
+        startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+
+        data = await prisma.penjualan.findMany({
+          where: { tanggalPenjualan: { gte: startDate } },
+          select: { tanggalPenjualan: true, total_harga: true },
+        });
+
+        const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+        const monthlyData = Array.from({ length: daysInMonth }, (_, i) => ({
+          name: `${(i + 1).toString().padStart(2, "0")}`,
+          amount: 0,
+        }));
+
+        data.forEach((row) => {
+          const zonedDate = toZonedTime(row.tanggalPenjualan, "Asia/Jakarta");
+          const day = zonedDate.getDate(); // 1-based
+          monthlyData[day - 1].amount += Number(row.total_harga);
+        });
+
+        return monthlyData;
+      }
+
+      case "yearly": {
+        // Ambil data transaksi dari awal tahun ini
+        startDate = new Date(now.getFullYear(), 0, 1);
+
+        data = await prisma.penjualan.findMany({
+          where: { tanggalPenjualan: { gte: startDate } },
+          select: { tanggalPenjualan: true, total_harga: true },
+        });
+
+        // Buat array 12 bulan (0: Jan, 11: Dec)
+        const yearlyData = Array.from({ length: 12 }, (_, i) => ({
+          name: format(new Date(now.getFullYear(), i, 1), "MMM", {
+            timeZone: "Asia/Jakarta",
+          }),
+          amount: 0,
+        }));
+
+        data.forEach((row) => {
+          const zonedDate = toZonedTime(row.tanggalPenjualan, "Asia/Jakarta");
+          const month = zonedDate.getMonth(); // 0-based
+          yearlyData[month].amount += Number(row.total_harga);
+        });
+
+        return yearlyData;
+      }
+
+      default:
+        throw new Error("Invalid period");
+    }
+  } catch (error) {
+    console.error("Error fetching revenue chart data:", error);
+    throw error;
+  }
+}
+
+interface CategorySale {
+  name: string;
+  value: number;
+}
+
+export async function getCategorySales() {
+  try {
+    // Get sales data with category details in a single query
+    const salesData = await prisma.detailPenjualan.findMany({
+      select: {
+        kuantitas: true,
+        produk: {
+          select: {
+            kategori: {
+              select: {
+                nama: true,
+              },
+            },
+          },
+        },
+      },
+      where: {
+        produk: {
+          isDeleted: false,
+        },
+      },
+    });
+
+    // Aggregate sales by category
+    const categoryTotals = salesData.reduce((acc, sale) => {
+      const categoryName = sale.produk.kategori.nama;
+
+      if (!acc[categoryName]) {
+        acc[categoryName] = 0;
+      }
+
+      acc[categoryName] += sale.kuantitas;
+      return acc;
+    }, {} as Record<string, number>);
+
+    // Transform to chart format and sort by value
+    const formattedData: CategorySale[] = Object.entries(categoryTotals)
+      .map(([name, value]) => ({
+        name,
+        value,
+      }))
+      .sort((a, b) => b.value - a.value);
+
+    return formattedData;
+  } catch (error) {
+    console.error("Error fetching category sales:", error);
+    throw new Error("Failed to fetch category sales data");
+  }
+}
+
+// In /server/actions.js
+export async function getPeakHours() {
+  try {
+    const now = new Date();
+    // Ambil batas awal dan akhir hari dalam UTC
+    const startOfDay = new Date(now);
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(now);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    // Ambil semua transaksi hari ini
+    const data = await prisma.penjualan.findMany({
+      where: {
+        tanggalPenjualan: {
+          gte: startOfDay,
+          lte: endOfDay,
+        },
+      },
+      select: { tanggalPenjualan: true },
+    });
+
+    // Inisialisasi array 24 jam dengan default jumlah 0
+    const hourCounts = Array.from({ length: 24 }, (_, i) => ({
+      hour: `${i.toString().padStart(2, "0")}:00`,
+      customers: 0,
+    }));
+
+    // Konversi setiap tanggal ke zona Asia/Jakarta dan kelompokkan berdasarkan jam
+    data.forEach((row) => {
+      const zonedDate = toZonedTime(row.tanggalPenjualan, "Asia/Jakarta");
+      const hour = zonedDate.getHours();
+      hourCounts[hour].customers += 1;
+    });
+
+    return hourCounts;
+  } catch (error) {
+    console.error("Error fetching peak hours:", error);
+    throw error;
+  }
+}
+
+interface CategoryCount {
+  kategori: string;
+  icon: string;
+  _count: {
+    produkId: number;
+  };
+}
+
+export async function getCategoryCounts() {
+  try {
+    // Get all non-deleted products with their categories
+    const [categories, totalCount] = await Promise.all([
+      // Get all categories with their product counts
+      prisma.kategori.findMany({
+        select: {
+          nama: true,
+          icon: true,
+          _count: {
+            select: {
+              produk: {
+                where: {
+                  isDeleted: false,
+                },
+              },
+            },
+          },
+        },
+        orderBy: {
+          nama: "asc",
+        },
+      }),
+      // Get total count of non-deleted products
+      prisma.produk.count({
+        where: {
+          isDeleted: false,
+        },
+      }),
+    ]);
+
+    // Map the categories to the expected format
+    const categoryCounts: CategoryCount[] = categories.map((category) => ({
+      kategori: category.nama,
+      icon: category.icon,
+      _count: {
+        produkId: category._count.produk,
+      },
+    }));
+
+    return {
+      categoryCounts,
+      totalCount,
+    };
+  } catch (error) {
+    console.error("Error in getCategoryCounts:", error);
+    throw new Error("Failed to fetch category counts");
+  }
+}
+
+
+export async function getSalesTrendData() {
+  const TIME_ZONE = 'Asia/Jakarta';
+  try {
+    // Ambil waktu sekarang dalam zona Asia/Jakarta
+    const now = toZonedTime(new Date(), TIME_ZONE);
+
+    // Tentukan awal minggu dengan hari Senin sebagai awal minggu
+    const thisWeekStartLocal = startOfWeek(now, { weekStartsOn: 1 });
+    // Konversi ke UTC agar sesuai dengan penyimpanan di database
+    const thisWeekStartUTC = fromZonedTime(thisWeekStartLocal, TIME_ZONE);
+
+    // Tentukan akhir minggu (7 hari kemudian)
+    const thisWeekEndLocal = addDays(thisWeekStartLocal, 7);
+    const thisWeekEndUTC = fromZonedTime(thisWeekEndLocal, TIME_ZONE);
+
+    // Tentukan minggu sebelumnya
+    const lastWeekStartLocal = subWeeks(thisWeekStartLocal, 1);
+    const lastWeekStartUTC = fromZonedTime(lastWeekStartLocal, TIME_ZONE);
+    const lastWeekEndLocal = addDays(lastWeekStartLocal, 7);
+    const lastWeekEndUTC = fromZonedTime(lastWeekEndLocal, TIME_ZONE);
+
+    // Fungsi untuk mendapatkan data penjualan per hari dari tanggal mulai hingga tanggal akhir
+    const getDailySales = async (startDate: Date, endDate: Date) => {
+      // Ambil data penjualan yang sesuai dengan rentang tanggal (UTC)
+      const salesRecords = await prisma.penjualan.findMany({
+        where: {
+          tanggalPenjualan: {
+            gte: startDate,
+            lt: endDate,
+          },
+        },
+        select: {
+          tanggalPenjualan: true,
+          total_harga: true,
+        },
+      });
+
+      // Inisialisasi array untuk hari Senin sampai Minggu
+      const daysData = [
+        { day: "Sen", sales: 0 },
+        { day: "Sel", sales: 0 },
+        { day: "Rab", sales: 0 },
+        { day: "Kam", sales: 0 },
+        { day: "Jum", sales: 0 },
+        { day: "Sab", sales: 0 },
+        { day: "Min", sales: 0 },
+      ];
+
+      // Lakukan grouping berdasarkan hari (dalam zona waktu Asia/Jakarta)
+      salesRecords.forEach((record) => {
+        // Konversi tanggalPenjualan dari UTC ke zona Asia/Jakarta
+        const localDate = toZonedTime(record.tanggalPenjualan, TIME_ZONE);
+        // getDay() mengembalikan 0 untuk Minggu, 1 untuk Senin, ... 6 untuk Sabtu.
+        const jsDay = localDate.getDay();
+        // Konversi: jika jsDay 0 (Minggu) maka index 6, jika tidak maka jsDay - 1 (Senin index 0)
+        const dayIndex = jsDay === 0 ? 6 : jsDay - 1;
+        daysData[dayIndex].sales += Number(record.total_harga);
+      });
+
+      return daysData;
+    };
+
+    // Ambil data penjualan untuk minggu ini dan minggu sebelumnya secara paralel
+    const [thisWeekData, lastWeekData] = await Promise.all([
+      getDailySales(thisWeekStartUTC, thisWeekEndUTC),
+      getDailySales(lastWeekStartUTC, lastWeekEndUTC),
+    ]);
+
+    return {
+      thisWeek: thisWeekData,
+      lastWeek: lastWeekData,
+    };
+  } catch (error) {
+    console.error("Error mengambil data trend penjualan:", error);
+    throw error;
+  }
+}
+
+
+
+
+interface LowStockProduct {
+  id: number;
+  name: string;
+  stock: number;
+  minStock: number;
+}
+
+export async function getLowStockProducts(): Promise<LowStockProduct[]> {
+  try {
+    // Fetch all active (non-deleted) products
+    const products = await prisma.produk.findMany({
+      where: {
+        isDeleted: false,
+      },
+      select: {
+        produkId: true,
+        nama: true,
+        stok: true,
+      },
+    });
+
+    // Define minimum stock thresholds based on product data
+    // You might want to add this as a column in your Produk model later
+    const stockThresholds: Record<string, number> = {
+      "Roti Tawar": 10,
+      "Donat Coklat": 15,
+      "Kopi Arabica": 8,
+      Croissant: 12,
+      // Add default threshold for other products
+      default: 10,
+    };
+
+    // Filter and transform products that are below their minimum stock level
+    const lowStockProducts = products
+      .filter((product) => {
+        const minStock = stockThresholds[product.nama] || stockThresholds.default;
+        return product.stok < minStock;
+      })
+      .map((product) => ({
+        id: product.produkId,
+        name: product.nama,
+        stock: product.stok,
+        minStock: stockThresholds[product.nama] || stockThresholds.default,
+      }));
+
+    return lowStockProducts;
+  } catch (error) {
+    console.error("Error fetching low stock products:", error);
+    throw new Error("Failed to fetch low stock products");
+  }
+}
+
+export async function getTopSellingProducts() {
+  try {
+    // Mengambil data penjualan 30 hari terakhir
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    // Mengambil data produk terlaris
+    const topProducts = await prisma.detailPenjualan.groupBy({
+      by: ["produkId"],
+      where: {
+        penjualan: {
+          tanggalPenjualan: {
+            gte: thirtyDaysAgo,
+          },
+        },
+      },
+      _sum: {
+        kuantitas: true,
+        subtotal: true,
+      },
+      orderBy: {
+        _sum: {
+          kuantitas: "desc", // Menambahkan arah pengurutan
+        },
+      },
+      take: 4,
+    });
+
+    // Mengambil detail produk
+    const productsWithDetails = await Promise.all(
+      topProducts.map(async (item) => {
+        const product = await prisma.produk.findUnique({
+          where: {
+            produkId: item.produkId,
+            isDeleted: false, // Memastikan produk masih aktif
+          },
+        });
+
+        if (!product) return null;
+
+        // Menghitung pertumbuhan
+        const previousPeriodSales = await prisma.detailPenjualan.groupBy({
+          by: ["produkId"],
+          where: {
+            produkId: item.produkId,
+            penjualan: {
+              tanggalPenjualan: {
+                gte: new Date(thirtyDaysAgo.getTime() - 30 * 24 * 60 * 60 * 1000),
+                lt: thirtyDaysAgo,
+              },
+            },
+          },
+          _sum: {
+            kuantitas: true,
+          },
+        });
+
+        const currentSales = item._sum.kuantitas || 0;
+        const previousSales = previousPeriodSales[0]?._sum.kuantitas || 0;
+        const growth = previousSales === 0 ? 100 : ((currentSales - previousSales) / previousSales) * 100;
+
+        return {
+          name: product.nama,
+          sold: currentSales,
+          revenue: item._sum.subtotal || 0,
+          growth: Math.round(growth),
+        };
+      })
+    );
+
+    // Filter out null values and return
+    return productsWithDetails.filter((product): product is NonNullable<typeof product> => product !== null);
+  } catch (error) {
+    console.error("Error fetching top selling products:", error);
+    return [];
+  }
+}
+
+interface LowStockProduct {
+  nama: string;
+  stok: number;
+  minimumStok: number;
+  status: "CRITICAL" | "LOW";
+}
+
+export async function getLowStockProductsDashboard() {
+  try {
+    // Ambil semua produk yang belum dihapus
+    const products = await prisma.produk.findMany({
+      where: { isDeleted: false },
+      orderBy: { stok: "asc" },
+    });
+
+    // Filter produk yang stoknya berada di bawah atau sama dengan minimumStok
+    const lowStockProducts = products.filter((product) => product.stok <= product.minimumStok);
+
+    // Map hasilnya dan tentukan status:
+    // - "CRITICAL" jika stok <= setengah dari minimumStok,
+    // - "LOW" jika stok > setengah dari minimumStok namun <= minimumStok.
+    const result = lowStockProducts.map((product) => ({
+      nama: product.nama,
+      stok: product.stok,
+      minimumStok: product.minimumStok,
+      status: product.stok <= product.minimumStok / 2 ? "CRITICAL" : "LOW",
+    }));
+
+    return result;
+  } catch (error) {
+    console.error("Error fetching low stock products:", error);
+    // Kembalikan array kosong jika terjadi error
+    return [];
+  }
+}
+
+export async function getTopCustomers() {
+  try {
+    // Mengambil data pelanggan dengan total pembelian tertinggi
+    const customers = await prisma.pelanggan.findMany({
+      where: {
+        NOT: {
+          nama: "Guest", // Mengabaikan pelanggan Guest
+        },
+      },
+      select: {
+        pelangganId: true,
+        nama: true,
+        points: true,
+        penjualan: {
+          select: {
+            total_harga: true,
+          },
+        },
+      },
+      orderBy: {
+        points: "desc",
+      },
+      take: 5, // Mengambil 5 pelanggan teratas
+    });
+
+    // Memproses data untuk mendapatkan total pembelian
+    const processedCustomers = customers.map((customer) => ({
+      id: customer.pelangganId,
+      nama: customer.nama,
+      totalSpent: customer.penjualan.reduce((sum, sale) => sum + sale.total_harga, 0),
+      points: customer.points,
+    }));
+
+    // Mengurutkan berdasarkan total pembelian
+    return processedCustomers.sort((a, b) => b.totalSpent - a.totalSpent);
+  } catch (error) {
+    console.error("Error fetching top customers:", error);
+    return [];
+  }
+}
+
+export async function getCashierPerformance(startDate?: Date, endDate?: Date) {
+  try {
+    // Default ke 30 hari terakhir jika tanggal tidak dispesifikasi
+    const start = startDate || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const end = endDate || new Date();
+
+    const cashierStats = await prisma.user.findMany({
+      where: {
+        level: "PETUGAS", // Hanya ambil user dengan level KASIR
+      },
+      select: {
+        username: true,
+        penjualan: {
+          where: {
+            tanggalPenjualan: {
+              gte: start,
+              lte: end,
+            },
+          },
+          select: {
+            total_harga: true,
+          },
+        },
+      },
+    });
+
+    return cashierStats
+      .map((cashier) => ({
+        name: cashier.username,
+        transactions: cashier.penjualan.length,
+        sales: cashier.penjualan.reduce((sum, sale) => sum + Number(sale.total_harga), 0),
+      }))
+      .sort((a, b) => b.sales - a.sales);
+  } catch (error) {
+    console.error("Error fetching cashier performance:", error);
+    return [];
+  }
+}
+
+// Propotions Server actions
+export async function createPromotion(data: any) {
+  try {
+    const promotion = await prisma.promotion.create({
+      data: {
+        name: data.name,
+        description: data.description,
+        discountType: data.discountType,
+        discountValue: Number.parseFloat(data.discountValue),
+        startDate: new Date(data.startDate),
+        endDate: new Date(data.endDate),
+        appliesTo: data.appliesTo,
+        categoryIds: data.categoryIds,
+        minPurchase: data.minPurchase ? Number.parseFloat(data.minPurchase) : null,
+        maxDiscount: data.maxDiscount ? Number.parseFloat(data.maxDiscount) : null,
+      },
+    })
+    revalidatePath("/admin/promotions")
+    return { status: "Success", data: promotion }
+  } catch (error) {
+    console.error("Failed to create promotion:", error)
+    return { status: "Error", message: "Failed to create promotion" }
+  }
+}
+
+export async function getPromotions() {
+  try {
+    const promotions = await prisma.promotion.findMany({
+      orderBy: { createdAt: "desc" },
+    })
+    return { status: "Success", data: promotions }
+  } catch (error) {
+    console.error("Failed to fetch promotions:", error)
+    return { status: "Error", message: "Failed to fetch promotions" }
+  }
+}
+
+export async function updatePromotion(id: number, data: any) {
+  try {
+    const promotion = await prisma.promotion.update({
+      where: { id },
+      data: {
+        name: data.name,
+        description: data.description,
+        discountType: data.discountType,
+        discountValue: Number.parseFloat(data.discountValue),
+        startDate: new Date(data.startDate),
+        endDate: new Date(data.endDate),
+        isActive: data.isActive,
+        appliesTo: data.appliesTo,
+        categoryIds: data.categoryIds,
+        minPurchase: data.minPurchase ? Number.parseFloat(data.minPurchase) : null,
+        maxDiscount: data.maxDiscount ? Number.parseFloat(data.maxDiscount) : null,
+      },
+    })
+    revalidatePath("/admin/promotions")
+    return { status: "Success", data: promotion }
+  } catch (error) {
+    console.error("Failed to update promotion:", error)
+    return { status: "Error", message: "Failed to update promotion" }
+  }
+}
+
+export async function deletePromotion(id: number) {
+  try {
+    await prisma.promotion.delete({ where: { id } })
+    revalidatePath("/admin/promotions")
+    return { status: "Success" }
+  } catch (error) {
+    console.error("Failed to delete promotion:", error)
+    return { status: "Error", message: "Failed to delete promotion" }
+  }
+}

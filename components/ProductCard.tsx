@@ -1,15 +1,16 @@
-"use client"
+"use client";
 
-import Image from "next/image"
-import { formatRupiah } from "@/lib/formatIdr"
-import { Produk } from "@prisma/client"
+import Image from "next/image";
+import { formatRupiah } from "@/lib/formatIdr";
+import { Produk } from "@prisma/client";
 
 interface NeoProductCardProps {
-  product: Produk & { image: string }
-  onClick: () => void
+  product: Produk & { image: string; kategori: { nama: string } };
+  onClick: () => void;
 }
 
 export function NeoProductCard({ product, onClick }: NeoProductCardProps) {
+  console.log("produk nih :", product);
   return (
     <div 
       onClick={onClick}
@@ -30,11 +31,10 @@ export function NeoProductCard({ product, onClick }: NeoProductCardProps) {
       <div className="space-y-2">
         <h3 className="font-bold text-lg font-mono">{product.nama}</h3>
         <div className="flex items-center justify-between">
-          <span className="px-2 py-1 bg-black text-white font-mono text-sm">{product.kategori}</span>
+          <span className="px-2 py-1 bg-black text-white font-mono text-sm">{product.kategori.nama}</span>
           <span className="font-bold font-mono text-sm">{formatRupiah(product.harga)}</span>
         </div>
       </div>
     </div>
-  )
+  );
 }
-

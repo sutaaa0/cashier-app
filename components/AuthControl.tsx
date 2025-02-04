@@ -1,17 +1,20 @@
-import { getCurrentUser } from "@/server/actions";
-import { redirect } from "next/navigation";
+// components/AuthControl.tsx
+import { getCurrentUser } from "@/server/actions"
+import { redirect } from "next/navigation"
 
 const AuthControl = async () => {
-  const currentUser = await getCurrentUser();
-  const level = currentUser?.level;
+  const currentUser = await getCurrentUser()
+  
+  // Redirect langsung tanpa logic branching kompleks
+  if (!currentUser) return redirect("/login")
+  
+  return redirect(
+    currentUser.level === 'ADMIN' 
+      ? '/dashboard-admin' 
+      : currentUser.level === 'PETUGAS' 
+        ? '/kasir' 
+        : '/login'
+  )
+}
 
-  if (level === "ADMIN") {
-    return redirect("/dashboard-admin");
-  } else if (level === "PETUGAS") {
-    return redirect("/kasir");
-  } else {
-    return redirect("/login");
-  }
-};
-
-export default AuthControl;
+export default AuthControl

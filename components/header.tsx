@@ -21,7 +21,7 @@ export function Header() {
             </span>
           </div>
         </div>
-        <LogoutBtnP />
+        <LogoutBtnP label="Close Order"/>
       </div>
       <div className="text-3xl font-black transform -rotate-2 bg-[#FF6B6B] text-white p-2 border-3 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">KASIR POS</div>
     </div>

@@ -79,12 +79,12 @@ export function NeoCustomerInput({ onSubmit, onCancel }: CustomerInputProps) {
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Masukkan nama atau nomor telepon"
             disabled={isLoading}
-            className="flex-1 px-4 py-2 border-2 border-black focus:outline-none focus:ring-2 focus:ring-black"
+            className="flex-1 px-4 py-2 border-2 border-black focus:outline-none focus:ring-2 focus:ring-[#FFD700]"
           />
           <button 
             onClick={handleSearch} 
             disabled={isLoading}
-            className="px-4 py-2 bg-black text-white font-bold border-2 border-black hover:bg-white hover:text-black transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-4 py-2 bg-[#FFD700] text-black font-bold border-2 border-black hover:bg-black hover:text-[#FFD700] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isLoading ? "Mencari..." : "Cari"}
           </button>
@@ -98,7 +98,7 @@ export function NeoCustomerInput({ onSubmit, onCancel }: CustomerInputProps) {
               <li 
                 key={customer.pelangganId} 
                 onClick={() => onSubmit(customer)}
-                className="cursor-pointer hover:bg-black hover:text-white p-2 transition-colors"
+                className="cursor-pointer hover:bg-[#FFD700] p-2 transition-colors"
               >
                 {customer.nama} - {customer.nomorTelepon}
               </li>
@@ -115,7 +115,7 @@ export function NeoCustomerInput({ onSubmit, onCancel }: CustomerInputProps) {
             onChange={(e) => setName(e.target.value)}
             required
             disabled={isLoading}
-            className="w-full px-4 py-2 border-2 border-black focus:outline-none focus:ring-2 focus:ring-black"
+            className="w-full px-4 py-2 border-2 border-black focus:outline-none focus:ring-2 focus:ring-[#FFD700]"
           />
         </div>
         <div>
@@ -126,7 +126,7 @@ export function NeoCustomerInput({ onSubmit, onCancel }: CustomerInputProps) {
             onChange={(e) => setAddress(e.target.value)}
             required
             disabled={isLoading}
-            className="w-full px-4 py-2 border-2 border-black focus:outline-none focus:ring-2 focus:ring-black"
+            className="w-full px-4 py-2 border-2 border-black focus:outline-none focus:ring-2 focus:ring-[#FFD700]"
           />
         </div>
         <div>
@@ -137,7 +137,7 @@ export function NeoCustomerInput({ onSubmit, onCancel }: CustomerInputProps) {
             onChange={(e) => setPhoneNumber(e.target.value)}
             required
             disabled={isLoading}
-            className="w-full px-4 py-2 border-2 border-black focus:outline-none focus:ring-2 focus:ring-black"
+            className="w-full px-4 py-2 border-2 border-black focus:outline-none focus:ring-2 focus:ring-[#FFD700]"
           />
         </div>
         <div className="flex justify-end gap-2">
@@ -145,14 +145,14 @@ export function NeoCustomerInput({ onSubmit, onCancel }: CustomerInputProps) {
             type="button" 
             onClick={onCancel}
             disabled={isLoading}
-            className="px-4 py-2 bg-white text-black font-bold border-2 border-black hover:bg-black hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-4 py-2 bg-white text-black font-bold border-2 border-black hover:bg-[#FFD700] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Batal
           </button>
           <button 
             type="submit" 
             disabled={isLoading}
-            className="px-4 py-2 bg-black text-white font-bold border-2 border-black hover:bg-white hover:text-black transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-4 py-2 bg-[#FFD700] text-black font-bold border-2 border-black hover:bg-black hover:text-[#FFD700] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isLoading ? "Menyimpan..." : "Simpan"}
           </button>
@@ -161,7 +161,7 @@ export function NeoCustomerInput({ onSubmit, onCancel }: CustomerInputProps) {
       <div className="mt-4">
         <button 
           onClick={handleGuestPurchase} 
-          className="w-full px-4 py-2 bg-gray-200 text-black font-bold border-2 border-black hover:bg-black hover:text-white transition-colors"
+          className="w-full px-4 py-2 bg-white text-black font-bold border-2 border-black hover:bg-[#FFD700] transition-colors"
         >
           Lanjutkan sebagai Guest
         </button>

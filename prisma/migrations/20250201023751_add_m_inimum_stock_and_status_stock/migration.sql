@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "Produk" ADD COLUMN     "minimumStok" INTEGER NOT NULL DEFAULT 10,
+ADD COLUMN     "statusStok" TEXT NOT NULL DEFAULT 'NORMAL';

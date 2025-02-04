@@ -1,12 +1,14 @@
-import { Users, ShoppingBag, UsersIcon as Customers, FileText, Package, BarChart, Settings, BarChart2, LayoutDashboardIcon } from 'lucide-react'
+import { Users, ShoppingBag, UsersIcon as Customers, FileText, Package, BarChart, Settings, BarChart2, LayoutDashboardIcon, CalendarRange, Tag } from 'lucide-react'
 
 const menuItems = [
   { id: 'users', label: 'Users', icon: Users },
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboardIcon },
   { id: 'products', label: 'Products', icon: ShoppingBag },
+  { id: 'categories', label: 'Categories', icon: Tag },
   { id: 'customers', label: 'Customers', icon: Customers },
   { id: 'transactions', label: 'Transactions', icon: FileText },
   { id: 'stock', label: 'Stock', icon: Package },
+  { id: 'promotion', label: 'Promotion', icon:  CalendarRange },
   { id: 'reports', label: 'Reports', icon: BarChart },
   { id: 'analytics', label: 'Analytics', icon: BarChart2 },
   { id: 'settings', label: 'Settings', icon: Settings },

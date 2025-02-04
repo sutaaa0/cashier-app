@@ -1,11 +1,11 @@
-"use client"
+"use client";
 
-import { Produk } from "@prisma/client"
-import { NeoProductCard } from "./ProductCard"
+import { Produk } from "@prisma/client";
+import { NeoProductCard } from "./ProductCard";
 
 interface ProductGridProps {
-  products: (Produk & { image: string })[]
-  onProductSelect: (product: Produk & { image: string }) => void
+  products: (Produk & { image: string; kategori: { nama: string } })[];
+  onProductSelect: (product: Produk & { image: string; kategori: { nama: string } }) => void;
 }
 
 export function ProductGrid({ products, onProductSelect }: ProductGridProps) {
@@ -20,6 +20,5 @@ export function ProductGrid({ products, onProductSelect }: ProductGridProps) {
         </div>
       ))}
     </div>
-  )
+  );
 }
-

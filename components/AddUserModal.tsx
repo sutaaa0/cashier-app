@@ -33,7 +33,7 @@ export function AddUserModal({ isOpen, onClose }: AddUserModalProps) {
         // Reset form
         setUsername('');
         setPassword('');
-        setLevel('cashier');
+        setLevel('PETUGAS');
       } else {
         toast({
           title: "Error",
@@ -42,6 +42,7 @@ export function AddUserModal({ isOpen, onClose }: AddUserModalProps) {
         });
       }
     } catch (error) {
+      console.log(error)
       toast({
         title: "Error",
         description: "Gagal menambahkan user",

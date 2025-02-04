@@ -4,7 +4,7 @@ import { toast } from "@/hooks/use-toast";
 import { Logout } from "@/server/actions";
 import { useRouter } from "next/navigation";
 
-const LogoutBtnP = () => {
+const LogoutBtnP = ({label} : {label : string}) => {
     const router = useRouter();
 
   const handleLogout = async () => {
@@ -34,7 +34,7 @@ const LogoutBtnP = () => {
   };
   return (
     <NeoButton size="sm" className="transform rotate-1" onClick={handleLogout}>
-      Close Order
+      {label}
     </NeoButton>
   );
 };

@@ -3,34 +3,57 @@ import { useEffect, useState } from "react";
 import { Coffee, Trash2, Edit, Plus, Tag } from "lucide-react";
 import Image from "next/image";
 import { AddProductModal } from "@/app/(administrator)/dashboard-admin/components/AddProductModal";
-import type { Produk } from "@prisma/client";
-import { deleteProduct, getAdminProduct, updateProduct } from "@/server/actions";
+import type { Produk, Kategori } from "@prisma/client";
+import { deleteProduct, fetchCategories, getAdminProduct, updateProduct } from "@/server/actions"; // pastikan addCategory diimpor
 import { toast } from "@/hooks/use-toast";
 import { EditProductModal } from "./EditProductModal";
 import { DeleteConfirmModal } from "./DeleteConfirmModal";
 import { NeoProgressIndicator } from "./NeoProgresIndicator";
 
+type ProductWithKategori = Produk & {
+  kategori: Kategori;
+};
+
 export function ProductManagement() {
-  const [produk, setProduk] = useState<Produk[]>([]);
+  const [produk, setProduk] = useState<ProductWithKategori[]>([]);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  const [selectedProduct, setSelectedProduct] = useState<Produk | null>(null);
+  const [selectedProduct, setSelectedProduct] = useState<ProductWithKategori | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [loadingMessage, setLoadingMessage] = useState("");
+  const [category, setCategory] = useState<Kategori[]>([]);
 
   useEffect(() => {
     fetchProducts();
+    getCategorys();
   }, []);
+
+  const getCategorys = async () => {
+    try {
+      const response = await fetchCategories();
+      if (response.status === "Success" && response.data) {
+        setCategory(response.data);
+        console.log("kategori ", response.data);
+      }
+    } catch (error) {
+      console.error(error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch categories",
+        variant: "destructive",
+      });
+    }
+  };
 
   const fetchProducts = async () => {
     setIsLoading(true);
     setLoadingMessage("Fetching products...");
     try {
-      const produk = await getAdminProduct();
-      setProduk(produk);
+      const products = await getAdminProduct();
+      setProduk(products);
     } catch (error) {
-      console.log(error);
+      console.error(error);
       toast({
         title: "Error",
         description: "Failed to fetch products",
@@ -41,7 +64,7 @@ export function ProductManagement() {
     }
   };
 
-  const handleDeleteClick = (product: Produk) => {
+  const handleDeleteClick = (product: ProductWithKategori) => {
     setSelectedProduct(product);
     setIsDeleteModalOpen(true);
   };
@@ -52,7 +75,6 @@ export function ProductManagement() {
       setLoadingMessage("Deleting product...");
       try {
         const deleteProduk = await deleteProduct(selectedProduct.produkId);
-
         if (deleteProduk.status === "Success") {
           toast({
             title: "Success",
@@ -67,7 +89,7 @@ export function ProductManagement() {
           });
         }
       } catch (error) {
-        console.log(error);
+        console.error(error);
         toast({
           title: "Error",
           description: "An error occurred while deleting the product",
@@ -81,7 +103,7 @@ export function ProductManagement() {
     }
   };
 
-  const handleEditClick = (product: Produk) => {
+  const handleEditClick = (product: ProductWithKategori) => {
     setSelectedProduct(product);
     setIsEditModalOpen(true);
   };
@@ -91,7 +113,6 @@ export function ProductManagement() {
     setLoadingMessage("Updating product...");
     try {
       const result = await updateProduct(updatedProduct);
-
       if (result.status === "Success") {
         toast({
           title: "Success",
@@ -107,7 +128,7 @@ export function ProductManagement() {
         });
       }
     } catch (error) {
-      console.log(error);
+      console.error(error);
       toast({
         title: "Error",
         description: "An error occurred while updating the product",
@@ -115,6 +136,19 @@ export function ProductManagement() {
       });
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const getStockStatusColor = (status: string) => {
+    switch (status) {
+      case "CRITICAL":
+        return "text-red-600";
+      case "LOW":
+        return "text-yellow-600";
+      case "NORMAL":
+        return "text-green-600";
+      default:
+        return "";
     }
   };
 
@@ -136,17 +170,36 @@ export function ProductManagement() {
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-4">
                 <div className="w-16 h-16 bg-[#93B8F3] border-[3px] border-black flex items-center justify-center overflow-hidden">
-                  {product.image ? <Image src={product.image || "/placeholder.svg"} alt={product.nama} width={100} height={100} className="w-full h-full object-cover" /> : <Coffee size={32} />}
+                  {product.image ? (
+                    <Image
+                      src={product.image || "/placeholder.svg"}
+                      alt={product.nama}
+                      width={100}
+                      height={100}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <Coffee size={32} />
+                  )}
                 </div>
                 <div>
                   <h3 className="font-bold text-lg">{product.nama}</h3>
                   <p className="text-sm">
-                    Price: {new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR" }).format(product.harga)} | Stock: {product.stok}
+                    Price:{" "}
+                    {new Intl.NumberFormat("id-ID", {
+                      style: "currency",
+                      currency: "IDR",
+                    }).format(product.harga)}
                   </p>
-
+                  <p className="text-sm">
+                    Stock: {product.stok} | Min Stock: {product.minimumStok}
+                    <span className={`ml-2 font-medium ${getStockStatusColor(product.statusStok)}`}>
+                      ({product.statusStok})
+                    </span>
+                  </p>
                   <div className="flex items-center mt-1">
                     <Tag size={16} className="mr-1" />
-                    <span className="text-sm">{product.kategori}</span>
+                    <span className="text-sm">{product.kategori.nama}</span>
                   </div>
                 </div>
               </div>
@@ -177,8 +230,22 @@ export function ProductManagement() {
           fetchProducts();
         }}
       />
-      {selectedProduct && <EditProductModal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} product={selectedProduct} onEditProduct={handleEditProduct} />}
-      <DeleteConfirmModal isOpen={isDeleteModalOpen} onClose={() => setIsDeleteModalOpen(false)} onConfirm={handleDeleteProduct} itemName={selectedProduct?.nama || ""} subject="Product" />
+      {selectedProduct && (
+        <EditProductModal
+          categories={category}
+          isOpen={isEditModalOpen}
+          onClose={() => setIsEditModalOpen(false)}
+          product={selectedProduct}
+          onEditProduct={handleEditProduct}
+        />
+      )}
+      <DeleteConfirmModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        onConfirm={handleDeleteProduct}
+        itemName={selectedProduct?.nama || ""}
+        subject="Product"
+      />
       <NeoProgressIndicator isLoading={isLoading} message={loadingMessage} />
     </div>
   );

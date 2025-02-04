@@ -5,19 +5,20 @@ import { Header } from "@/components/header";
 import { CategoryNav } from "@/components/category-nav";
 import { ProductGrid } from "@/components/product-grid";
 import { toast } from "@/hooks/use-toast";
-import { createOrder, getCurrentUser, getProducts } from "@/server/actions";
+import { createOrder, getProducts, redeemPoints } from "@/server/actions";
 import { Produk as PrismaProduk, Penjualan, DetailPenjualan } from "@prisma/client";
 import { NeoSearchInput } from "./InputSearch";
 import { NeoOrderSummary } from "./order-summary";
 import { NeoProgressIndicator } from "./NeoProgresIndicator";
 
 interface Produk extends PrismaProduk {
+  kategori: { nama: string }; // pastikan properti kategori ada dan memuat field nama
   image: string;
 }
 
 const Pos = () => {
   const [selectedCategory, setSelectedCategory] = useState("All Menu");
-  const [isLoading, setIsLoading] = useState(true); // Added isLoading state
+  const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [products, setProducts] = useState<Produk[]>([]);
 
@@ -31,19 +32,20 @@ const Pos = () => {
     total_harga: 0,
     pelangganId: null,
     guestId: null,
+    userId: 0,
     detailPenjualan: [],
   });
 
   const orderSummaryRef = useRef<{ resetCustomerData: () => void } | null>(null);
 
   useEffect(() => {
-      fetchProducts();
+    fetchProducts();
   }, [selectedCategory]);
 
   const fetchProducts = async () => {
     try {
       setIsLoading(true);
-        const data = await getProducts(selectedCategory);
+      const data = await getProducts(selectedCategory);
       setProducts(data || []);
     } catch (error) {
       console.error("Error fetching products:", error);
@@ -143,44 +145,50 @@ const Pos = () => {
       });
       return;
     }
-
+  
     try {
       setIsLoading(true);
       console.log("Creating order with data:", orderData);
+    console.log("redemmedPoin di handlePlaceorder di POs :",orderData.redeemedPoints)
+
     
-      // Ensure all required fields are present
+      // Pastikan semua field yang diperlukan ada
       const orderPayload = {
         ...orderData,
         pelangganId: orderData.pelangganId || null,
         guestId: orderData.guestId || null,
         total_harga: orderData.total_harga,
         redeemedPoints: orderData.redeemedPoints || 0,
-        detailPenjualan: orderData.detailPenjualan.map(item => ({
+        userId: orderData.userId,
+        detailPenjualan: orderData.detailPenjualan.map((item) => ({
           produkId: item.produkId,
           kuantitas: item.kuantitas,
-          subtotal: item.subtotal
-        }))
+          subtotal: item.subtotal,
+        })),
       };
+            
+      console.log("Payload yang dikirim:", orderPayload);
 
+      console.log("Order data sebelum dikirim:", orderData);
+      
       const penjualan = await createOrder(orderPayload);
-
+  
       if (penjualan) {
         toast({
           title: "Berhasil",
           description: `Pesanan berhasil dibuat. Total: Rp${(penjualan.total_harga).toLocaleString()}`,
         });
-
-        // Reset order and customer data
+  
         setOrder({
           penjualanId: 0,
           tanggalPenjualan: new Date(),
           total_harga: 0,
           pelangganId: null,
           guestId: null,
+          userId: orderData.userId,
           detailPenjualan: [],
         });
-
-        // Reset customer data in OrderSummary
+  
         if (orderSummaryRef.current) {
           orderSummaryRef.current.resetCustomerData();
         }
@@ -200,11 +208,17 @@ const Pos = () => {
   };
 
   const handleSearch = (query: string) => {
-    setSearchQuery(query)
-  }
+    setSearchQuery(query);
+  };
 
-  console.log("kategory yang diselect :",selectedCategory)
-  const filteredProducts = products.filter((product) => (product?.nama || "").toLowerCase().includes(searchQuery.toLowerCase()) && (selectedCategory === "All Menu" || product?.kategori === selectedCategory));
+  console.log("kategory yang diselect :", selectedCategory);
+  const filteredProducts = products.filter(
+    (product) =>
+      (product?.nama || "")
+        .toLowerCase()
+        .includes(searchQuery.toLowerCase()) &&
+      (selectedCategory === "All Menu" || product?.kategori?.nama === selectedCategory)
+  );
 
   return (
     <div className="h-screen flex flex-col bg-white">
@@ -212,8 +226,10 @@ const Pos = () => {
       <div className="flex flex-1 overflow-hidden">
         <div className="flex-1 flex flex-col overflow-hidden">
           <CategoryNav selected={selectedCategory} onSelect={setSelectedCategory} />
-          <NeoSearchInput onSearch={handleSearch}  />
-          <div className="flex-1 overflow-auto">{isLoading ? <NeoProgressIndicator isLoading={isLoading} /> : <ProductGrid products={filteredProducts} onProductSelect={addToOrder} />}</div>
+          <NeoSearchInput onSearch={handleSearch} />
+          <div className="flex-1 overflow-auto">
+            {isLoading ? <NeoProgressIndicator isLoading={isLoading} /> : <ProductGrid products={filteredProducts} onProductSelect={addToOrder} />}
+          </div>
         </div>
         <NeoOrderSummary 
           ref={orderSummaryRef} 
@@ -229,4 +245,3 @@ const Pos = () => {
 };
 
 export default Pos;
-
