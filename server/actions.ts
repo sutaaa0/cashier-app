@@ -3,7 +3,7 @@ import { cookies } from "next/headers";
 import { prisma } from "@/lib/db";
 import bcrypt from "bcryptjs";
 import * as jose from "jose";
-import { DetailPenjualan, Pelanggan, Produk } from "@prisma/client";
+import { DetailPenjualan, Pelanggan, Produk, Promotion } from "@prisma/client";
 import { CreateOrderDetail, Product } from "@/types/types";
 import { revalidatePath } from "next/cache";
 import { v2 as cloudinary } from "cloudinary";
@@ -271,17 +271,6 @@ export async function deleteProduct(productId: number) {
   };
 }
 
-
-/**
- * Fungsi createOrder: membuat transaksi penjualan.
- * Jika pelanggan (member) melakukan transaksi, maka:
- *  - Akan melakukan validasi redeem poin
- *  - Mengurangi total harga sesuai redeem poin
- *  - Mengurangi poin pelanggan yang digunakan
- *  - Menghitung poin yang akan diberikan (total sebelum diskon / 200)
- * Jika bukan member, maka guest akan diproses.
- */
-
 export async function createOrder(orderData: Penjualan & { redeemedPoints?: number }): Promise<
   | (Penjualan & {
       detailPenjualan: DetailPenjualan[];
@@ -295,60 +284,15 @@ export async function createOrder(orderData: Penjualan & { redeemedPoints?: numb
   console.log("Data yang diterima di createOrder:", orderData);
   try {
     return await prisma.$transaction(async (tx) => {
-      // Validasi data dasar
-      // if (!orderData.userId) {
-      //   throw new Error("userId tidak boleh kosong");
-      // }
-      // if (!Array.isArray(orderData.detailPenjualan) || orderData.detailPenjualan.length === 0) {
-      //   throw new Error("Detail penjualan harus berisi minimal satu item");
-      // }
-      // if (orderData.total_harga < 0) {
-      //   throw new Error("Total harga tidak boleh negatif");
-      // }
-
-      // let totalHarga = orderData.total_harga;
-      // let pointsToAward = 0;
-
-      // Jika pembeli adalah member (memiliki pelangganId)
-      // if (orderData.pelangganId) {
-      //   const pelanggan = await tx.pelanggan.findUnique({
-      //     where: { pelangganId: orderData.pelangganId },
-      //   });
-      //   if (!pelanggan) {
-      //     throw new Error("Pelanggan tidak ditemukan");
-      //   }
-
-      //   // Redeem poin jika ada
-      //   if (orderData.redeemedPoints && orderData.redeemedPoints > 0) {
-      //     console.log("Reedem poin dimulai....");
-      //     console.log("proses nya nyampe disini nih...");
-
-      //     totalHarga = Math.max(totalHarga - orderData.redeemedPoints, 0);
-      //     console.log("Total harga setelah redeem poin:", totalHarga);
-
-      //     // Kurangi poin pelanggan
-      //     await tx.pelanggan.update({
-      //       where: { pelangganId: pelanggan.pelangganId },
-      //       data: { points: { decrement: orderData.redeemedPoints } },
-      //     });
-      //     console.log("selesai...");
-      //   }
-
-      //   // Hitung poin yang akan diberikan
-      //   pointsToAward = Math.floor(orderData.total_harga / 200);
-      //   if (pointsToAward > 0) {
-      //     await tx.pelanggan.update({
-      //       where: { pelangganId: orderData.pelangganId },
-      //       data: { points: { increment: pointsToAward } },
-      //     });
-      //   }
-      // }
-
       // Jika pembeli bukan member (guest), pastikan guestId ada
       if (!orderData.pelangganId && !orderData.guestId) {
         const guest = await tx.guest.create({ data: {} });
         orderData.guestId = guest.guestId;
       }
+
+      // Calculate points before applying redemption
+      const originalTotal = orderData.total_harga;
+      const pointsToAward = Math.floor(originalTotal / 200); // 1 point for every 200 IDR spent
 
       // Siapkan payload pembuatan penjualan
       const penjualanData = {
@@ -368,6 +312,7 @@ export async function createOrder(orderData: Penjualan & { redeemedPoints?: numb
 
       console.log("Payload pembuatan penjualan:", penjualanData);
 
+      // Create the sale record
       const penjualan = await tx.penjualan.create({
         data: penjualanData,
         include: {
@@ -378,7 +323,26 @@ export async function createOrder(orderData: Penjualan & { redeemedPoints?: numb
         },
       });
 
-      // Update stok produk
+      // Handle member points if applicable
+      if (orderData.pelangganId) {
+        // First deduct redeemed points if any
+        if (orderData.redeemedPoints && orderData.redeemedPoints > 0) {
+          await tx.pelanggan.update({
+            where: { pelangganId: orderData.pelangganId },
+            data: { points: { decrement: orderData.redeemedPoints } },
+          });
+        }
+
+        // Then award new points based on the purchase
+        if (pointsToAward > 0) {
+          await tx.pelanggan.update({
+            where: { pelangganId: orderData.pelangganId },
+            data: { points: { increment: pointsToAward } },
+          });
+        }
+      }
+
+      // Update product stock
       for (const detail of orderData.detailPenjualan) {
         await tx.produk.update({
           where: { produkId: detail.produkId },
@@ -388,8 +352,9 @@ export async function createOrder(orderData: Penjualan & { redeemedPoints?: numb
 
       return {
         ...penjualan,
+        pointsAwarded: pointsToAward,
         pointsRedeemed: orderData.redeemedPoints || 0,
-        originalTotal: orderData.total_harga,
+        originalTotal: originalTotal,
         finalTotal: orderData.total_harga,
       };
     });
@@ -2037,79 +2002,5 @@ export async function getCashierPerformance(startDate?: Date, endDate?: Date) {
   } catch (error) {
     console.error("Error fetching cashier performance:", error);
     return [];
-  }
-}
-
-// Propotions Server actions
-export async function createPromotion(data: any) {
-  try {
-    const promotion = await prisma.promotion.create({
-      data: {
-        name: data.name,
-        description: data.description,
-        discountType: data.discountType,
-        discountValue: Number.parseFloat(data.discountValue),
-        startDate: new Date(data.startDate),
-        endDate: new Date(data.endDate),
-        appliesTo: data.appliesTo,
-        categoryIds: data.categoryIds,
-        minPurchase: data.minPurchase ? Number.parseFloat(data.minPurchase) : null,
-        maxDiscount: data.maxDiscount ? Number.parseFloat(data.maxDiscount) : null,
-      },
-    })
-    revalidatePath("/admin/promotions")
-    return { status: "Success", data: promotion }
-  } catch (error) {
-    console.error("Failed to create promotion:", error)
-    return { status: "Error", message: "Failed to create promotion" }
-  }
-}
-
-export async function getPromotions() {
-  try {
-    const promotions = await prisma.promotion.findMany({
-      orderBy: { createdAt: "desc" },
-    })
-    return { status: "Success", data: promotions }
-  } catch (error) {
-    console.error("Failed to fetch promotions:", error)
-    return { status: "Error", message: "Failed to fetch promotions" }
-  }
-}
-
-export async function updatePromotion(id: number, data: any) {
-  try {
-    const promotion = await prisma.promotion.update({
-      where: { id },
-      data: {
-        name: data.name,
-        description: data.description,
-        discountType: data.discountType,
-        discountValue: Number.parseFloat(data.discountValue),
-        startDate: new Date(data.startDate),
-        endDate: new Date(data.endDate),
-        isActive: data.isActive,
-        appliesTo: data.appliesTo,
-        categoryIds: data.categoryIds,
-        minPurchase: data.minPurchase ? Number.parseFloat(data.minPurchase) : null,
-        maxDiscount: data.maxDiscount ? Number.parseFloat(data.maxDiscount) : null,
-      },
-    })
-    revalidatePath("/admin/promotions")
-    return { status: "Success", data: promotion }
-  } catch (error) {
-    console.error("Failed to update promotion:", error)
-    return { status: "Error", message: "Failed to update promotion" }
-  }
-}
-
-export async function deletePromotion(id: number) {
-  try {
-    await prisma.promotion.delete({ where: { id } })
-    revalidatePath("/admin/promotions")
-    return { status: "Success" }
-  } catch (error) {
-    console.error("Failed to delete promotion:", error)
-    return { status: "Error", message: "Failed to delete promotion" }
   }
 }
