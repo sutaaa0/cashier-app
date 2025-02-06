@@ -2,7 +2,7 @@
 
 import { useState, forwardRef, useImperativeHandle, useCallback, useEffect } from "react";
 import Image from "next/image";
-import { Minus, Plus, Trash2, Pen } from "lucide-react";
+import { Minus, Plus, Trash2, } from "lucide-react";
 import type { Penjualan, DetailPenjualan, Produk } from "@prisma/client";
 import { NeoCustomerInput } from "./CustomerInput";
 import { toast } from "@/hooks/use-toast";
@@ -18,7 +18,7 @@ interface OrderSummaryProps {
   isLoading: boolean;
 }
 
-export const NeoOrderSummary = forwardRef<{ resetCustomerData: () => void }, OrderSummaryProps>(({ order, onUpdateQuantity, onEditItem, onDeleteItem, onPlaceOrder, isLoading }, ref) => {
+export const NeoOrderSummary = forwardRef<{ resetCustomerData: () => void }, OrderSummaryProps>(({ order, onUpdateQuantity, onDeleteItem, onPlaceOrder, isLoading }, ref) => {
   const [showCustomerInput, setShowCustomerInput] = useState(false);
   const [customerData, setCustomerData] = useState<{
     pelangganId?: number;
