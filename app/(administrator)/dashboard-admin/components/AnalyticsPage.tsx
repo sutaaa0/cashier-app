@@ -1,14 +1,45 @@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useState } from "react";
-import SalesOverTime from "./SalesOverTime";
-import CustomerTransactionsChart  from "./CutomerTransactionsChart";
+import CustomerTransactionsChart from "./CutomerTransactionsChart";
 import { LowStockProductsChart } from "./LowStockProductChart";
 import { RevenueByCategoryChart } from "./RevenueByCategoryChart";
 import { TopSellingProducts } from "./TopSellingProduct";
+import SalesOverTime from "./SalesOverTime";
 
 export function AnalyticsPage() {
   const [timeRange, setTimeRange] = useState("daily");
+  // State untuk menentukan chart yang sedang diperbesar (expanded)
+  const [expandedChart, setExpandedChart] = useState<string | null>(null);
 
+  // Fungsi untuk "zoom" sebuah chart
+  const handleExpand = (chartName: string) => {
+    setExpandedChart(chartName);
+  };
+
+  // Fungsi untuk kembali ke tampilan semua chart
+  const handleCollapse = () => {
+    setExpandedChart(null);
+  };
+
+  // Jika ada chart yang diperbesar, render hanya chart tersebut dengan tombol kembali
+  if (expandedChart) {
+    return (
+      <div className="relative">
+        <button onClick={handleCollapse} className="absolute top-4 left-4 z-10 bg-white border border-black px-4 py-2 font-bold shadow-md">
+          Kembali
+        </button>
+        <div className="p-6">
+          {expandedChart === "SalesOverTime" && <SalesOverTime />}
+          {expandedChart === "TopSellingProducts" && <TopSellingProducts />}
+          {expandedChart === "CustomerTransactionsChart" && <CustomerTransactionsChart />}
+          {expandedChart === "LowStockProductsChart" && <LowStockProductsChart />}
+          {expandedChart === "RevenueByCategoryChart" && <RevenueByCategoryChart />}
+        </div>
+      </div>
+    );
+  }
+
+  // Tampilan default: semua chart ditampilkan
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -25,11 +56,23 @@ export function AnalyticsPage() {
         </Select>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2">
-        <SalesOverTime />
-        <TopSellingProducts />
-        <CustomerTransactionsChart />
-        <LowStockProductsChart />
+      <div className="flex flex-col gap-4">
+        <div className="cursor-pointer" onClick={() => handleExpand("SalesOverTime")}>
+          <SalesOverTime />
+        </div>
+        <div className="cursor-pointer" onClick={() => handleExpand("TopSellingProducts")}>
+          <TopSellingProducts />
+        </div>
+        <div className="grid md:grid-cols-2 gap-4">
+          <div className="cursor-pointer" onClick={() => handleExpand("CustomerTransactionsChart")}>
+            <CustomerTransactionsChart />
+          </div>
+          <div className="cursor-pointer" onClick={() => handleExpand("LowStockProductsChart")}>
+            <LowStockProductsChart />
+          </div>
+        </div>
+      </div>
+      <div className="cursor-pointer" onClick={() => handleExpand("RevenueByCategoryChart")}>
         <RevenueByCategoryChart />
       </div>
     </div>
