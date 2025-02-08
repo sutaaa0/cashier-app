@@ -21,7 +21,7 @@ const customerTransactions = [
   }
 ];
 
-const CustomTooltip = ({ active, payload }: { active?: boolean; payload?: { name: string; value: number }[] }) => {
+const CustomTooltip = ({ active, payload }) => {
   if (active && payload && payload.length) {
     return (
       <div className="relative group">
@@ -41,8 +41,8 @@ const CustomTooltip = ({ active, payload }: { active?: boolean; payload?: { name
   return null;
 };
 
-export default function CustomerTransactionsChart() {
-  const [activeIndex, setActiveIndex] = useState<number | null>(null);
+const CustomerTransactionsChart = () => {
+  const [activeIndex, setActiveIndex] = useState(null);
   const [rotation, setRotation] = useState(0);
 
   return (
@@ -85,7 +85,7 @@ export default function CustomerTransactionsChart() {
 
         <div className="grid md:grid-cols-2 gap-6">
           {/* Chart */}
-          <div className="bg-white border-4 border-black p-6 flex items-center justify-center">
+          <div className="bg-white border-4 border-black p-6 flex items-center justify-center min-h-[400px]">
             <ResponsiveContainer width="100%" height={300}>
               <PieChart>
                 <Pie
@@ -119,7 +119,7 @@ export default function CustomerTransactionsChart() {
                     />
                   ))}
                 </Pie>
-                <Tooltip content={<CustomTooltip />} />
+                <Tooltip content={<CustomTooltip  active={activeIndex !== null} payload={customerTransactions}  />} />
               </PieChart>
             </ResponsiveContainer>
           </div>
@@ -137,7 +137,11 @@ export default function CustomerTransactionsChart() {
               >
                 <div className="flex items-center gap-3">
                   <div
-                    className="w-10 h-10 border-3 border-black transform rotate-45 transition-transform group-hover/item:rotate-0 flex items-center justify-center"
+                    className={`
+                      w-10 h-10 border-3 border-black transform rotate-45 
+                      transition-transform group-hover/item:rotate-0 
+                      flex items-center justify-center
+                    `}
                     style={{ backgroundColor: COLORS[index] }}
                   >
                     {React.createElement(customer.icon, { 
@@ -177,4 +181,6 @@ export default function CustomerTransactionsChart() {
       </div>
     </div>
   );
-}
+};
+
+export default CustomerTransactionsChart;
