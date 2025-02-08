@@ -12,12 +12,17 @@ interface AddProductModalProps {
   onProductAdded: () => void;
 }
 
+interface Category {
+  kategoriId: number;
+  nama: string;
+}
+
 export function AddProductModal({ isOpen, onClose, onProductAdded }: AddProductModalProps) {
   const [productName, setProductName] = useState("");
   const [price, setPrice] = useState("");
   const [stock, setStock] = useState("");
   const [minStock, setMinStock] = useState("");
-  const [categories, setCategories] = useState<any[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | "">("");
 
   const [image, setImage] = useState<File | null>(null);
@@ -83,10 +88,10 @@ export function AddProductModal({ isOpen, onClose, onProductAdded }: AddProductM
       }
     } catch (error) {
       console.error(error);
-      toast({ 
-        title: "Error", 
-        description: error instanceof Error ? error.message : "Failed to add product", 
-        variant: "destructive" 
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to add product",
+        variant: "destructive",
       });
     } finally {
       setIsLoading(false);
@@ -107,58 +112,38 @@ export function AddProductModal({ isOpen, onClose, onProductAdded }: AddProductM
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Product fields */}
           <div>
-            <label htmlFor="productName" className="block mb-1 font-bold">Product Name</label>
-            <input
-              type="text"
-              id="productName"
-              value={productName}
-              onChange={(e) => setProductName(e.target.value)}
-              className="w-full p-2 border-[3px] border-black rounded focus:outline-none focus:ring-2 focus:ring-[#93B8F3]"
-              required
-            />
-          </div>
-          
-          <div>
-            <label htmlFor="price" className="block mb-1 font-bold">Price</label>
-            <input
-              type="number"
-              id="price"
-              value={price}
-              onChange={(e) => setPrice(e.target.value)}
-              min="0"
-              className="w-full p-2 border-[3px] border-black rounded focus:outline-none focus:ring-2 focus:ring-[#93B8F3]"
-              required
-            />
+            <label htmlFor="productName" className="block mb-1 font-bold">
+              Product Name
+            </label>
+            <input type="text" id="productName" value={productName} onChange={(e) => setProductName(e.target.value)} className="w-full p-2 border-[3px] border-black rounded focus:outline-none focus:ring-2 focus:ring-[#93B8F3]" required />
           </div>
 
           <div>
-            <label htmlFor="stock" className="block mb-1 font-bold">Initial Stock</label>
-            <input
-              type="number"
-              id="stock"
-              value={stock}
-              onChange={(e) => setStock(e.target.value)}
-              min="0"
-              className="w-full p-2 border-[3px] border-black rounded focus:outline-none focus:ring-2 focus:ring-[#93B8F3]"
-              required
-            />
+            <label htmlFor="price" className="block mb-1 font-bold">
+              Price
+            </label>
+            <input type="number" id="price" value={price} onChange={(e) => setPrice(e.target.value)} min="0" className="w-full p-2 border-[3px] border-black rounded focus:outline-none focus:ring-2 focus:ring-[#93B8F3]" required />
           </div>
 
           <div>
-            <label htmlFor="minStock" className="block mb-1 font-bold">Minimum Stock</label>
-            <input
-              type="number"
-              id="minStock"
-              value={minStock}
-              onChange={(e) => setMinStock(e.target.value)}
-              min="0"
-              className="w-full p-2 border-[3px] border-black rounded focus:outline-none focus:ring-2 focus:ring-[#93B8F3]"
-            />
+            <label htmlFor="stock" className="block mb-1 font-bold">
+              Initial Stock
+            </label>
+            <input type="number" id="stock" value={stock} onChange={(e) => setStock(e.target.value)} min="0" className="w-full p-2 border-[3px] border-black rounded focus:outline-none focus:ring-2 focus:ring-[#93B8F3]" required />
+          </div>
+
+          <div>
+            <label htmlFor="minStock" className="block mb-1 font-bold">
+              Minimum Stock
+            </label>
+            <input type="number" id="minStock" value={minStock} onChange={(e) => setMinStock(e.target.value)} min="0" className="w-full p-2 border-[3px] border-black rounded focus:outline-none focus:ring-2 focus:ring-[#93B8F3]" />
           </div>
 
           {/* Existing Categories */}
           <div>
-            <label htmlFor="category" className="block mb-1 font-bold">Category</label>
+            <label htmlFor="category" className="block mb-1 font-bold">
+              Category
+            </label>
             <select
               id="category"
               value={selectedCategoryId}
@@ -177,7 +162,9 @@ export function AddProductModal({ isOpen, onClose, onProductAdded }: AddProductM
 
           {/* Upload Product Image */}
           <div>
-            <label htmlFor="image" className="block mb-1 font-bold">Product Image</label>
+            <label htmlFor="image" className="block mb-1 font-bold">
+              Product Image
+            </label>
             <input
               type="file"
               id="image"
