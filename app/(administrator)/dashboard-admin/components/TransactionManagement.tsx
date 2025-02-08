@@ -1,12 +1,13 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { FileText, Eye, Download, Calendar, DollarSign } from "lucide-react";
+import { FileText, Eye, Download, Calendar } from "lucide-react";
 import { getTransactions } from "@/server/actions";
 import { toast } from "@/hooks/use-toast";
 import { ViewTransactionModal } from "./ViewTransactionModal";
 import { NeoProgressIndicator } from "@/components/NeoProgresIndicator";
 import * as XLSX from "xlsx";
+import { formatRupiah } from "@/lib/formatIdr";
 
 interface TransactionData {
   penjualanId: number;
@@ -32,7 +33,7 @@ export function TransactionManagement() {
     try {
       const result = await getTransactions();
       if (result.status === "Success") {
-        setTransactions(result.data);
+        setTransactions(result.data ?? []);
       } else {
         toast({
           title: "Error",
@@ -116,7 +117,7 @@ export function TransactionManagement() {
                       <Calendar size={16} className="mr-1" />
                       {new Date(transaction.tanggalPenjualan).toLocaleDateString()}
                     </span>
-                    <span className="flex items-center text-sm font-bold">{new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR" }).format(transaction.total_harga)}</span>
+                    <span className="flex items-center text-sm font-bold">{formatRupiah(transaction.total_harga)}</span>
                   </div>
                   <p className="text-sm mt-1">
                     {transaction.pelanggan ? transaction.pelanggan.nama : `Guest ${transaction.guest?.guestId}`} •{transaction.detailPenjualan.length} items
