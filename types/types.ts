@@ -55,3 +55,12 @@ export interface Pelanggan {
   nomorTelepon?: string | null;
   penjualan: Penjualan[];
 }
+
+
+
+export interface CustomerTransactionData {
+  name: string;
+  value: number;
+  transactions: number;
+  growth: string;
+}
