@@ -9,39 +9,23 @@ import { NeoProgressIndicator } from "./NeoProgresIndicator";
 interface EditProductModalProps {
   isOpen: boolean;
   onClose: () => void;
-  product: Produk;
-  // Daftar kategori yang diambil dari server
+  product: Produk & {
+    kategori: Kategori;
+  };
   categories: Kategori[];
-  onEditProduct: (product: {
-    id: string;
-    name: string;
-    price: number;
-    stock: number;
-    minimumStok: number;
-    category: string;
-    imageUrl: string;
-  }) => void;
+  onEditProduct: (product: { id: string; name: string; price: number; stock: number; minimumStok: number; category: string; imageUrl: string }) => void;
 }
 
-export function EditProductModal({
-  isOpen,
-  onClose,
-  product,
-  categories: initialCategories,
-  onEditProduct,
-}: EditProductModalProps) {
-  // Field produk
+export function EditProductModal({ isOpen, onClose, product, categories: initialCategories, onEditProduct }: EditProductModalProps) {
   const [productName, setProductName] = useState(product.nama);
   const [price, setPrice] = useState(product.harga.toString());
   const [stock, setStock] = useState(product.stok.toString());
   const [minStock, setMinStock] = useState(product.minimumStok.toString());
-  const [category, setCategory] = useState<string>(product.kategoriId.toString());
+  const [category, setCategory] = useState(product.kategori.nama);
   const [image, setImage] = useState<File | null>(null);
   const [currentImageUrl, setCurrentImageUrl] = useState(product.image);
   const [isLoading, setIsLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  // Gunakan nama state yang berbeda untuk daftar kategori lokal
   const [localCategories, setLocalCategories] = useState<Kategori[]>(initialCategories);
 
   useEffect(() => {
@@ -50,10 +34,9 @@ export function EditProductModal({
       setPrice(product.harga.toString());
       setStock(product.stok.toString());
       setMinStock(product.minimumStok.toString());
-      setCategory(product.kategoriId.toString());
+      setCategory(product.kategori.nama);
       setCurrentImageUrl(product.image);
       setImage(null);
-      // Perbarui daftar kategori dari prop
       setLocalCategories(initialCategories);
     }
   }, [isOpen, product, initialCategories]);
@@ -82,7 +65,7 @@ export function EditProductModal({
         price: parseFloat(price),
         stock: parseInt(stock, 10),
         minimumStok: parseInt(minStock, 10),
-        category, // Kirim nama kategori yang dipilih
+        category,
         imageUrl,
       };
       await onEditProduct(updatedProduct);
@@ -118,18 +101,15 @@ export function EditProductModal({
         </div>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label htmlFor="productName" className="block mb-1 font-bold">Product Name</label>
-            <input
-              type="text"
-              id="productName"
-              value={productName}
-              onChange={(e) => setProductName(e.target.value)}
-              className="w-full p-2 border-[3px] border-black rounded focus:outline-none focus:ring-2 focus:ring-[#93B8F3]"
-              required
-            />
+            <label htmlFor="productName" className="block mb-1 font-bold">
+              Product Name
+            </label>
+            <input type="text" id="productName" value={productName} onChange={(e) => setProductName(e.target.value)} className="w-full p-2 border-[3px] border-black rounded focus:outline-none focus:ring-2 focus:ring-[#93B8F3]" required />
           </div>
           <div>
-            <label htmlFor="price" className="block mb-1 font-bold">Price</label>
+            <label htmlFor="price" className="block mb-1 font-bold">
+              Price
+            </label>
             <input
               type="number"
               id="price"
@@ -142,40 +122,25 @@ export function EditProductModal({
             />
           </div>
           <div>
-            <label htmlFor="stock" className="block mb-1 font-bold">Stock</label>
-            <input
-              type="number"
-              id="stock"
-              value={stock}
-              onChange={(e) => setStock(e.target.value)}
-              min="0"
-              className="w-full p-2 border-[3px] border-black rounded focus:outline-none focus:ring-2 focus:ring-[#93B8F3]"
-              required
-            />
+            <label htmlFor="stock" className="block mb-1 font-bold">
+              Stock
+            </label>
+            <input type="number" id="stock" value={stock} onChange={(e) => setStock(e.target.value)} min="0" className="w-full p-2 border-[3px] border-black rounded focus:outline-none focus:ring-2 focus:ring-[#93B8F3]" required />
           </div>
           <div>
-            <label htmlFor="minStock" className="block mb-1 font-bold">Minimum Stock</label>
-            <input
-              type="number"
-              id="minStock"
-              value={minStock}
-              onChange={(e) => setMinStock(e.target.value)}
-              min="0"
-              className="w-full p-2 border-[3px] border-black rounded focus:outline-none focus:ring-2 focus:ring-[#93B8F3]"
-              required
-            />
+            <label htmlFor="minStock" className="block mb-1 font-bold">
+              Minimum Stock
+            </label>
+            <input type="number" id="minStock" value={minStock} onChange={(e) => setMinStock(e.target.value)} min="0" className="w-full p-2 border-[3px] border-black rounded focus:outline-none focus:ring-2 focus:ring-[#93B8F3]" required />
           </div>
-          {/* Pilih kategori */}
           <div>
-            <label htmlFor="category" className="block mb-1 font-bold">Category</label>
-            <select
-              id="category"
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-              className="w-full p-2 border-[3px] border-black rounded focus:outline-none focus:ring-2 focus:ring-[#93B8F3]"
-              required
-            >
-              <option value="" disabled>Select Category</option>
+            <label htmlFor="category" className="block mb-1 font-bold">
+              Category
+            </label>
+            <select id="category" value={category} onChange={(e) => setCategory(e.target.value)} className="w-full p-2 border-[3px] border-black rounded focus:outline-none focus:ring-2 focus:ring-[#93B8F3]" required>
+              <option value="" disabled>
+                Select Category
+              </option>
               {localCategories.map((cat) => (
                 <option key={cat.kategoriId} value={cat.nama}>
                   {cat.nama}
@@ -183,28 +148,16 @@ export function EditProductModal({
               ))}
             </select>
           </div>
-          {/* Upload Product Image */}
           <div>
-            <label htmlFor="image" className="block mb-1 font-bold">Current Image</label>
+            <label htmlFor="image" className="block mb-1 font-bold">
+              Current Image
+            </label>
             {currentImageUrl && (
               <div className="mb-2">
-                <Image
-                  src={currentImageUrl}
-                  alt="Current product"
-                  width={100}
-                  height={100}
-                  className="border-2 border-black rounded"
-                />
+                <Image src={currentImageUrl} alt="Current product" width={100} height={100} className="border-2 border-black rounded" />
               </div>
             )}
-            <input
-              type="file"
-              id="image"
-              onChange={handleImageChange}
-              className="hidden"
-              accept="image/*"
-              ref={fileInputRef}
-            />
+            <input type="file" id="image" onChange={handleImageChange} className="hidden" accept="image/*" ref={fileInputRef} />
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
