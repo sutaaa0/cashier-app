@@ -4,11 +4,11 @@ import { prisma } from "@/lib/db";
 import bcrypt from "bcryptjs";
 import * as jose from "jose";
 import { DetailPenjualan, Pelanggan, Produk } from "@prisma/client";
-import { CreateOrderDetail, Product } from "@/types/types";
+import { CreateOrderDetail } from "@/types/types";
 import { revalidatePath } from "next/cache";
 import { v2 as cloudinary } from "cloudinary";
-import { startOfWeek, subWeeks, format, addDays, startOfDay, endOfDay } from "date-fns";
-import { fromZonedTime, toZonedTime } from "date-fns-tz";
+import { startOfWeek, subWeeks, format, addDays, } from "date-fns";
+import { fromZonedTime, toZonedTime, formatInTimeZone } from "date-fns-tz";
 
 export type Penjualan = {
   pelangganId?: number;
@@ -54,7 +54,7 @@ export async function Register(username: string, password: string, level: string
     });
 
     return { status: "Success", data: user, code: 200 };
-  } catch (error) {
+  } catch (error: unknown) {
     return { status: "Failed", message: `${error}`, code: 500 };
   }
 }
@@ -149,18 +149,6 @@ export async function getCurrentUser() {
   }
 }
 
-// Transform Prisma Product to frontend Product format
-function transformProduct(product: Produk ): Product {
-  return {
-    produkId: product.produkId,
-    nama: product.nama,
-    harga: product.harga,
-    kategori: product.kategori,
-    image: product.image,
-    stok: product.stok,
-  };
-}
-
 // Get all products
 export async function getProducts(category: string) {
   if (category === "All Menu") {
@@ -223,29 +211,6 @@ export async function createDetailOrder(detailOrderData: CreateOrderDetail) {
       subtotal: detailOrderData.subtotal,
     },
   });
-}
-
-// Get products by category
-export async function getProductsByCategory(category: string): Promise<Product[]> {
-  const products = await prisma.produk.findMany({
-    where: {
-      kategori: category === "All Menu" ? undefined : { nama: category },
-    },
-  });
-  return products.map(transformProduct);
-}
-
-// Search products
-export async function searchProducts(query: string): Promise<Product[]> {
-  const products = await prisma.produk.findMany({
-    where: {
-      nama: {
-        contains: query,
-        mode: "insensitive",
-      },
-    },
-  });
-  return products.map(transformProduct);
 }
 
 // Get product stock
@@ -445,7 +410,7 @@ cloudinary.config({
 interface ActionResponse {
   status: "Success" | "Error";
   message: string;
-  data?: any;
+  data?: Record<string, unknown>;
 }
 
 // Types
@@ -454,7 +419,7 @@ interface Category {
   nama: string;
 }
 
-export async function addProduct(formData: { name: string; price: number; stock: number; minimumStok: number; categoryId: number; imageUrl: string }): Promise<{ status: string; message: string; data?: any }> {
+export async function addProduct(formData: { name: string; price: number; stock: number; minimumStok: number; categoryId: number; imageUrl: string }): Promise<{ status: string; message: string; data?: Produk }> {
   try {
     if (!formData.name || !formData.price || !formData.stock || !formData.minimumStok || !formData.categoryId || !formData.imageUrl) {
       return {
@@ -582,7 +547,15 @@ export async function addCategory(data: { nama: string; icon?: string; color?: s
   }
 }
 
-export async function updateProduct(formData: { id: number; name: string; price: number; stock: number; minimumStok: number; category: string; imageUrl: string }): Promise<{ status: string; message: string; data?: any }> {
+export async function updateProduct(formData: { 
+  id: number; 
+  name: string; 
+  price: number; 
+  stock: number; 
+  minimumStok: number; 
+  category: string; 
+  imageUrl: string 
+}): Promise<{ status: string; message: string; data?: Produk }> {
   try {
     let statusStok: "CRITICAL" | "LOW" | "NORMAL";
     if (formData.stock <= formData.minimumStok * 0.5) {
@@ -599,7 +572,6 @@ export async function updateProduct(formData: { id: number; name: string; price:
         nama: formData.name,
         harga: formData.price,
         stok: formData.stock,
-        // Menghubungkan kategori berdasarkan nama (pastikan nama kategori bersifat unik)
         kategori: { connect: { nama: formData.category } },
         image: formData.imageUrl,
         minimumStok: formData.minimumStok,
@@ -612,7 +584,7 @@ export async function updateProduct(formData: { id: number; name: string; price:
     return { status: "Success", message: "Product updated successfully", data: product };
   } catch (error) {
     console.error("Error updating product:", error);
-    return {
+    return { 
       status: "Error",
       message: error instanceof Error ? error.message : "Failed to update product",
     };
@@ -622,7 +594,7 @@ export async function updateProduct(formData: { id: number; name: string; price:
 interface ActionResponse {
   status: "Success" | "Error";
   message: string;
-  data?: any;
+  data?: Record<string, unknown>;
 }
 
 export async function addUser(formData: { username: string; password: string; level: string }): Promise<ActionResponse> {
@@ -683,7 +655,7 @@ export async function updateUser(formData: { id: number; username: string; passw
       };
     }
 
-    const updateData: any = {
+    const updateData: { username: string; level: string; password?: string } = {
       username: formData.username,
       level: formData.level,
     };
@@ -893,9 +865,9 @@ export async function getStockItems(): Promise<ApiResponse<StockData[]>> {
 export async function updateStockItem(id: number, newStock: number): Promise<ApiResponse<StockData>> {
   try {
     // Ambil data produk untuk mendapatkan minStock
-    const product = await prisma.produk.findUnique({
+    const product: { stok: number; minimumStok: number; nama: string; kategori: { nama: string }; updatedAt: Date } | null = await prisma.produk.findUnique({
       where: { produkId: id, isDeleted: false },
-      select: { stok: true, minimumStok: true, nama: true, kategori: true, updatedAt: true },
+      select: { stok: true, minimumStok: true, nama: true, kategori: { select: { nama: true } }, updatedAt: true },
     });
 
     if (!product) {
@@ -953,58 +925,6 @@ export async function updateStockItem(id: number, newStock: number): Promise<Api
   }
 }
 
-export async function addStockItem(item: Omit<StockData, "id" | "lastUpdated">): Promise<ApiResponse<StockData>> {
-  try {
-    // Menentukan status stok berdasarkan aturan yang sudah disepakati
-    let statusStok: "CRITICAL" | "LOW" | "NORMAL";
-
-    if (item.currentStock <= item.minStock * 0.5) {
-      statusStok = "CRITICAL";
-    } else if (item.currentStock > item.minStock * 0.5 && item.currentStock <= item.minStock) {
-      statusStok = "LOW";
-    } else {
-      statusStok = "NORMAL";
-    }
-
-    console.log("Status stok:", statusStok);
-
-    const newProduct = await prisma.produk.create({
-      data: {
-        nama: item.name,
-        statusStok: statusStok,
-        stok: item.currentStock,
-        kategori: item.category,
-        harga: 0, // Nanti bisa ditambahkan input harga
-        image: "", // Tambahkan pengelolaan gambar jika diperlukan
-        isDeleted: false,
-      },
-    });
-
-    const newItem: StockData = {
-      id: newProduct.produkId,
-      name: newProduct.nama,
-      currentStock: newProduct.stok,
-      minStock: item.minStock,
-      status: statusStok,
-      category: newProduct.kategori,
-      lastUpdated: newProduct.updatedAt.toISOString(),
-    };
-
-    revalidatePath("/stock-management"); // Sesuaikan dengan path yang benar
-
-    return {
-      status: "Success",
-      data: newItem,
-    };
-  } catch (error) {
-    console.error("Failed to add stock item:", error);
-    return {
-      status: "Error",
-      message: "Failed to add stock item",
-    };
-  }
-}
-
 export async function deleteStockItem(id: number): Promise<ApiResponse<void>> {
   try {
     await prisma.produk.update({
@@ -1037,34 +957,22 @@ export interface ReportData {
   type: "sales" | "inventory" | "customers";
   generatedDate: string;
   summary: string;
-  data: any;
+  data: Record<string, unknown>[];
 }
+
 
 export async function generateReport(type: string): Promise<ReportData> {
   const currentDate = new Date();
   const firstDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
-
-  let reportData: any = {};
+  let reportData: Partial<ReportData> = {};
 
   switch (type) {
-    case "sales":
+    case "sales": {
       const salesData = await prisma.penjualan.findMany({
-        where: {
-          tanggalPenjualan: {
-            gte: firstDayOfMonth,
-          },
-        },
-        include: {
-          detailPenjualan: {
-            include: {
-              produk: true,
-            },
-          },
-        },
+        where: { tanggalPenjualan: { gte: firstDayOfMonth } },
+        include: { detailPenjualan: { include: { produk: true } } },
       });
-
       const totalSales = salesData.reduce((sum, sale) => sum + sale.total_harga, 0);
-
       reportData = {
         name: "Monthly Sales Report",
         period: currentDate.toLocaleDateString("en-US", { month: "long", year: "numeric" }),
@@ -1073,14 +981,10 @@ export async function generateReport(type: string): Promise<ReportData> {
         data: salesData,
       };
       break;
+    }
 
-    case "inventory":
-      const products = await prisma.produk.findMany({
-        where: {
-          isDeleted: false,
-        },
-      });
-
+    case "inventory": {
+      const products = await prisma.produk.findMany({ where: { isDeleted: false } });
       const lowStock = products.filter((p) => p.stok < 10).length;
       reportData = {
         name: "Inventory Status",
@@ -1090,14 +994,10 @@ export async function generateReport(type: string): Promise<ReportData> {
         data: products,
       };
       break;
+    }
 
-    case "customers":
-      const customers = await prisma.pelanggan.findMany({
-        include: {
-          penjualan: true,
-        },
-      });
-
+    case "customers": {
+      const customers = await prisma.pelanggan.findMany({ include: { penjualan: true } });
       const totalPoints = customers.reduce((sum, customer) => sum + customer.points, 0);
       reportData = {
         name: "Customer Analytics",
@@ -1107,16 +1007,20 @@ export async function generateReport(type: string): Promise<ReportData> {
         data: customers,
       };
       break;
+    }
   }
 
   return {
-    ...reportData,
     id: Date.now(),
+    name: reportData.name || "",
+    period: reportData.period || "",
+    type: reportData.type || "sales",
+    summary: reportData.summary || "",
+    data: reportData.data || [],
     generatedDate: new Date().toISOString(),
   };
 }
 
-const timeZone = "Asia/Jakarta";
 
 export const getRevenue = async () => {
   try {
@@ -1264,60 +1168,6 @@ export const getRevenue = async () => {
   }
 };
 
-// Fungsi untuk menghitung persentase perubahan
-const calculateChangePercentage = (currentRevenue, previousRevenue) => {
-  if (!previousRevenue || previousRevenue === 0) return 0;
-  return ((currentRevenue - previousRevenue) / previousRevenue) * 100;
-};
-
-// Fungsi untuk mendapatkan revenue berdasarkan tanggal tertentu
-const getRevenueForDate = async (date: Date) => {
-  // Konversi tanggal lokal (WIB) ke UTC
-  const localStartOfDay = startOfDay(date);
-  const localEndOfDay = endOfDay(date);
-
-  const startOfDayUTC = fromZonedTime(localStartOfDay, timeZone);
-  const endOfDayUTC = fromZonedTime(localEndOfDay, timeZone);
-
-  const revenue = await prisma.penjualan.aggregate({
-    _sum: {
-      total_harga: true,
-    },
-    where: {
-      tanggalPenjualan: {
-        gte: startOfDayUTC,
-        lte: endOfDayUTC,
-      },
-    },
-  });
-
-  return revenue._sum.total_harga || 0; // Pastikan tidak mengembalikan null
-};
-
-// Fungsi untuk mendapatkan revenue dalam rentang tanggal
-const getRevenueForDateRange = async (startDate: Date, endDate: Date) => {
-  // Konversi tanggal lokal (WIB) ke UTC
-  const localStartOfDay = startOfDay(startDate);
-  const localEndOfDay = endOfDay(endDate);
-
-  const startOfDayUTC = fromZonedTime(localStartOfDay, timeZone);
-  const endOfDayUTC = fromZonedTime(localEndOfDay, timeZone);
-
-  const revenue = await prisma.penjualan.aggregate({
-    _sum: {
-      total_harga: true,
-    },
-    where: {
-      tanggalPenjualan: {
-        gte: startOfDayUTC,
-        lte: endOfDayUTC,
-      },
-    },
-  });
-
-  return revenue._sum.total_harga || 0;
-};
-
 export async function getTransactionsStats() {
   try {
     // Get today's date at start of day
@@ -1463,16 +1313,16 @@ export async function getRevenueChartData(period: "daily" | "weekly" | "monthly"
         for (let i = 0; i < 7; i++) {
           const d = new Date(startDate);
           d.setDate(d.getDate() + i);
-          const key = format(d, "yyyy-MM-dd", { timeZone: "Asia/Jakarta" });
+          const key = format(toZonedTime(d, "Asia/Jakarta"), "yyyy-MM-dd");
           // Gunakan format hari singkat (misalnya: Mon, Tue, dst)
-          const dayName = format(d, "EEE", { timeZone: "Asia/Jakarta" });
+          const dayName = format(toZonedTime(d, "Asia/Jakarta"), "EEE");
           weeklyMap[key] = { name: dayName, amount: 0 };
         }
 
         // Agregasi total_harga berdasarkan tanggal (setelah konversi ke WIB)
         data.forEach((row) => {
           const zonedDate = toZonedTime(row.tanggalPenjualan, "Asia/Jakarta");
-          const key = format(zonedDate, "yyyy-MM-dd", { timeZone: "Asia/Jakarta" });
+          const key = format(zonedDate, "yyyy-MM-dd");
           if (weeklyMap[key]) {
             weeklyMap[key].amount += Number(row.total_harga);
           }
@@ -1516,9 +1366,7 @@ export async function getRevenueChartData(period: "daily" | "weekly" | "monthly"
 
         // Buat array 12 bulan (0: Jan, 11: Dec)
         const yearlyData = Array.from({ length: 12 }, (_, i) => ({
-          name: format(new Date(now.getFullYear(), i, 1), "MMM", {
-            timeZone: "Asia/Jakarta",
-          }),
+          name: formatInTimeZone(new Date(now.getFullYear(), i, 1), "Asia/Jakarta", "MMM"),
           amount: 0,
         }));
 
@@ -1769,58 +1617,6 @@ export async function getSalesTrendData() {
   }
 }
 
-interface LowStockProduct {
-  id: number;
-  name: string;
-  stock: number;
-  minStock: number;
-}
-
-export async function getLowStockProducts(): Promise<LowStockProduct[]> {
-  try {
-    // Fetch all active (non-deleted) products
-    const products = await prisma.produk.findMany({
-      where: {
-        isDeleted: false,
-      },
-      select: {
-        produkId: true,
-        nama: true,
-        stok: true,
-      },
-    });
-
-    // Define minimum stock thresholds based on product data
-    // You might want to add this as a column in your Produk model later
-    const stockThresholds: Record<string, number> = {
-      "Roti Tawar": 10,
-      "Donat Coklat": 15,
-      "Kopi Arabica": 8,
-      Croissant: 12,
-      // Add default threshold for other products
-      default: 10,
-    };
-
-    // Filter and transform products that are below their minimum stock level
-    const lowStockProducts = products
-      .filter((product) => {
-        const minStock = stockThresholds[product.nama] || stockThresholds.default;
-        return product.stok < minStock;
-      })
-      .map((product) => ({
-        id: product.produkId,
-        name: product.nama,
-        stock: product.stok,
-        minStock: stockThresholds[product.nama] || stockThresholds.default,
-      }));
-
-    return lowStockProducts;
-  } catch (error) {
-    console.error("Error fetching low stock products:", error);
-    throw new Error("Failed to fetch low stock products");
-  }
-}
-
 export async function getTopSellingProducts() {
   try {
     // Mengambil data penjualan 30 hari terakhir
@@ -1897,13 +1693,6 @@ export async function getTopSellingProducts() {
     console.error("Error fetching top selling products:", error);
     return [];
   }
-}
-
-interface LowStockProduct {
-  nama: string;
-  stok: number;
-  minimumStok: number;
-  status: "CRITICAL" | "LOW";
 }
 
 export async function getLowStockProductsDashboard() {
