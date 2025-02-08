@@ -10,9 +10,10 @@ import { Produk as PrismaProduk, Penjualan, DetailPenjualan } from "@prisma/clie
 import { NeoSearchInput } from "./InputSearch";
 import { NeoOrderSummary } from "./order-summary";
 import { NeoProgressIndicator } from "./NeoProgresIndicator";
+import { ReceiptModal } from "./ReceiptModal";
 
 interface Produk extends PrismaProduk {
-  kategori: { nama: string }; // pastikan properti kategori ada dan memuat field nama
+  kategori: { nama: string };
   image: string;
 }
 
@@ -21,6 +22,19 @@ const Pos = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [products, setProducts] = useState<Produk[]>([]);
+  const [showReceiptModal, setShowReceiptModal] = useState(false);
+  interface ReceiptModalData {
+    finalTotal: number;
+    amountReceived: number;
+    change: number;
+    customerId: number | null;
+    petugasId: number;
+    customerName: string;
+    orderItems: { nama: string; kuantitas: number; subtotal: number }[];
+    transactionDate: Date;
+  }
+
+  const [receiptModalData, setReceiptModalData] = useState<ReceiptModalData | null>(null);
 
   const [order, setOrder] = useState<
     Penjualan & {
@@ -33,6 +47,8 @@ const Pos = () => {
     pelangganId: null,
     guestId: null,
     userId: 0,
+    uangMasuk: 0,
+    kembalian: 0,
     detailPenjualan: [],
   });
 
@@ -40,7 +56,7 @@ const Pos = () => {
 
   useEffect(() => {
     fetchProducts();
-  }, [selectedCategory]);
+  }, [selectedCategory,]);
 
   const fetchProducts = async () => {
     try {
@@ -136,7 +152,7 @@ const Pos = () => {
     });
   };
 
-  const handlePlaceOrder = async (orderData: Penjualan & { redeemedPoints?: number }) => {
+  const handlePlaceOrder = async (orderData: Penjualan & { redeemedPoints?: number; uangMasuk?: number; kembalian?: number; customerName?: string; detailPenjualan: (DetailPenjualan & { produk: Produk })[]; }) => {
     if (orderData.detailPenjualan.length === 0) {
       toast({
         title: "Error",
@@ -148,15 +164,11 @@ const Pos = () => {
   
     try {
       setIsLoading(true);
-      console.log("Creating order with data:", orderData);
-    console.log("redemmedPoin di handlePlaceorder di POs :",orderData.redeemedPoints)
-
-    
-      // Pastikan semua field yang diperlukan ada
+      
       const orderPayload = {
         ...orderData,
-        pelangganId: orderData.pelangganId || null,
-        guestId: orderData.guestId || null,
+        pelangganId: orderData.pelangganId ?? undefined,
+        guestId: orderData.guestId ?? undefined,
         total_harga: orderData.total_harga,
         redeemedPoints: orderData.redeemedPoints || 0,
         userId: orderData.userId,
@@ -166,19 +178,29 @@ const Pos = () => {
           subtotal: item.subtotal,
         })),
       };
-            
-      console.log("Payload yang dikirim:", orderPayload);
-
-      console.log("Order data sebelum dikirim:", orderData);
       
       const penjualan = await createOrder(orderPayload);
   
       if (penjualan) {
-        toast({
-          title: "Berhasil",
-          description: `Pesanan berhasil dibuat. Total: Rp${(penjualan.total_harga).toLocaleString()}`,
-        });
-  
+        const receiptModalData = {
+          finalTotal: penjualan.total_harga,
+          amountReceived: orderData.uangMasuk || 0,
+          change: orderData.kembalian || 0,
+          customerId: orderData.pelangganId,
+          petugasId: orderData.userId,
+          customerName: orderData.customerName || 'Guest',
+          orderItems: orderData.detailPenjualan.map(item => ({
+            nama: item.produk.nama,
+            kuantitas: item.kuantitas,
+            subtotal: item.subtotal
+          })),
+          transactionDate: new Date()
+        };
+
+        console.log("data di kirim ke modal :", receiptModalData)
+        setReceiptModalData(receiptModalData);
+        setShowReceiptModal(true);
+        
         setOrder({
           penjualanId: 0,
           tanggalPenjualan: new Date(),
@@ -187,11 +209,9 @@ const Pos = () => {
           guestId: null,
           userId: orderData.userId,
           detailPenjualan: [],
+          uangMasuk: 0,
+          kembalian: 0,
         });
-  
-        if (orderSummaryRef.current) {
-          orderSummaryRef.current.resetCustomerData();
-        }
       } else {
         throw new Error("Failed to create order");
       }
@@ -211,7 +231,6 @@ const Pos = () => {
     setSearchQuery(query);
   };
 
-  console.log("kategory yang diselect :", selectedCategory);
   const filteredProducts = products.filter(
     (product) =>
       (product?.nama || "")
@@ -237,9 +256,22 @@ const Pos = () => {
           onUpdateQuantity={handleUpdateQuantity} 
           onDeleteItem={handleDeleteItem} 
           onPlaceOrder={handlePlaceOrder}
+          onEditItem={() => {}}
           isLoading={isLoading}
         />
       </div>
+      
+      {showReceiptModal && receiptModalData && (
+        <ReceiptModal 
+          receiptData={receiptModalData} 
+          onClose={() => {
+            setShowReceiptModal(false);
+            if (orderSummaryRef.current) {
+              orderSummaryRef.current.resetCustomerData();
+            }
+          }} 
+        />
+      )}
     </div>
   );
 };
