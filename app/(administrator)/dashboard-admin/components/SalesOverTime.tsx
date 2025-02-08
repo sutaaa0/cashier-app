@@ -1,18 +1,35 @@
 import React, { useState, useEffect } from "react";
-import { ArrowUp, ArrowDown, DollarSign, TrendingUp, Sparkles, LineChart as LineChartIcon } from "lucide-react";
-import { ResponsiveContainer, XAxis, YAxis, CartesianGrid, Tooltip, Area, AreaChart } from "recharts";
+import {
+  ArrowUp,
+  ArrowDown,
+  DollarSign,
+  TrendingUp,
+  Sparkles,
+  LineChart as LineChartIcon,
+} from "lucide-react";
+import {
+  ResponsiveContainer,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Area,
+  AreaChart,
+} from "recharts";
+import { getDailySalesData, getSalesStats } from "@/server/actions";
+import type { DailySalesData, SalesStats } from "@/server/actions";
 
-const dailySales = [
-  { date: "2023-07-01", sales: 1200, traffic: 800, profit: 400 },
-  { date: "2023-07-02", sales: 1800, traffic: 1200, profit: 600 },
-  { date: "2023-07-03", sales: 1400, traffic: 1000, profit: 450 },
-  { date: "2023-07-04", sales: 2200, traffic: 1600, profit: 800 },
-  { date: "2023-07-05", sales: 1600, traffic: 1100, profit: 500 },
-  { date: "2023-07-06", sales: 2000, traffic: 1400, profit: 700 },
-  { date: "2023-07-07", sales: 2400, traffic: 1800, profit: 900 },
-];
-
-const StatCard = ({ title, value, increase, icon: Icon }: { title: string; value: string; increase: number; icon: React.FC<React.SVGProps<SVGSVGElement>> }) => (
+const StatCard = ({
+  title,
+  value,
+  increase,
+  icon: Icon,
+}: {
+  title: string;
+  value: string;
+  increase: number;
+  icon: React.FC<React.SVGProps<SVGSVGElement>>;
+}) => (
   <div className="relative group">
     <div className="absolute -inset-1 bg-gradient-to-r from-pink-600 to-purple-600 rounded-lg blur opacity-25 group-hover:opacity-100 transition duration-1000 group-hover:duration-200" />
     <div className="relative bg-white border-4 border-black p-4 transform hover:-translate-y-1 transition-all duration-300">
@@ -22,22 +39,35 @@ const StatCard = ({ title, value, increase, icon: Icon }: { title: string; value
           <p className="text-2xl font-bold mt-1">{value}</p>
         </div>
         <div
-          className={`p-2 ${increase > 0 ? "bg-green-300" : "bg-red-300"} 
-                        border-2 border-black transform rotate-3 hover:rotate-6 transition-transform`}
+          className={`p-2 ${
+            increase >= 0 ? "bg-green-300" : "bg-red-300"
+          } border-2 border-black transform rotate-3 hover:rotate-6 transition-transform`}
         >
           <Icon className="w-6 h-6" />
         </div>
       </div>
       <div className="mt-2 flex items-center">
-        {increase > 0 ? <ArrowUp className="w-4 h-4 text-green-600" /> : <ArrowDown className="w-4 h-4 text-red-600" />}
-        <span className="ml-1 font-bold">{Math.abs(increase)}%</span>
+        {increase >= 0 ? (
+          <ArrowUp className="w-4 h-4 text-green-600" />
+        ) : (
+          <ArrowDown className="w-4 h-4 text-red-600" />
+        )}
+        <span className="ml-1 font-bold">{Math.abs(increase).toFixed(1)}%</span>
       </div>
       <div className="absolute inset-0 border-2 border-black transform translate-x-1 translate-y-1 -z-10" />
     </div>
   </div>
 );
 
-const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?: { name: string; value: number }[]; label?: string }) => {
+const CustomTooltip = ({
+  active,
+  payload,
+  label,
+}: {
+  active?: boolean;
+  payload?: any[];
+  label?: string;
+}) => {
   if (active && payload && payload.length) {
     return (
       <div className="relative group">
@@ -45,11 +75,22 @@ const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?:
         <div className="relative bg-white border-4 border-black p-4 transform -rotate-2 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]">
           <div className="flex items-center gap-2 mb-2">
             <Sparkles className="text-yellow-400" size={20} />
-            <h3 className="font-black text-xl">{label}</h3>
+            <h3 className="font-black text-xl">
+              {new Date(label || "").toLocaleDateString()}
+            </h3>
           </div>
           {payload.map((entry, index) => (
-            <div key={index} className="font-mono bg-black text-white p-2 transform rotate-1 mt-2">
-              {entry.name}: {entry.value}
+            <div
+              key={index}
+              className="font-mono bg-black text-white p-2 transform rotate-1 mt-2"
+            >
+              {entry.name}:{" "}
+              {entry.name === "sales"
+                ? new Intl.NumberFormat("id-ID", {
+                    style: "currency",
+                    currency: "IDR",
+                  }).format(entry.value)
+                : entry.value}
             </div>
           ))}
         </div>
@@ -60,25 +101,44 @@ const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?:
 };
 
 export default function SalesOverTime() {
+  const [salesData, setSalesData] = useState<DailySalesData[]>([]);
+  const [statsData, setStatsData] = useState<SalesStats | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setIsLoading(false);
-      setIsLoaded(true);
-    }, 1000);
+    const fetchData = async () => {
+      try {
+        const [dailyData, stats] = await Promise.all([
+          getDailySalesData(),
+          getSalesStats(),
+        ]);
+        setSalesData(dailyData);
+        setStatsData(stats);
+        setIsLoading(false);
+        setIsLoaded(true);
+      } catch (error) {
+        console.error("Error fetching data:", error);
+        setIsLoading(false);
+      }
+    };
+
+    fetchData();
 
     const interval = setInterval(() => {
-      setActiveIndex((prev) => (prev + 1) % dailySales.length);
+      setActiveIndex((prev) => (prev + 1) % (salesData.length || 1));
     }, 3000);
 
-    return () => {
-      clearTimeout(timer);
-      clearInterval(interval);
-    };
+    return () => clearInterval(interval);
   }, []);
+
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat("id-ID", {
+      style: "currency",
+      currency: "IDR",
+    }).format(value);
+  };
 
   return (
     <div className="relative bg-white border-4 border-black p-6 transition-all duration-300 group">
@@ -106,20 +166,37 @@ export default function SalesOverTime() {
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div className="transform -rotate-2 bg-gradient-to-r from-yellow-300 to-yellow-400 border-4 border-black p-3 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-            <h2 className="text-2xl font-black tracking-tighter">SALES ANALYTICS</h2>
+            <h2 className="text-2xl font-black tracking-tighter">
+              SALES ANALYTICS
+            </h2>
           </div>
           <div className="bg-black text-white p-3 transform rotate-3 hover:rotate-6 transition-transform">
             <LineChartIcon size={28} />
           </div>
         </div>
 
-        <div className={`transform transition-all duration-1000 ${isLoaded ? "translate-y-0 opacity-100" : "translate-y-10 opacity-0"}`}>
+        <div
+          className={`transform transition-all duration-1000 ${
+            isLoaded ? "translate-y-0 opacity-100" : "translate-y-10 opacity-0"
+          }`}
+        >
           {/* Stats Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-            <StatCard title="Total Sales" value="$12,600" increase={15} icon={DollarSign} />
-            <StatCard title="Traffic" value="7,900" increase={8} icon={TrendingUp} />
-            <StatCard title="Profit" value="$3,450" increase={-5} icon={TrendingUp} />
-          </div>
+          {statsData && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+              <StatCard
+                title="Total Sales"
+                value={formatCurrency(statsData.totalSales)}
+                increase={statsData.salesIncrease}
+                icon={DollarSign}
+              />
+              <StatCard
+                title="Traffic"
+                value={statsData.totalTraffic.toString()}
+                increase={statsData.trafficIncrease}
+                icon={TrendingUp}
+              />
+            </div>
+          )}
 
           {/* Main Chart */}
           <div className="relative bg-white border-4 border-black p-6">
@@ -132,9 +209,9 @@ export default function SalesOverTime() {
             ) : (
               <ResponsiveContainer width="100%" height={400}>
                 <AreaChart
-                  data={dailySales}
+                  data={salesData}
                   onMouseMove={(state) => {
-                    if (state?.activeTooltipIndex) {
+                    if (state?.activeTooltipIndex !== undefined) {
                       setActiveIndex(state.activeTooltipIndex);
                     }
                   }}
@@ -144,14 +221,44 @@ export default function SalesOverTime() {
                       <stop offset="5%" stopColor="#FF6B6B" stopOpacity={0.8} />
                       <stop offset="95%" stopColor="#FF6B6B" stopOpacity={0.1} />
                     </linearGradient>
-                    <linearGradient id="trafficGradient" x1="0" y1="0" x2="0" y2="1">
+                    <linearGradient
+                      id="trafficGradient"
+                      x1="0"
+                      y1="0"
+                      x2="0"
+                      y2="1"
+                    >
                       <stop offset="5%" stopColor="#4ECDC4" stopOpacity={0.8} />
                       <stop offset="95%" stopColor="#4ECDC4" stopOpacity={0.1} />
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#000" strokeWidth={2} />
-                  <XAxis dataKey="date" stroke="#000" strokeWidth={2} tick={{ fill: "#000", fontSize: 14, fontWeight: "bold" }} />
-                  <YAxis stroke="#000" strokeWidth={2} tick={{ fill: "#000", fontSize: 14, fontWeight: "bold" }} />
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    stroke="#000"
+                    strokeWidth={2}
+                  />
+                  <XAxis
+                    dataKey="date"
+                    stroke="#000"
+                    strokeWidth={2}
+                    tick={{
+                      fill: "#000",
+                      fontSize: 14,
+                      fontWeight: "bold",
+                    }}
+                    tickFormatter={(value) =>
+                      new Date(value).toLocaleDateString()
+                    }
+                  />
+                  <YAxis
+                    stroke="#000"
+                    strokeWidth={2}
+                    tick={{
+                      fill: "#000",
+                      fontSize: 14,
+                      fontWeight: "bold",
+                    }}
+                  />
                   <Tooltip content={<CustomTooltip />} />
                   <Area
                     type="monotone"
@@ -159,7 +266,12 @@ export default function SalesOverTime() {
                     stroke="#FF6B6B"
                     fill="url(#salesGradient)"
                     strokeWidth={4}
-                    dot={{ stroke: "#000", strokeWidth: 2, fill: "#FF6B6B", r: 6 }}
+                    dot={{
+                      stroke: "#000",
+                      strokeWidth: 2,
+                      fill: "#FF6B6B",
+                      r: 6,
+                    }}
                     activeDot={{
                       stroke: "#000",
                       strokeWidth: 4,
@@ -174,7 +286,12 @@ export default function SalesOverTime() {
                     stroke="#4ECDC4"
                     fill="url(#trafficGradient)"
                     strokeWidth={4}
-                    dot={{ stroke: "#000", strokeWidth: 2, fill: "#4ECDC4", r: 6 }}
+                    dot={{
+                      stroke: "#000",
+                      strokeWidth: 2,
+                      fill: "#4ECDC4",
+                      r: 6,
+                    }}
                     activeDot={{
                       stroke: "#000",
                       strokeWidth: 4,
@@ -189,25 +306,38 @@ export default function SalesOverTime() {
           </div>
 
           {/* Highlighted Data */}
-          <div className="mt-6 grid grid-cols-2 gap-4">
-            {(["sales", "traffic"] as const).map((metric, index) => (
-              <div
-                key={`metric-${index}`}
-                className={`
-                  relative group/item border-3 border-black p-3
-                  transform transition-all duration-300 hover:-translate-y-1
-                  ${activeIndex === index ? "bg-black text-white" : "bg-white"}
-                `}
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 border-3 border-black transform rotate-45 transition-transform group-hover/item:rotate-0" style={{ backgroundColor: index === 0 ? "#FF6B6B" : "#4ECDC4" }} />
-                  <span className="font-bold text-lg capitalize">{metric}</span>
-                  <span className="ml-auto font-mono bg-white text-black px-2 py-1 border-2 border-black">{dailySales[activeIndex][metric]}</span>
+          {!isLoading && salesData.length > 0 && (
+            <div className="mt-6 grid grid-cols-2 gap-4">
+              {(["sales", "traffic"] as const).map((metric, index) => (
+                <div
+                  key={`metric-${index}`}
+                  className={`
+                    relative group/item border-3 border-black p-3
+                    transform transition-all duration-300 hover:-translate-y-1
+                    ${activeIndex === index ? "bg-black text-white" : "bg-white"}
+                  `}
+                >
+                  <div className="flex items-center gap-3">
+                    <div
+                      className="w-8 h-8 border-3 border-black transform rotate-45 transition-transform group-hover/item:rotate-0"
+                      style={{
+                        backgroundColor: index === 0 ? "#FF6B6B" : "#4ECDC4",
+                      }}
+                    />
+                    <span className="font-bold text-lg capitalize">
+                      {metric}
+                    </span>
+                    <span className="ml-auto font-mono bg-white text-black px-2 py-1 border-2 border-black">
+                      {metric === "sales"
+                        ? formatCurrency(salesData[activeIndex]?.[metric] || 0)
+                        : salesData[activeIndex]?.[metric]}
+                    </span>
+                  </div>
+                  <div className="absolute inset-0 border-2 border-black transform translate-x-1 translate-y-1 -z-10" />
                 </div>
-                <div className="absolute inset-0 border-2 border-black transform translate-x-1 translate-y-1 -z-10" />
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Decorative elements */}
