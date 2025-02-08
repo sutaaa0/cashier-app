@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { TransactionManagement } from "./components/TransactionManagement";
 import { StockManagement } from "./components/StockManagement";
-import { AppSettings } from "./components/AppSettings";
 import { AnalyticsPage } from "./components/AnalyticsPage";
 import { UserManagement } from "@/components/UserManagement";
 import { CustomerManagement } from "@/components/CustomerManagement";
@@ -40,8 +39,6 @@ export default function AdminPage() {
         return <ReportManagement />;
       case "analytics":
         return <AnalyticsPage />;
-      case "settings":
-        return <AppSettings />;
       default:
         return <UserManagement />;
     }
@@ -52,7 +49,7 @@ export default function AdminPage() {
       <AdminHeader />
       <div className="flex">
         <AdminSidebar activeSection={activeSection} setActiveSection={setActiveSection} />
-        <main className="flex-1 p-8 overflow-scroll h-screen overflow-y-scroll pb-16">{renderSection()}</main>
+        <main className="flex-1 p-8 overflow-scroll h-screen overflow-y-scroll pb-36">{renderSection()}</main>
       </div>
     </div>
   );
