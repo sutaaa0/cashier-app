@@ -5,7 +5,7 @@ import { createCustomer, getCustomers } from "@/server/actions"
 import { toast } from "@/hooks/use-toast"
 
 interface CustomerInputProps {
-  onSubmit: (customerData: { pelangganId?: number; guestId?: number; nama?: string; alamat?: string; nomorTelepon?: string }) => void
+  onSubmit: (customerData: { pelangganId?: number; guestId?: number; nama?: string; alamat?: string | null; nomorTelepon?: string | null }) => void
   onCancel: () => void
 }
 
@@ -15,7 +15,7 @@ export function NeoCustomerInput({ onSubmit, onCancel }: CustomerInputProps) {
   const [phoneNumber, setPhoneNumber] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
-  const [customers, setCustomers] = useState<Array<{ pelangganId: number; nama: string; alamat: string; nomorTelepon: string }>>([])
+  const [customers, setCustomers] = useState<Array<{ pelangganId: number; nama: string; alamat: string | null; nomorTelepon: string | null }>>([])
 
   const handleSearch = async () => {
     setIsLoading(true)
@@ -23,6 +23,7 @@ export function NeoCustomerInput({ onSubmit, onCancel }: CustomerInputProps) {
       const result = await getCustomers(searchQuery)
       setCustomers(result)
     } catch (error) {
+      console.log(error)
       toast({
         title: "Error",
         description: "Gagal mencari pelanggan",
@@ -49,11 +50,16 @@ export function NeoCustomerInput({ onSubmit, onCancel }: CustomerInputProps) {
           title: "Berhasil",
           description: "Data pelanggan berhasil disimpan",
         })
-        onSubmit(result.data)
+        if (result.data) {
+          onSubmit(result.data)
+        } else {
+          throw new Error("Invalid customer data")
+        }
       } else {
         throw new Error(result.message)
       }
     } catch (error) {
+      console.log(error);
       toast({
         title: "Error",
         description: "Gagal menyimpan data pelanggan",
