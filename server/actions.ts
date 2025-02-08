@@ -3,18 +3,20 @@ import { cookies } from "next/headers";
 import { prisma } from "@/lib/db";
 import bcrypt from "bcryptjs";
 import * as jose from "jose";
-import { DetailPenjualan, Pelanggan, Produk, Promotion } from "@prisma/client";
+import { DetailPenjualan, Pelanggan, Produk } from "@prisma/client";
 import { CreateOrderDetail, Product } from "@/types/types";
 import { revalidatePath } from "next/cache";
 import { v2 as cloudinary } from "cloudinary";
-import { startOfWeek, startOfMonth, startOfYear, subWeeks, subMonths, subYears, endOfWeek, endOfMonth, endOfYear, format, addDays, startOfDay, endOfDay } from "date-fns";
-import { formatInTimeZone, fromZonedTime, toDate, toZonedTime } from "date-fns-tz";
+import { startOfWeek, subWeeks, format, addDays, startOfDay, endOfDay } from "date-fns";
+import { fromZonedTime, toZonedTime } from "date-fns-tz";
 
 export type Penjualan = {
   pelangganId?: number;
   guestId?: number;
   userId: number;
   total_harga: number;
+  uangMasuk: number | null;
+  kembalian: number | null;
   detailPenjualan: Array<{
     produkId: number;
     kuantitas: number;
@@ -148,7 +150,7 @@ export async function getCurrentUser() {
 }
 
 // Transform Prisma Product to frontend Product format
-function transformProduct(product: Produk): Product {
+function transformProduct(product: Produk ): Product {
   return {
     produkId: product.produkId,
     nama: product.nama,
@@ -290,6 +292,11 @@ export async function createOrder(orderData: Penjualan & { redeemedPoints?: numb
         orderData.guestId = guest.guestId;
       }
 
+      // Ensure pelangganId is undefined if null
+      if (orderData.pelangganId === null) {
+        orderData.pelangganId = undefined;
+      }
+
       // Calculate points before applying redemption
       const originalTotal = orderData.total_harga;
       const pointsToAward = Math.floor(originalTotal / 200); // 1 point for every 200 IDR spent
@@ -299,6 +306,8 @@ export async function createOrder(orderData: Penjualan & { redeemedPoints?: numb
         tanggalPenjualan: new Date(),
         total_harga: orderData.total_harga,
         userId: orderData.userId,
+        uangMasuk: orderData.uangMasuk || 0, // Simpan uang masuk
+        kembalian: orderData.kembalian || 0 , // Simpan kembalian
         pelangganId: orderData.pelangganId !== null ? orderData.pelangganId : undefined,
         guestId: orderData.guestId !== null ? orderData.guestId : undefined,
         detailPenjualan: {
@@ -322,6 +331,8 @@ export async function createOrder(orderData: Penjualan & { redeemedPoints?: numb
           user: true,
         },
       });
+      
+      console.log("readdd...")
 
       // Handle member points if applicable
       if (orderData.pelangganId) {
@@ -356,6 +367,12 @@ export async function createOrder(orderData: Penjualan & { redeemedPoints?: numb
         pointsRedeemed: orderData.redeemedPoints || 0,
         originalTotal: originalTotal,
         finalTotal: orderData.total_harga,
+      } as Penjualan & {
+        detailPenjualan: DetailPenjualan[];
+        pointsAwarded: number;
+        pointsRedeemed: number;
+        originalTotal: number;
+        finalTotal: number;
       };
     });
   } catch (error) {
@@ -505,6 +522,19 @@ export async function fetchCategories(): Promise<{ status: string; data?: Catego
   } catch (error) {
     console.error("Error fetching categories:", error);
     return { status: "Error", message: "Failed to fetch categories" };
+  }
+}
+
+
+export async function getCategory() {
+  try {
+    const res = await prisma.kategori.findMany({
+      orderBy: { nama: "asc" }
+    })
+
+    return res
+  } catch (error) {
+    console.log(error);
   }
 }
 
@@ -835,7 +865,7 @@ export async function getStockItems(): Promise<ApiResponse<StockData[]>> {
       orderBy: {
         updatedAt: "desc",
       },
-      take: 5
+      take: 5,
     });
 
     const stockItems: StockData[] = products.map((product) => ({
@@ -1209,25 +1239,13 @@ export const getRevenue = async () => {
       return ((current - previous) / previous) * 100;
     };
 
-    const todayChange = calculatePercentageChange(
-      todayRevenue._sum.total_harga || 0,
-      yesterdayRevenue._sum.total_harga || 0
-    );
+    const todayChange = calculatePercentageChange(todayRevenue._sum.total_harga || 0, yesterdayRevenue._sum.total_harga || 0);
 
-    const thisWeekChange = calculatePercentageChange(
-      thisWeekRevenue._sum.total_harga || 0,
-      lastWeekRevenue._sum.total_harga || 0
-    );
+    const thisWeekChange = calculatePercentageChange(thisWeekRevenue._sum.total_harga || 0, lastWeekRevenue._sum.total_harga || 0);
 
-    const thisMonthChange = calculatePercentageChange(
-      thisMonthRevenue._sum.total_harga || 0,
-      lastMonthRevenue._sum.total_harga || 0
-    );
+    const thisMonthChange = calculatePercentageChange(thisMonthRevenue._sum.total_harga || 0, lastMonthRevenue._sum.total_harga || 0);
 
-    const thisYearChange = calculatePercentageChange(
-      thisYearRevenue._sum.total_harga || 0,
-      lastYearRevenue._sum.total_harga || 0
-    );
+    const thisYearChange = calculatePercentageChange(thisYearRevenue._sum.total_harga || 0, lastYearRevenue._sum.total_harga || 0);
 
     // Mengembalikan data revenue
     return {
@@ -1299,7 +1317,6 @@ const getRevenueForDateRange = async (startDate: Date, endDate: Date) => {
 
   return revenue._sum.total_harga || 0;
 };
-
 
 export async function getTransactionsStats() {
   try {
@@ -1677,9 +1694,8 @@ export async function getCategoryCounts() {
   }
 }
 
-
 export async function getSalesTrendData() {
-  const TIME_ZONE = 'Asia/Jakarta';
+  const TIME_ZONE = "Asia/Jakarta";
   try {
     // Ambil waktu sekarang dalam zona Asia/Jakarta
     const now = toZonedTime(new Date(), TIME_ZONE);
@@ -1741,10 +1757,7 @@ export async function getSalesTrendData() {
     };
 
     // Ambil data penjualan untuk minggu ini dan minggu sebelumnya secara paralel
-    const [thisWeekData, lastWeekData] = await Promise.all([
-      getDailySales(thisWeekStartUTC, thisWeekEndUTC),
-      getDailySales(lastWeekStartUTC, lastWeekEndUTC),
-    ]);
+    const [thisWeekData, lastWeekData] = await Promise.all([getDailySales(thisWeekStartUTC, thisWeekEndUTC), getDailySales(lastWeekStartUTC, lastWeekEndUTC)]);
 
     return {
       thisWeek: thisWeekData,
@@ -1755,9 +1768,6 @@ export async function getSalesTrendData() {
     throw error;
   }
 }
-
-
-
 
 interface LowStockProduct {
   id: number;
@@ -2002,5 +2012,19 @@ export async function getCashierPerformance(startDate?: Date, endDate?: Date) {
   } catch (error) {
     console.error("Error fetching cashier performance:", error);
     return [];
+  }
+}
+
+export async function getCustomerById(id: number) {
+  try {
+    const customer = await prisma.pelanggan.findUnique({
+      where: {
+        pelangganId: id,
+      },
+    });
+    return customer; // Mengembalikan data pelanggan atau null jika tidak ditemukan
+  } catch (error) {
+    console.error("Error fetching customer by ID:", error);
+    throw new Error("Gagal mengambil data pelanggan");
   }
 }
