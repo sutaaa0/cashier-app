@@ -4,14 +4,14 @@ import { Coffee, Trash2, Edit, Plus, Tag } from "lucide-react";
 import Image from "next/image";
 import { AddProductModal } from "@/app/(administrator)/dashboard-admin/components/AddProductModal";
 import type { Produk, Kategori } from "@prisma/client";
-import { deleteProduct, fetchCategories, getAdminProduct, updateProduct } from "@/server/actions"; // pastikan addCategory diimpor
+import { deleteProduct, getAdminProduct, getCategory, updateProduct } from "@/server/actions"; // pastikan addCategory diimpor
 import { toast } from "@/hooks/use-toast";
 import { EditProductModal } from "./EditProductModal";
 import { DeleteConfirmModal } from "./DeleteConfirmModal";
 import { NeoProgressIndicator } from "./NeoProgresIndicator";
 
 type ProductWithKategori = Produk & {
-  kategori: Kategori;
+  kategori: Kategori & { icon: string };
 };
 
 export function ProductManagement() {
@@ -31,11 +31,10 @@ export function ProductManagement() {
 
   const getCategorys = async () => {
     try {
-      const response = await fetchCategories();
-      if (response.status === "Success" && response.data) {
-        setCategory(response.data);
-        console.log("kategori ", response.data);
-      }
+      const response = await getCategory();
+        if (response) {
+          setCategory(response);
+        }
     } catch (error) {
       console.error(error);
       toast({
@@ -50,7 +49,7 @@ export function ProductManagement() {
     setIsLoading(true);
     setLoadingMessage("Fetching products...");
     try {
-      const products = await getAdminProduct();
+      const products = await getAdminProduct() as ProductWithKategori[];
       setProduk(products);
     } catch (error) {
       console.error(error);
@@ -108,11 +107,19 @@ export function ProductManagement() {
     setIsEditModalOpen(true);
   };
 
-  const handleEditProduct = async (updatedProduct: any) => {
+  const handleEditProduct = async (updatedProduct: { id: string; name: string; price: number; stock: number; minimumStok: number; category: string; imageUrl: string; }) => {
     setIsLoading(true);
     setLoadingMessage("Updating product...");
     try {
-      const result = await updateProduct(updatedProduct);
+      const result = await updateProduct({
+        id: Number(updatedProduct.id),
+        name: updatedProduct.name,
+        price: updatedProduct.price,
+        stock: updatedProduct.stock,
+        minimumStok: updatedProduct.minimumStok,
+        category: updatedProduct.category,
+        imageUrl: updatedProduct.imageUrl || "",
+      });
       if (result.status === "Success") {
         toast({
           title: "Success",
