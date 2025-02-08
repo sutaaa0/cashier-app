@@ -6,7 +6,7 @@ import React, { useEffect, useState } from "react";
 interface LowStockProduct {
   nama: string;
   stok: number;
-  status: 'CRITICAL' | 'LOW';
+  status: string;
 }
 
 const LowStockAlert = () => {
@@ -19,7 +19,11 @@ const LowStockAlert = () => {
         setIsLoading(true);
         const data = await getLowStockProductsDashboard();
         if (Array.isArray(data)) {
-          setLowStockProducts(data);
+          setLowStockProducts(data.map((product: LowStockProduct) => ({
+            nama: product.nama,
+            stok: product.stok,
+            status: product.status === 'CRITICAL' || product.status === 'LOW' ? product.status : 'LOW'
+          })));
         } else {
           console.error('Data yang diterima bukan array:', data);
           setLowStockProducts([]);
