@@ -2002,3 +2002,189 @@ export async function getCustomerTransactions(): Promise<{
     };
   }
 }
+
+
+
+
+
+
+
+
+
+
+// refund pembelian
+
+export async function processRefund(
+  refundData: {
+    penjualanId: number;
+    userId: number;
+    refundedItems: { produkId: number; kuantitas: number }[];
+    totalRefund: number;
+  }
+) {
+  try {
+    return await prisma.$transaction(async (tx) => {
+      console.log("Properti dalam tx:", Object.keys(tx));
+
+
+      console.log("Isi tx:", tx);
+
+      // 1. Buat record refund
+      const refund = await tx.refund.create({
+        data: {
+          penjualanId: refundData.penjualanId,
+          totalRefund: refundData.totalRefund,
+          userId: refundData.userId,
+          detailRefund: {
+            create: refundData.refundedItems.map((item) => ({
+              produkId: item.produkId,
+              kuantitas: item.kuantitas,
+            })),
+          },
+        },
+      });
+
+      // 2. Update stok produk untuk item yang direfund
+      for (const item of refundData.refundedItems) {
+        await tx.produk.update({
+          where: { produkId: item.produkId },
+          data: { stok: { increment: item.kuantitas } },
+        });
+      }
+
+      return refund;
+    });
+  } catch (error) {
+    console.error(error.stack);
+    console.error("Error processing refund:", error);
+    throw new Error("Gagal memproses refund. Silakan coba lagi.");
+  }
+}
+
+export async function getTransactionDetails(penjualanId: number) {
+  try {
+    const transaction = await prisma.penjualan.findUnique({
+      where: { penjualanId },
+      include: {
+        detailPenjualan: {
+          include: { produk: true },
+        },
+      },
+    });
+    return transaction;
+  } catch (error) {
+    console.error("Error fetching transaction details:", error);
+    throw error;
+  }
+}
+
+export async function processReturn(returnData: {
+  penjualanId: number;
+  userId: number;
+  returnedItems: { produkId: number; kuantitas: number; harga: number }[];
+  replacementItems: { produkId: number; kuantitas: number; harga: number }[];
+  totalReturn: number;
+  totalReplacement: number;
+  additionalPayment: number;
+}) {
+  const {
+    penjualanId,
+    userId,
+    returnedItems,
+    replacementItems,
+    totalReturn,
+    totalReplacement,
+    additionalPayment,
+  } = returnData;
+
+  try {
+    return await prisma.$transaction(async (tx) => {
+      // 1. Buat record return (disimpan pada model Refund)
+      await tx.refund.create({
+        data: {
+          penjualanId,
+          userId,
+          totalRefund: totalReturn,
+          detailRefund: {
+            create: returnedItems.map((item) => ({
+              produkId: item.produkId,
+              kuantitas: item.kuantitas,
+            })),
+          },
+        },
+      });
+
+      // 2. Update stok untuk produk yang dikembalikan
+      for (const item of returnedItems) {
+        await tx.produk.update({
+          where: { produkId: item.produkId },
+          data: { stok: { increment: item.kuantitas } },
+        });
+      }
+
+      // 3. Update stok untuk produk pengganti
+      for (const item of replacementItems) {
+        await tx.produk.update({
+          where: { produkId: item.produkId },
+          data: { stok: { decrement: item.kuantitas } },
+        });
+      }
+
+      // 4. Hitung selisih antara total penggantian dan total pengembalian
+      const difference = totalReplacement - totalReturn;
+
+      // 5. Update transaksi asli dengan informasi return
+      await tx.penjualan.update({
+        where: { penjualanId },
+        data: {
+          total_harga: { increment: difference },
+          uangMasuk: additionalPayment > 0 ? { increment: additionalPayment } : undefined,
+        },
+      });
+
+      // 6. Jika ada pembayaran tambahan, buat transaksi baru untuk produk pengganti
+      if (additionalPayment > 0 && replacementItems.length > 0) {
+        await tx.penjualan.create({
+          data: {
+            userId,
+            total_harga: additionalPayment,
+            uangMasuk: additionalPayment,
+            pelangganId: null, // Add default values for required fields
+            guestId: null,     // Add default values for required fields
+            detailPenjualan: {
+              create: replacementItems.map((item) => ({
+                produkId: item.produkId,
+                kuantitas: item.kuantitas,
+                subtotal: Math.round(item.harga * item.kuantitas), // Ensure integer value
+              })),
+            },
+          },
+        });
+      }
+
+      return { 
+        status: "Success", 
+        message: "Return processed successfully",
+        additionalPaymentProcessed: additionalPayment > 0
+      };
+    });
+  } catch (error) {
+    console.error("Error processing return:", error);
+    console.error(error.stack);
+    throw new Error(`Gagal memproses return: ${error.message}`);
+  }
+}
+
+
+export async function getAllProducts() {
+  try {
+    const products = await prisma.produk.findMany({
+      where: { isDeleted: false },
+      orderBy: { nama: "asc" },
+    });
+    return products;
+  } catch (error) {
+    console.error("Error fetching all products:", error);
+    throw error;
+  }
+}
