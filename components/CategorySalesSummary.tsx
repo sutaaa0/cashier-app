@@ -23,7 +23,6 @@ export default function CategorySalesSummary() {
   const [categoryData, setCategoryData] = useState<CategorySale[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
-  const [isHovered, setIsHovered] = useState(false);
 
   useEffect(() => {
     const fetchCategoryData = async () => {
@@ -65,8 +64,6 @@ export default function CategorySalesSummary() {
   return (
     <div 
       className="relative bg-white border-4 border-black p-6 transition-all duration-300 group"
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
     >
       {/* Background Pattern */}
       <div className="absolute inset-0 opacity-5 pointer-events-none">
