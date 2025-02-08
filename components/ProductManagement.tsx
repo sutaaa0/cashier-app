@@ -4,14 +4,14 @@ import { Coffee, Trash2, Edit, Plus, Tag } from "lucide-react";
 import Image from "next/image";
 import { AddProductModal } from "@/app/(administrator)/dashboard-admin/components/AddProductModal";
 import type { Produk, Kategori } from "@prisma/client";
-import { deleteProduct, getAdminProduct, getCategory, updateProduct } from "@/server/actions"; // pastikan addCategory diimpor
+import { deleteProduct, getAdminProduct, getCategory, updateProduct } from "@/server/actions";
 import { toast } from "@/hooks/use-toast";
 import { EditProductModal } from "./EditProductModal";
 import { DeleteConfirmModal } from "./DeleteConfirmModal";
 import { NeoProgressIndicator } from "./NeoProgresIndicator";
 
 type ProductWithKategori = Produk & {
-  kategori: Kategori & { icon: string };
+  kategori: Kategori;
 };
 
 export function ProductManagement() {
@@ -32,9 +32,9 @@ export function ProductManagement() {
   const getCategorys = async () => {
     try {
       const response = await getCategory();
-        if (response) {
-          setCategory(response);
-        }
+      if (response) {
+        setCategory(response);
+      }
     } catch (error) {
       console.error(error);
       toast({
