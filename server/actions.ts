@@ -4,7 +4,7 @@ import { prisma } from "@/lib/db";
 import bcrypt from "bcryptjs";
 import * as jose from "jose";
 import { DetailPenjualan, Pelanggan, Produk } from "@prisma/client";
-import { CreateOrderDetail } from "@/types/types";
+import { CreateOrderDetail, CustomerTransactionData } from "@/types/types";
 import { revalidatePath } from "next/cache";
 import { v2 as cloudinary } from "cloudinary";
 import { startOfWeek, subWeeks, format, addDays, } from "date-fns";
@@ -1815,5 +1815,190 @@ export async function getCustomerById(id: number) {
   } catch (error) {
     console.error("Error fetching customer by ID:", error);
     throw new Error("Gagal mengambil data pelanggan");
+  }
+}
+
+
+export type DailySalesData = {
+  date: string;
+  sales: number;
+  traffic: number;
+};
+
+export type SalesStats = {
+  totalSales: number;
+  totalTraffic: number;
+  salesIncrease: number;
+  trafficIncrease: number;
+};
+
+export async function getDailySalesData(): Promise<DailySalesData[]> {
+  try {
+    const dailySales = await prisma.penjualan.groupBy({
+      by: ["tanggalPenjualan"],
+      _sum: { total_harga: true },
+      _count: { penjualanId: true },
+      orderBy: { tanggalPenjualan: "asc" },
+    });
+
+    return dailySales.map((sale) => ({
+      date: sale.tanggalPenjualan.toISOString().split("T")[0],
+      sales: sale._sum.total_harga || 0,
+      traffic: sale._count.penjualanId,
+    }));
+  } catch (error) {
+    console.error("Error fetching daily sales:", error);
+    return [];
+  }
+}
+
+export async function getSalesStats(): Promise<SalesStats> {
+  try {
+    const currentDate = new Date();
+    const currentPeriodStart = new Date(currentDate);
+    currentPeriodStart.setDate(currentDate.getDate() - 7);
+    const currentPeriodEnd = currentDate;
+
+    const previousPeriodStart = new Date(currentPeriodStart);
+    previousPeriodStart.setDate(previousPeriodStart.getDate() - 7);
+    const previousPeriodEnd = new Date(currentPeriodStart);
+
+    const [currentData, previousData] = await Promise.all([
+      prisma.penjualan.aggregate({
+        _sum: { total_harga: true },
+        _count: { penjualanId: true },
+        where: {
+          tanggalPenjualan: { gte: currentPeriodStart, lte: currentPeriodEnd },
+        },
+      }),
+      prisma.penjualan.aggregate({
+        _sum: { total_harga: true },
+        _count: { penjualanId: true },
+        where: {
+          tanggalPenjualan: { gte: previousPeriodStart, lte: previousPeriodEnd },
+        },
+      }),
+    ]);
+
+    const currentSales = currentData._sum.total_harga || 0;
+    const currentTraffic = currentData._count.penjualanId;
+    const previousSales = previousData._sum.total_harga || 0;
+    const previousTraffic = previousData._count.penjualanId;
+
+    const calculateIncrease = (current: number, previous: number) => {
+      if (previous === 0) return current === 0 ? 0 : 100;
+      return ((current - previous) / previous) * 100;
+    };
+
+    return {
+      totalSales: currentSales,
+      totalTraffic: currentTraffic,
+      salesIncrease: calculateIncrease(currentSales, previousSales),
+      trafficIncrease: calculateIncrease(currentTraffic, previousTraffic),
+    };
+  } catch (error) {
+    console.error("Error fetching sales stats:", error);
+    return {
+      totalSales: 0,
+      totalTraffic: 0,
+      salesIncrease: 0,
+      trafficIncrease: 0,
+    };
+  }
+}
+
+export async function getCustomerTransactions(): Promise<{
+  success: boolean;
+  data?: CustomerTransactionData[];
+  error?: string;
+}> {
+  try {
+    // Get current date and date 30 days ago for comparison
+    const currentDate = new Date();
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    // Get previous period for growth comparison
+    const sixtyDaysAgo = new Date();
+    sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
+
+    // Get all sales data
+    const [currentPeriodSales, previousPeriodSales] = await Promise.all([
+      // Current period sales
+      prisma.penjualan.findMany({
+        where: {
+          tanggalPenjualan: {
+            gte: thirtyDaysAgo,
+            lte: currentDate,
+          },
+        },
+        include: {
+          pelanggan: true,
+        },
+      }),
+      // Previous period sales
+      prisma.penjualan.findMany({
+        where: {
+          tanggalPenjualan: {
+            gte: sixtyDaysAgo,
+            lte: thirtyDaysAgo,
+          },
+        },
+        include: {
+          pelanggan: true,
+        },
+      }),
+    ]);
+
+    // Calculate metrics for regular customers (guests)
+    const currentRegularSales = currentPeriodSales.filter(sale => sale.guestId !== null);
+    const previousRegularSales = previousPeriodSales.filter(sale => sale.guestId !== null);
+    
+    // Calculate metrics for members (pelanggan)
+    const currentMemberSales = currentPeriodSales.filter(sale => sale.pelangganId !== null);
+    const previousMemberSales = previousPeriodSales.filter(sale => sale.pelangganId !== null);
+
+    // Calculate total transactions
+    const totalTransactions = currentPeriodSales.length;
+    
+    // Calculate percentages and growth
+    const regularTransactions = currentRegularSales.length;
+    const memberTransactions = currentMemberSales.length;
+    
+    const regularPercentage = (regularTransactions / totalTransactions) * 100;
+    const memberPercentage = (memberTransactions / totalTransactions) * 100;
+
+    // Calculate growth rates
+    const regularGrowth = previousRegularSales.length > 0
+      ? ((regularTransactions - previousRegularSales.length) / previousRegularSales.length) * 100
+      : 0;
+
+    const memberGrowth = previousMemberSales.length > 0
+      ? ((memberTransactions - previousMemberSales.length) / previousMemberSales.length) * 100
+      : 0;
+
+    return {
+      success: true,
+      data: [
+        {
+          name: "Regular",
+          value: Math.round(regularPercentage),
+          transactions: regularTransactions,
+          growth: `${regularGrowth > 0 ? '+' : ''}${regularGrowth.toFixed(1)}%`,
+        },
+        {
+          name: "Member",
+          value: Math.round(memberPercentage),
+          transactions: memberTransactions,
+          growth: `${memberGrowth > 0 ? '+' : ''}${memberGrowth.toFixed(1)}%`,
+        },
+      ],
+    };
+  } catch (error) {
+    console.error('Error fetching customer transactions:', error);
+    return {
+      success: false,
+      error: 'Failed to fetch customer transactions',
+    };
   }
 }
