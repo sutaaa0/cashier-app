@@ -1,4 +1,4 @@
-import { Users, ShoppingBag, UsersIcon as Customers, FileText, Package, BarChart, Settings, BarChart2, LayoutDashboardIcon, CalendarRange, Tag } from 'lucide-react'
+import { Users, ShoppingBag, UsersIcon as Customers, FileText, Package, BarChart, BarChart2, LayoutDashboardIcon, CalendarRange, Tag } from 'lucide-react'
 
 const menuItems = [
   { id: 'users', label: 'Users', icon: Users },
@@ -11,7 +11,6 @@ const menuItems = [
   { id: 'promotion', label: 'Promotion', icon:  CalendarRange },
   { id: 'reports', label: 'Reports', icon: BarChart },
   { id: 'analytics', label: 'Analytics', icon: BarChart2 },
-  { id: 'settings', label: 'Settings', icon: Settings },
 ]
 
 interface AdminSidebarProps {
