@@ -28,7 +28,9 @@ export function CustomerManagement() {
     setLoadingMessage("Fetching customers...")
     try {
       const pelanggan = await getPelanggan()
-      setCustomers(pelanggan)
+      if (pelanggan) {
+        setCustomers(pelanggan)
+      }
     } catch (error) {
       toast({
         title: "Error",
