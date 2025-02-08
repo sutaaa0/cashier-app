@@ -28,7 +28,11 @@ export function CategoryManagement() {
     try {
       const response = await fetchCategories()
       if (response.status === "Success" && response.data) {
-        setCategories(response.data)
+        setCategories(response.data.map((cat: { kategoriId: number; nama: string; icon?: string }) => ({
+          kategoriId: cat.kategoriId,
+          nama: cat.nama,
+          icon: cat.icon || "/placeholder.svg"
+        })))
       }
     } catch (error) {
       console.error(error)
