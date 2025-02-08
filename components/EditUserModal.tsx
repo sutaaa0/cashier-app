@@ -52,6 +52,7 @@ export function EditUserModal({ isOpen, onClose, user }: EditUserModalProps) {
         });
       }
     } catch (error) {
+      console.log(error);
       toast({
         title: "Error",
         description: "Gagal mengupdate user",
