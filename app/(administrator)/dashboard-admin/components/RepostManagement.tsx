@@ -1,12 +1,10 @@
-// app/components/ReportManagement.tsx
-
 "use client";
-
 import { useState } from "react";
 import { BarChart, Download, Calendar, TrendingUp, Users } from "lucide-react";
 import { saveAs } from "file-saver";
 import * as XLSX from "xlsx";
 import { generateReport, ReportData } from "@/server/actions";
+import { Penjualan, Produk, Pelanggan } from "@/types/types"; // Import tipe data
 
 export function ReportManagement() {
   const [reports, setReports] = useState<ReportData[]>([]);
@@ -18,15 +16,12 @@ export function ReportManagement() {
   };
 
   const handleDownload = (report: ReportData) => {
-    // Create workbook
     const wb = XLSX.utils.book_new();
-
-    // Convert data to worksheet format
-    let wsData: any[] = [];
+    let wsData: Array<Record<string, string | number>> = [];
 
     switch (report.type) {
       case "sales":
-        wsData = report.data.map((sale: any) => ({
+        wsData = ((report.data as unknown) as Penjualan[]).map((sale) => ({
           "Sale ID": sale.penjualanId,
           Date: new Date(sale.tanggalPenjualan).toLocaleDateString(),
           Total: new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR" }).format(sale.total_harga),
@@ -35,7 +30,7 @@ export function ReportManagement() {
         break;
 
       case "inventory":
-        wsData = report.data.map((product: any) => ({
+        wsData = ((report.data as unknown) as Produk[]).map((product) => ({
           Product: product.nama,
           Price: product.harga,
           Stock: product.stok,
@@ -44,7 +39,7 @@ export function ReportManagement() {
         break;
 
       case "customers":
-        wsData = report.data.map((customer: any) => ({
+        wsData = ((report.data as unknown) as Pelanggan[]).map((customer) => ({
           Name: customer.nama,
           Points: customer.points,
           Phone: customer.nomorTelepon || "N/A",
@@ -56,11 +51,9 @@ export function ReportManagement() {
     const ws = XLSX.utils.json_to_sheet(wsData);
     XLSX.utils.book_append_sheet(wb, ws, report.name);
 
-    // Generate Excel file
     const excelBuffer = XLSX.write(wb, { bookType: "xlsx", type: "array" });
     const data = new Blob([excelBuffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
 
-    // Download file
     saveAs(data, `${report.name}-${report.period}.xlsx`);
   };
 
