@@ -105,8 +105,8 @@ export function EditUserModal({ isOpen, onClose, user }: EditUserModalProps) {
               className="w-full p-2 border-[3px] border-black rounded focus:outline-none focus:ring-2 focus:ring-[#93B8F3]"
               required
             >
-              <option value="cashier">Cashier</option>
-              <option value="admin">Admin</option>
+              <option value="PETUGAS">PETUGAS</option>
+              <option value="ADMIN">ADMIN</option>
             </select>
           </div>
           <button
