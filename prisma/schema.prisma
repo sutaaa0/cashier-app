@@ -13,6 +13,7 @@ model User {
   password String
   level    String
   penjualan Penjualan[] 
+  refunds Refund[]
 }
 
 model Pelanggan {
@@ -43,6 +44,7 @@ model Penjualan {
   guest            Guest?            @relation(fields: [guestId], references: [guestId])
   user             User              @relation(fields: [userId], references: [id]) // Relasi dengan user
   detailPenjualan  DetailPenjualan[] 
+  returns          Refund[]          // New field to link returns
 }
 
 model DetailPenjualan {
@@ -73,9 +75,29 @@ model Produk {
   isDeleted       Boolean           @default(false)
   image           String
   detailPenjualan DetailPenjualan[]
+  detailRefund    DetailRefund[]
   kategoriId      Int
   kategori        Kategori          @relation(fields: [kategoriId], references: [kategoriId])
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
 }
 
+model Refund {
+  refundId        Int              @id @default(autoincrement())
+  penjualanId     Int              // ID transaksi asli yang direfund
+  tanggalRefund   DateTime         @default(now())
+  totalRefund     Float            // Jumlah uang yang dikembalikan
+  userId          Int              // ID petugas yang memproses refund
+  user            User             @relation(fields: [userId], references: [id])
+  detailRefund    DetailRefund[]
+  penjualan       Penjualan         @relation(fields: [penjualanId], references: [penjualanId])
+}
+
+model DetailRefund {
+  detailRefundId  Int              @id @default(autoincrement())
+  refundId        Int
+  refund          Refund           @relation(fields: [refundId], references: [refundId])
+  produkId        Int
+  produk          Produk           @relation(fields: [produkId], references: [produkId])
+  kuantitas       Int
+}
