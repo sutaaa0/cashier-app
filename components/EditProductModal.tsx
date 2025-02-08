@@ -12,7 +12,15 @@ interface EditProductModalProps {
   product: Produk;
   // Daftar kategori yang diambil dari server
   categories: Kategori[];
-  onEditProduct: (product: any) => void;
+  onEditProduct: (product: {
+    id: string;
+    name: string;
+    price: number;
+    stock: number;
+    minimumStok: number;
+    category: string;
+    imageUrl: string;
+  }) => void;
 }
 
 export function EditProductModal({
@@ -27,7 +35,7 @@ export function EditProductModal({
   const [price, setPrice] = useState(product.harga.toString());
   const [stock, setStock] = useState(product.stok.toString());
   const [minStock, setMinStock] = useState(product.minimumStok.toString());
-  const [category, setCategory] = useState<string>(product.kategori?.nama || "");
+  const [category, setCategory] = useState<string>(product.kategoriId.toString());
   const [image, setImage] = useState<File | null>(null);
   const [currentImageUrl, setCurrentImageUrl] = useState(product.image);
   const [isLoading, setIsLoading] = useState(false);
@@ -42,7 +50,7 @@ export function EditProductModal({
       setPrice(product.harga.toString());
       setStock(product.stok.toString());
       setMinStock(product.minimumStok.toString());
-      setCategory(product.kategori?.nama || "");
+      setCategory(product.kategoriId.toString());
       setCurrentImageUrl(product.image);
       setImage(null);
       // Perbarui daftar kategori dari prop
@@ -69,7 +77,7 @@ export function EditProductModal({
         imageUrl = uploadResult.secure_url;
       }
       const updatedProduct = {
-        id: product.produkId,
+        id: product.produkId.toString(),
         name: productName,
         price: parseFloat(price),
         stock: parseInt(stock, 10),
