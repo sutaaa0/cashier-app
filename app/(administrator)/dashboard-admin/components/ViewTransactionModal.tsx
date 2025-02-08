@@ -1,14 +1,22 @@
-import React from "react"
-import { X, Calendar, DollarSign, User, ShoppingBag } from "lucide-react"
+import React from "react";
+import { X, Calendar, DollarSign, User, ShoppingBag } from "lucide-react";
+import { formatRupiah } from "@/lib/formatIdr";
 
 interface ViewTransactionModalProps {
-  isOpen: boolean
-  onClose: () => void
-  transaction: TransactionData
+  isOpen: boolean;
+  onClose: () => void;
+  transaction: {
+    penjualanId: number;
+    tanggalPenjualan: Date;
+    total_harga: number;
+    pelanggan?: { nama: string } | null;
+    guest?: { guestId: number } | null;
+    detailPenjualan: Array<{ produk: { nama: string } }>;
+  };
 }
 
 export function ViewTransactionModal({ isOpen, onClose, transaction }: ViewTransactionModalProps) {
-  if (!isOpen) return null
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -26,13 +34,11 @@ export function ViewTransactionModal({ isOpen, onClose, transaction }: ViewTrans
           </div>
           <div className="flex items-center gap-2">
             <DollarSign size={20} />
-            <span>Total: ${transaction.total_harga.toFixed(2)}</span>
+            <span>Total: {formatRupiah(transaction.total_harga)}</span>
           </div>
           <div className="flex items-center gap-2">
             <User size={20} />
-            <span>
-              Customer: {transaction.pelanggan ? transaction.pelanggan.nama : `Guest ${transaction.guest?.guestId}`}
-            </span>
+            <span>Customer: {transaction.pelanggan ? transaction.pelanggan.nama : `Guest ${transaction.guest?.guestId}`}</span>
           </div>
           <div>
             <h3 className="font-bold mb-2 flex items-center gap-2">
@@ -48,6 +54,5 @@ export function ViewTransactionModal({ isOpen, onClose, transaction }: ViewTrans
         </div>
       </div>
     </div>
-  )
+  );
 }
-
