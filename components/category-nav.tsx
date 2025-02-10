@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Cloud } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getCategoryCounts } from "@/server/actions";
 import Image from "next/image";
@@ -108,7 +107,12 @@ export function CategoryNav({
             )}
           >
             {category.name === "All Menu" ? (
-              <Cloud className="h-11 w-11" />
+              <Image 
+                src={"/allmenu.png"}
+                alt="All Menu"
+                width={60}
+                height={60} 
+              />
             ) : (
               <Image 
                 src={category.icon}
