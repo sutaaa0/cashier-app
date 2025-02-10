@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { CheckCircle2 } from "lucide-react";
+import { CheckCircle2, Download } from "lucide-react";
 import { getCustomerById } from "@/server/actions";
+import jsPDF from 'jspdf';
 
 interface ReceiptModalProps {
   receiptData: {
@@ -9,7 +10,7 @@ interface ReceiptModalProps {
     amountReceived: number;
     change: number;
     petugasId: number;
-    customerId: number | null; // Pastikan prop ini sesuai dengan tipe data
+    customerId: number | null;
     orderItems: Array<{
       nama: string;
       kuantitas: number;
@@ -21,6 +22,8 @@ interface ReceiptModalProps {
 }
 
 export const ReceiptModal: React.FC<ReceiptModalProps> = ({ receiptData, onClose }) => {
+  const [customerName, setCustomerName] = useState<string>("Guest");
+
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("id-ID", {
       style: "currency",
@@ -28,26 +31,68 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ receiptData, onClose
     }).format(amount);
   };
 
-  const [customerName, setCustomerName] = useState<string>("Guest");
-  console.log("data yang diterima modal :", receiptData)
   useEffect(() => {
     const fetchCustomer = async () => {
-      console.log("nih id nya :",receiptData.customerId)
       if (receiptData.customerId) {
         try {
           const customer = await getCustomerById(receiptData.customerId);
-          setCustomerName(customer?.nama || "Guest"); // Gunakan nama pelanggan atau default ke "Guest"
+          setCustomerName(customer?.nama || "Guest");
         } catch (error) {
           console.error("Error fetching customer:", error);
-          setCustomerName("Guest"); // Default ke "Guest" jika gagal mendapatkan data
+          setCustomerName("Guest");
         }
       } else {
-        setCustomerName("Guest"); // Jika tidak ada ID pelanggan, langsung set ke "Guest"
+        setCustomerName("Guest");
       }
     };
 
     fetchCustomer();
   }, [receiptData]);
+
+  const handleDownloadPDF = () => {
+    const doc = new jsPDF();
+    
+    // Header
+    doc.setFontSize(20);
+    doc.text('Bukti Transaksi', 105, 20, { align: 'center' });
+    
+    // Date and Customer
+    doc.setFontSize(12);
+    doc.text(receiptData.transactionDate.toLocaleDateString("id-ID", {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    }), 20, 40);
+    doc.text(`Pelanggan: ${customerName}`, 20, 50);
+    
+    // Items
+    doc.text('Detail Pesanan:', 20, 70);
+    let yPos = 80;
+    
+    receiptData.orderItems.forEach((item) => {
+      doc.text(`${item.nama} x${item.kuantitas}`, 20, yPos);
+      doc.text(formatCurrency(item.subtotal), 150, yPos);
+      yPos += 10;
+    });
+    
+    // Totals
+    yPos += 10;
+    doc.text('Total Bayar:', 20, yPos);
+    doc.text(formatCurrency(receiptData.finalTotal), 150, yPos);
+    
+    yPos += 10;
+    doc.text('Uang Masuk:', 20, yPos);
+    doc.text(formatCurrency(receiptData.amountReceived), 150, yPos);
+    
+    yPos += 10;
+    doc.setFont('helvetica', 'bold');
+    doc.text('Kembalian:', 20, yPos);
+    doc.text(formatCurrency(receiptData.change), 150, yPos);
+    
+    // Save the PDF
+    doc.save('bukti-transaksi.pdf');
+  };
 
   return (
     <motion.div
@@ -102,12 +147,21 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ receiptData, onClose
             <span>{formatCurrency(receiptData.change)}</span>
           </div>
         </div>
-        <button
-          onClick={onClose}
-          className="w-full mt-4 bg-black text-white py-2 rounded-lg hover:bg-gray-800 transition-colors"
-        >
-          Tutup
-        </button>
+        <div className="mt-4 space-y-2">
+          <button
+            onClick={handleDownloadPDF}
+            className="w-full bg-green-500 text-white py-2 rounded-lg hover:bg-green-600 transition-colors flex items-center justify-center gap-2"
+          >
+            <Download className="w-5 h-5" />
+            Download PDF
+          </button>
+          <button
+            onClick={onClose}
+            className="w-full bg-black text-white py-2 rounded-lg hover:bg-gray-800 transition-colors"
+          >
+            Tutup
+          </button>
+        </div>
       </motion.div>
     </motion.div>
   );
