@@ -1,257 +1,211 @@
-"use client"
+import React from "react";
+import { motion } from "framer-motion";
+import { CheckCircle2, Download } from "lucide-react";
+import jsPDF from 'jspdf';
 
-import { useState, useEffect } from "react"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { format } from "date-fns"
-import { id } from "date-fns/locale"
-import { motion, AnimatePresence } from "framer-motion"
-import confetti from "canvas-confetti"
+interface TransactionDetails {
+  penjualanId: string | number;
+  tanggalPenjualan: string;
+  user?: {
+    username: string;
+  };
+}
+
+interface RefundReceiptModalProps {
+  data: {
+    transactionDetails: TransactionDetails;
+    returnedItems: {
+      produkId: number;
+      nama: string;
+      kuantitas: number;
+      harga: number;
+    }[];
+    replacementItems: {
+      produkId: number;
+      nama: string;
+      kuantitas: number;
+      harga: number;
+    }[];
+    totalReturn: number;
+    totalReplacement: number;
+    additionalPayment: number;
+  };
+  onClose: () => void;
+}
 
 const formatRupiah = (amount: number) => {
   return new Intl.NumberFormat("id-ID", {
     style: "currency",
     currency: "IDR",
-  }).format(amount)
-}
+  }).format(amount);
+};
 
-interface RefundReceiptModalProps {
-  isOpen: boolean
-  onClose: () => void
-  data: {
-    transactionDetails: any
-    returnedItems: {
-      produkId: number
-      nama: string
-      kuantitas: number
-      harga: number
-    }[]
-    replacementItems: {
-      produkId: number
-      nama: string
-      kuantitas: number
-      harga: number
-    }[]
-    totalReturn: number
-    totalReplacement: number
-    additionalPayment: number
-  }
-}
-
-export function RefundReceiptModal({ isOpen, onClose, data }: RefundReceiptModalProps) {
-  const [isVisible, setIsVisible] = useState(false)
-
-  useEffect(() => {
-    if (isOpen) {
-      setIsVisible(true)
-      // Trigger confetti effect
-      confetti({
-        particleCount: 100,
-        spread: 70,
-        origin: { y: 0.6 },
-      })
+export const RefundReceiptModal: React.FC<RefundReceiptModalProps> = ({ data, onClose }) => {
+  const handleDownloadPDF = () => {
+    const doc = new jsPDF();
+    
+    // Header
+    doc.setFontSize(20);
+    doc.text('Nota Pengembalian', 105, 20, { align: 'center' });
+    
+    // Store Info
+    doc.setFontSize(16);
+    doc.text('Suta Cake', 105, 35, { align: 'center' });
+    doc.setFontSize(12);
+    doc.text('Jl.Manuggal IV, Sukatali', 105, 45, { align: 'center' });
+    doc.text('Telp: 098987765', 105, 55, { align: 'center' });
+    
+    // Transaction Details
+    doc.text(`No. Transaksi: ${data.transactionDetails.penjualanId}`, 20, 75);
+    doc.text(`Tanggal: ${new Date(data.transactionDetails.tanggalPenjualan).toLocaleDateString("id-ID")}`, 20, 85);
+    doc.text(`Kasir: ${data.transactionDetails.user?.username || "Admin"}`, 20, 95);
+    
+    // Returned Items
+    let yPos = 115;
+    doc.setFontSize(14);
+    doc.text('Barang yang Dikembalikan:', 20, yPos);
+    yPos += 10;
+    doc.setFontSize(12);
+    
+    data.returnedItems.forEach((item) => {
+      doc.text(`${item.nama} x${item.kuantitas}`, 20, yPos);
+      doc.text(formatRupiah(item.harga * item.kuantitas), 150, yPos);
+      yPos += 10;
+    });
+    
+    yPos += 10;
+    doc.text('Total Pengembalian:', 20, yPos);
+    doc.text(formatRupiah(data.totalReturn), 150, yPos);
+    
+    // Replacement Items
+    if (data.replacementItems.length > 0) {
+      yPos += 20;
+      doc.setFontSize(14);
+      doc.text('Barang Pengganti:', 20, yPos);
+      yPos += 10;
+      doc.setFontSize(12);
+      
+      data.replacementItems.forEach((item) => {
+        doc.text(`${item.nama} x${item.kuantitas}`, 20, yPos);
+        doc.text(formatRupiah(item.harga * item.kuantitas), 150, yPos);
+        yPos += 10;
+      });
+      
+      yPos += 10;
+      doc.text('Total Penggantian:', 20, yPos);
+      doc.text(formatRupiah(data.totalReplacement), 150, yPos);
     }
-  }, [isOpen])
-
-  if (!data?.transactionDetails) {
-    console.log("No transaction details available:", data)
-    return null
-  }
-
-  const containerVariants = {
-    hidden: { opacity: 0, scale: 0.8 },
-    visible: {
-      opacity: 1,
-      scale: 1,
-      transition: {
-        type: "spring",
-        stiffness: 300,
-        damping: 20,
-      },
-    },
-    exit: {
-      opacity: 0,
-      scale: 0.8,
-      transition: {
-        ease: "easeInOut",
-      },
-    },
-  }
-
-  const itemVariants = {
-    hidden: { opacity: 0, y: 20 },
-    visible: {
-      opacity: 1,
-      y: 0,
-      transition: {
-        type: "spring",
-        stiffness: 300,
-        damping: 20,
-      },
-    },
-  }
+    
+    // Summary
+    yPos += 20;
+    doc.setFont('helvetica', 'bold');
+    doc.text('Selisih:', 20, yPos);
+    doc.text(formatRupiah(data.totalReplacement - data.totalReturn), 150, yPos);
+    
+    if (data.additionalPayment > 0) {
+      yPos += 10;
+      doc.text('Pembayaran Tambahan:', 20, yPos);
+      doc.text(formatRupiah(data.additionalPayment), 150, yPos);
+    }
+    
+    // Save the PDF
+    doc.save('nota-pengembalian.pdf');
+  };
 
   return (
-    <Dialog
-      open={isOpen}
-      onOpenChange={() => {
-        setIsVisible(false)
-        setTimeout(onClose, 300)
-      }}
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50"
     >
-      <AnimatePresence>
-        {isVisible && (
-          <DialogContent className="max-w-[500px] font-mono bg-white p-0 overflow-hidden">
-            <motion.div
-              variants={containerVariants}
-              initial="hidden"
-              animate="visible"
-              exit="exit"
-              className="relative"
-            >
-              <div className="absolute inset-0 bg-gradient-to-br from-yellow-200 via-yellow-400 to-yellow-700 opacity-20" />
-              <div className="relative z-10 p-6">
-                <DialogHeader>
-                  <DialogTitle className="text-center text-3xl font-black mb-4 text-yellow-600 shadow-yellow-400 drop-shadow-lg">
-                    Nota Pengembalian
-                  </DialogTitle>
-                </DialogHeader>
+      <motion.div
+        initial={{ scale: 0.7, y: 50 }}
+        animate={{ scale: 1, y: 0 }}
+        className="bg-white w-96 p-6 rounded-lg shadow-2xl border-4 border-black"
+      >
+        <div className="flex flex-col items-center mb-4">
+          <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: 0.2 }}>
+            <CheckCircle2 className="text-green-500 w-20 h-20" />
+          </motion.div>
+          <h2 className="text-2xl font-bold mt-4 text-center">Nota Pengembalian</h2>
+        </div>
+        
+        <div className="text-center mb-4">
+          <h3 className="font-bold text-xl">Suta Cake</h3>
+          <p className="text-sm text-gray-600">Jl.Manuggal IV, Sukatali</p>
+          <p className="text-sm text-gray-600">Telp: 098987765</p>
+        </div>
 
-                <div className="space-y-6">
-                  {/* Header Info */}
-                  <motion.div
-                    variants={itemVariants}
-                    className="text-center border-4 border-black py-4 bg-yellow-200 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]"
-                  >
-                    <h2 className="font-black text-2xl mb-2">Suta Cake</h2>
-                    <p className="text-sm">Jl.Manuggal IV, Sukatali</p>
-                    <p className="text-sm">Telp: 098987765</p>
-                  </motion.div>
+        <div className="text-sm mb-4">
+          <p>No. Transaksi: {data.transactionDetails.penjualanId}</p>
+          <p>Tanggal: {new Date(data.transactionDetails.tanggalPenjualan).toLocaleDateString("id-ID")}</p>
+          <p>Kasir: {data.transactionDetails.user?.username || "Admin"}</p>
+        </div>
 
-                  {/* Transaction Details */}
-                  <motion.div
-                    variants={itemVariants}
-                    className="space-y-1 text-sm border-2 border-black p-4 bg-white shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]"
-                  >
-                    <p>
-                      No. Transaksi: <span className="font-bold">{data.transactionDetails.penjualanId}</span>
-                    </p>
-                    <p>
-                      Tanggal:{" "}
-                      <span className="font-bold">
-                        {format(new Date(data.transactionDetails.tanggalPenjualan), "dd MMMM yyyy HH:mm", {
-                          locale: id,
-                        })}
-                      </span>
-                    </p>
-                    <p>
-                      Kasir: <span className="font-bold">{data.transactionDetails.user?.username || "Admin"}</span>
-                    </p>
-                  </motion.div>
+        <div className="border-t-2 border-b-2 border-black py-2 mb-4">
+          <p className="font-bold mb-2">Barang yang Dikembalikan:</p>
+          {data.returnedItems.map((item, index) => (
+            <div key={index} className="flex justify-between">
+              <span>
+                {item.nama} x{item.kuantitas}
+              </span>
+              <span>{formatRupiah(item.harga * item.kuantitas)}</span>
+            </div>
+          ))}
+        </div>
 
-                  {/* Returned Items */}
-                  <motion.div
-                    variants={itemVariants}
-                    className="space-y-2 border-2 border-black p-4 bg-white shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]"
-                  >
-                    <h3 className="font-black text-lg border-b-2 border-black pb-2">Barang yang Dikembalikan:</h3>
-                    <table className="w-full text-sm">
-                      <thead>
-                        <tr className="border-b border-black">
-                          <th className="text-left py-2">Item</th>
-                          <th className="text-right py-2">Qty</th>
-                          <th className="text-right py-2">Harga</th>
-                          <th className="text-right py-2">Total</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {data.returnedItems.map((item, idx) => (
-                          <tr key={idx} className="border-b border-gray-200">
-                            <td className="py-2">{item.nama}</td>
-                            <td className="text-right py-2">{item.kuantitas}</td>
-                            <td className="text-right py-2">{formatRupiah(item.harga)}</td>
-                            <td className="text-right py-2">{formatRupiah(item.harga * item.kuantitas)}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                    <p className="text-right font-bold mt-2">Total Pengembalian: {formatRupiah(data.totalReturn)}</p>
-                  </motion.div>
-
-                  {/* Replacement Items */}
-                  {data.replacementItems.length > 0 && (
-                    <motion.div
-                      variants={itemVariants}
-                      className="space-y-2 border-2 border-black p-4 bg-white shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]"
-                    >
-                      <h3 className="font-black text-lg border-b-2 border-black pb-2">Barang Pengganti:</h3>
-                      <table className="w-full text-sm">
-                        <thead>
-                          <tr className="border-b border-black">
-                            <th className="text-left py-2">Item</th>
-                            <th className="text-right py-2">Qty</th>
-                            <th className="text-right py-2">Harga</th>
-                            <th className="text-right py-2">Total</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {data.replacementItems.map((item, idx) => (
-                            <tr key={idx} className="border-b border-gray-200">
-                              <td className="py-2">{item.nama}</td>
-                              <td className="text-right py-2">{item.kuantitas}</td>
-                              <td className="text-right py-2">{formatRupiah(item.harga)}</td>
-                              <td className="text-right py-2">{formatRupiah(item.harga * item.kuantitas)}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                      <p className="text-right font-bold mt-2">
-                        Total Penggantian: {formatRupiah(data.totalReplacement)}
-                      </p>
-                    </motion.div>
-                  )}
-
-                  {/* Payment Summary */}
-                  <motion.div
-                    variants={itemVariants}
-                    className="border-4 border-black pt-4 space-y-2 bg-yellow-100 p-4 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]"
-                  >
-                    <div className="flex justify-between font-bold">
-                      <span>Total Pengembalian:</span>
-                      <span>{formatRupiah(data.totalReturn)}</span>
-                    </div>
-                    <div className="flex justify-between font-bold">
-                      <span>Total Penggantian:</span>
-                      <span>{formatRupiah(data.totalReplacement)}</span>
-                    </div>
-                    {data.additionalPayment > 0 && (
-                      <div className="flex justify-between font-bold text-red-600">
-                        <span>Pembayaran Tambahan:</span>
-                        <span>{formatRupiah(data.additionalPayment)}</span>
-                      </div>
-                    )}
-                    <div className="flex justify-between font-black text-lg pt-2 border-t-2 border-black">
-                      <span>Selisih:</span>
-                      <span>{formatRupiah(data.totalReplacement - data.totalReturn)}</span>
-                    </div>
-                  </motion.div>
-
-                  {/* Footer */}
-                  <motion.div
-                    variants={itemVariants}
-                    className="text-center text-sm pt-4 space-y-2 bg-yellow-200 p-4 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]"
-                  >
-                    <p className="font-bold">Barang yang sudah dibeli/ditukar</p>
-                    <p className="font-bold">tidak dapat dikembalikan</p>
-                    <p className="font-black text-lg mt-4">Terima Kasih</p>
-                    <p className="font-bold">Atas kunjungan anda</p>
-                  </motion.div>
-                </div>
+        {data.replacementItems.length > 0 && (
+          <div className="border-b-2 border-black py-2 mb-4">
+            <p className="font-bold mb-2">Barang Pengganti:</p>
+            {data.replacementItems.map((item, index) => (
+              <div key={index} className="flex justify-between">
+                <span>
+                  {item.nama} x{item.kuantitas}
+                </span>
+                <span>{formatRupiah(item.harga * item.kuantitas)}</span>
               </div>
-            </motion.div>
-          </DialogContent>
+            ))}
+          </div>
         )}
-      </AnimatePresence>
-    </Dialog>
-  )
-}
 
+        <div className="space-y-2">
+          <div className="flex justify-between">
+            <span>Total Pengembalian:</span>
+            <span>{formatRupiah(data.totalReturn)}</span>
+          </div>
+          <div className="flex justify-between">
+            <span>Total Penggantian:</span>
+            <span>{formatRupiah(data.totalReplacement)}</span>
+          </div>
+          {data.additionalPayment > 0 && (
+            <div className="flex justify-between text-red-600">
+              <span>Pembayaran Tambahan:</span>
+              <span>{formatRupiah(data.additionalPayment)}</span>
+            </div>
+          )}
+          <div className="flex justify-between font-bold">
+            <span>Selisih:</span>
+            <span>{formatRupiah(data.totalReplacement - data.totalReturn)}</span>
+          </div>
+        </div>
+
+        <div className="mt-4 space-y-2">
+          <button
+            onClick={handleDownloadPDF}
+            className="w-full bg-green-500 text-white py-2 rounded-lg hover:bg-green-600 transition-colors flex items-center justify-center gap-2"
+          >
+            <Download className="w-5 h-5" />
+            Download PDF
+          </button>
+          <button
+            onClick={onClose}
+            className="w-full bg-black text-white py-2 rounded-lg hover:bg-gray-800 transition-colors"
+          >
+            Tutup
+          </button>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+};
