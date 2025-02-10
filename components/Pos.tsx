@@ -1,5 +1,4 @@
 "use client";
-
 import { useState, useEffect, useRef } from "react";
 import { Header } from "@/components/header";
 import { CategoryNav } from "@/components/category-nav";
@@ -10,7 +9,7 @@ import { Produk as PrismaProduk, Penjualan, DetailPenjualan } from "@prisma/clie
 import { NeoSearchInput } from "./InputSearch";
 import { NeoOrderSummary } from "./order-summary";
 import { NeoProgressIndicator } from "./NeoProgresIndicator";
-import { ReceiptModal } from "./ReceiptModal";
+import  ReceiptModal  from "./ReceiptModal";
 import { NeoRefundInput } from "./NeoRefundInput";
 
 interface Produk extends PrismaProduk {
