@@ -1,8 +1,11 @@
-// RefundReceiptModal.tsx (continued)
-import React from 'react'
+"use client"
+
+import { useState, useEffect } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { format } from 'date-fns'
-import { id } from 'date-fns/locale'
+import { format } from "date-fns"
+import { id } from "date-fns/locale"
+import { motion, AnimatePresence } from "framer-motion"
+import confetti from "canvas-confetti"
 
 const formatRupiah = (amount: number) => {
   return new Intl.NumberFormat("id-ID", {
@@ -31,121 +34,224 @@ interface RefundReceiptModalProps {
     totalReturn: number
     totalReplacement: number
     additionalPayment: number
-  } | null
+  }
 }
 
 export function RefundReceiptModal({ isOpen, onClose, data }: RefundReceiptModalProps) {
-  if (!data?.transactionDetails) return null
+  const [isVisible, setIsVisible] = useState(false)
+
+  useEffect(() => {
+    if (isOpen) {
+      setIsVisible(true)
+      // Trigger confetti effect
+      confetti({
+        particleCount: 100,
+        spread: 70,
+        origin: { y: 0.6 },
+      })
+    }
+  }, [isOpen])
+
+  if (!data?.transactionDetails) {
+    console.log("No transaction details available:", data)
+    return null
+  }
+
+  const containerVariants = {
+    hidden: { opacity: 0, scale: 0.8 },
+    visible: {
+      opacity: 1,
+      scale: 1,
+      transition: {
+        type: "spring",
+        stiffness: 300,
+        damping: 20,
+      },
+    },
+    exit: {
+      opacity: 0,
+      scale: 0.8,
+      transition: {
+        ease: "easeInOut",
+      },
+    },
+  }
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: {
+        type: "spring",
+        stiffness: 300,
+        damping: 20,
+      },
+    },
+  }
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-[500px] font-mono bg-white">
-        <DialogHeader>
-          <DialogTitle className="text-center text-xl font-bold">
-            Nota Pengembalian
-          </DialogTitle>
-        </DialogHeader>
-        
-        <div className="p-4 space-y-4">
-          {/* Header Info */}
-          <div className="text-center border-b-2 border-black pb-2">
-            <h2 className="font-bold text-lg">TOKO BERKAH</h2>
-            <p className="text-sm">Jl. Contoh No. 123, Kota</p>
-            <p className="text-sm">Telp: (021) 123-4567</p>
-          </div>
+    <Dialog
+      open={isOpen}
+      onOpenChange={() => {
+        setIsVisible(false)
+        setTimeout(onClose, 300)
+      }}
+    >
+      <AnimatePresence>
+        {isVisible && (
+          <DialogContent className="max-w-[500px] font-mono bg-white p-0 overflow-hidden">
+            <motion.div
+              variants={containerVariants}
+              initial="hidden"
+              animate="visible"
+              exit="exit"
+              className="relative"
+            >
+              <div className="absolute inset-0 bg-gradient-to-br from-yellow-200 via-yellow-400 to-yellow-700 opacity-20" />
+              <div className="relative z-10 p-6">
+                <DialogHeader>
+                  <DialogTitle className="text-center text-3xl font-black mb-4 text-yellow-600 shadow-yellow-400 drop-shadow-lg">
+                    Nota Pengembalian
+                  </DialogTitle>
+                </DialogHeader>
 
-          {/* Transaction Details */}
-          <div className="space-y-1 text-sm">
-            <p>No. Transaksi: {data.transactionDetails.penjualanId}</p>
-            <p>Tanggal: {format(new Date(data.transactionDetails.tanggalPenjualan), 'dd MMMM yyyy HH:mm', { locale: id })}</p>
-            <p>Kasir: {data.transactionDetails.user?.username || 'Admin'}</p>
-          </div>
+                <div className="space-y-6">
+                  {/* Header Info */}
+                  <motion.div
+                    variants={itemVariants}
+                    className="text-center border-4 border-black py-4 bg-yellow-200 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]"
+                  >
+                    <h2 className="font-black text-2xl mb-2">TOKO BERKAH</h2>
+                    <p className="text-sm">Jl. Contoh No. 123, Kota</p>
+                    <p className="text-sm">Telp: (021) 123-4567</p>
+                  </motion.div>
 
-          {/* Returned Items */}
-          <div className="space-y-2">
-            <h3 className="font-bold border-b border-black">Barang yang Dikembalikan:</h3>
-            <table className="w-full text-sm">
-              <thead>
-                <tr>
-                  <th className="text-left">Item</th>
-                  <th className="text-right">Qty</th>
-                  <th className="text-right">Harga</th>
-                  <th className="text-right">Total</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.returnedItems.filter(item => item.kuantitas > 0).map((item, idx) => (
-                  <tr key={idx}>
-                    <td>{item.nama}</td>
-                    <td className="text-right">{item.kuantitas}</td>
-                    <td className="text-right">{formatRupiah(item.harga)}</td>
-                    <td className="text-right">{formatRupiah(item.harga * item.kuantitas)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            <p className="text-right font-bold">
-              Total Pengembalian: {formatRupiah(data.totalReturn)}
-            </p>
-          </div>
+                  {/* Transaction Details */}
+                  <motion.div
+                    variants={itemVariants}
+                    className="space-y-1 text-sm border-2 border-black p-4 bg-white shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]"
+                  >
+                    <p>
+                      No. Transaksi: <span className="font-bold">{data.transactionDetails.penjualanId}</span>
+                    </p>
+                    <p>
+                      Tanggal:{" "}
+                      <span className="font-bold">
+                        {format(new Date(data.transactionDetails.tanggalPenjualan), "dd MMMM yyyy HH:mm", {
+                          locale: id,
+                        })}
+                      </span>
+                    </p>
+                    <p>
+                      Kasir: <span className="font-bold">{data.transactionDetails.user?.username || "Admin"}</span>
+                    </p>
+                  </motion.div>
 
-          {/* Replacement Items */}
-          {data.replacementItems.length > 0 && (
-            <div className="space-y-2">
-              <h3 className="font-bold border-b border-black">Barang Pengganti:</h3>
-              <table className="w-full text-sm">
-                <thead>
-                  <tr>
-                    <th className="text-left">Item</th>
-                    <th className="text-right">Qty</th>
-                    <th className="text-right">Harga</th>
-                    <th className="text-right">Total</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {data.replacementItems.map((item, idx) => (
-                    <tr key={idx}>
-                      <td>{item.nama}</td>
-                      <td className="text-right">{item.kuantitas}</td>
-                      <td className="text-right">{formatRupiah(item.harga)}</td>
-                      <td className="text-right">{formatRupiah(item.harga * item.kuantitas)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              <p className="text-right font-bold">
-                Total Penggantian: {formatRupiah(data.totalReplacement)}
-              </p>
-            </div>
-          )}
+                  {/* Returned Items */}
+                  <motion.div
+                    variants={itemVariants}
+                    className="space-y-2 border-2 border-black p-4 bg-white shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]"
+                  >
+                    <h3 className="font-black text-lg border-b-2 border-black pb-2">Barang yang Dikembalikan:</h3>
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-black">
+                          <th className="text-left py-2">Item</th>
+                          <th className="text-right py-2">Qty</th>
+                          <th className="text-right py-2">Harga</th>
+                          <th className="text-right py-2">Total</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {data.returnedItems.map((item, idx) => (
+                          <tr key={idx} className="border-b border-gray-200">
+                            <td className="py-2">{item.nama}</td>
+                            <td className="text-right py-2">{item.kuantitas}</td>
+                            <td className="text-right py-2">{formatRupiah(item.harga)}</td>
+                            <td className="text-right py-2">{formatRupiah(item.harga * item.kuantitas)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    <p className="text-right font-bold mt-2">Total Pengembalian: {formatRupiah(data.totalReturn)}</p>
+                  </motion.div>
 
-          {/* Payment Summary */}
-          <div className="border-t-2 border-black pt-2 space-y-1">
-            <div className="flex justify-between">
-              <span>Total Pengembalian:</span>
-              <span>{formatRupiah(data.totalReturn)}</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Total Penggantian:</span>
-              <span>{formatRupiah(data.totalReplacement)}</span>
-            </div>
-            {data.additionalPayment > 0 && (
-              <div className="flex justify-between font-bold">
-                <span>Pembayaran Tambahan:</span>
-                <span>{formatRupiah(data.additionalPayment)}</span>
+                  {/* Replacement Items */}
+                  {data.replacementItems.length > 0 && (
+                    <motion.div
+                      variants={itemVariants}
+                      className="space-y-2 border-2 border-black p-4 bg-white shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]"
+                    >
+                      <h3 className="font-black text-lg border-b-2 border-black pb-2">Barang Pengganti:</h3>
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b border-black">
+                            <th className="text-left py-2">Item</th>
+                            <th className="text-right py-2">Qty</th>
+                            <th className="text-right py-2">Harga</th>
+                            <th className="text-right py-2">Total</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {data.replacementItems.map((item, idx) => (
+                            <tr key={idx} className="border-b border-gray-200">
+                              <td className="py-2">{item.nama}</td>
+                              <td className="text-right py-2">{item.kuantitas}</td>
+                              <td className="text-right py-2">{formatRupiah(item.harga)}</td>
+                              <td className="text-right py-2">{formatRupiah(item.harga * item.kuantitas)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                      <p className="text-right font-bold mt-2">
+                        Total Penggantian: {formatRupiah(data.totalReplacement)}
+                      </p>
+                    </motion.div>
+                  )}
+
+                  {/* Payment Summary */}
+                  <motion.div
+                    variants={itemVariants}
+                    className="border-4 border-black pt-4 space-y-2 bg-yellow-100 p-4 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]"
+                  >
+                    <div className="flex justify-between font-bold">
+                      <span>Total Pengembalian:</span>
+                      <span>{formatRupiah(data.totalReturn)}</span>
+                    </div>
+                    <div className="flex justify-between font-bold">
+                      <span>Total Penggantian:</span>
+                      <span>{formatRupiah(data.totalReplacement)}</span>
+                    </div>
+                    {data.additionalPayment > 0 && (
+                      <div className="flex justify-between font-bold text-red-600">
+                        <span>Pembayaran Tambahan:</span>
+                        <span>{formatRupiah(data.additionalPayment)}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between font-black text-lg pt-2 border-t-2 border-black">
+                      <span>Selisih:</span>
+                      <span>{formatRupiah(data.totalReplacement - data.totalReturn)}</span>
+                    </div>
+                  </motion.div>
+
+                  {/* Footer */}
+                  <motion.div
+                    variants={itemVariants}
+                    className="text-center text-sm pt-4 space-y-2 bg-yellow-200 p-4 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]"
+                  >
+                    <p className="font-bold">Barang yang sudah dibeli/ditukar</p>
+                    <p className="font-bold">tidak dapat dikembalikan</p>
+                    <p className="font-black text-lg mt-4">Terima Kasih</p>
+                    <p className="font-bold">Atas kunjungan anda</p>
+                  </motion.div>
+                </div>
               </div>
-            )}
-          </div>
-
-          {/* Footer */}
-          <div className="text-center text-sm pt-4 space-y-2">
-            <p>Barang yang sudah dibeli/ditukar</p>
-            <p>tidak dapat dikembalikan</p>
-            <p className="font-bold">Terima Kasih</p>
-            <p>Atas kunjungan anda</p>
-          </div>
-        </div>
-      </DialogContent>
+            </motion.div>
+          </DialogContent>
+        )}
+      </AnimatePresence>
     </Dialog>
   )
 }
+
