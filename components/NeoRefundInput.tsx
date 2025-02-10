@@ -6,7 +6,7 @@ import { getTransactionDetails, processReturn, getAllProducts } from "@/server/a
 import type { Produk } from "@prisma/client"
 import Image from "next/image"
 import { Minus, Plus, Trash2 } from "lucide-react"
-import {RefundReceiptModal} from "./RefunReceiptModal"
+import { RefundReceiptModal } from "./RefunReceiptModal"
 
 interface RefundInputProps {
   onRefundComplete: () => void
@@ -26,8 +26,8 @@ export function NeoRefundInput({ onRefundComplete }: RefundInputProps) {
   const [isLoading, setIsLoading] = useState(false)
   const [allProducts, setAllProducts] = useState<Produk[]>([])
   const [additionalPayment, setAdditionalPayment] = useState(0)
-  const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false)
-  const [receiptData, setReceiptData] = useState(null)
+  const [showRefundReceipt, setShowRefundReceipt] = useState(false)
+  const [refundDetails, setRefundDetails] = useState<any>(null)
 
   const fetchTransactionDetails = async () => {
     setIsLoading(true)
@@ -68,11 +68,13 @@ export function NeoRefundInput({ onRefundComplete }: RefundInputProps) {
   const calculateTotalReturn = (items: { produkId: number; nama: string; kuantitas: number; harga: number }[]) => {
     const total = items.reduce((sum, item) => sum + item.harga * item.kuantitas, 0)
     setTotalReturn(total)
+    return total // Return the value for immediate use
   }
 
   const calculateTotalReplacement = (items: { produkId: number; nama: string; kuantitas: number; harga: number }[]) => {
     const total = items.reduce((sum, item) => sum + item.harga * item.kuantitas, 0)
     setTotalReplacement(total)
+    return total // Return the value for immediate use
   }
 
   const handleReturn = async () => {
@@ -97,7 +99,7 @@ export function NeoRefundInput({ onRefundComplete }: RefundInputProps) {
 
     setIsLoading(true)
     try {
-      await processReturn({
+      const result = await processReturn({
         penjualanId: Number(penjualanId),
         userId: 1, // Replace with actual user ID
         returnedItems: returnedItems.filter((item) => item.kuantitas > 0),
@@ -107,16 +109,17 @@ export function NeoRefundInput({ onRefundComplete }: RefundInputProps) {
         additionalPayment,
       })
 
-      // Set receipt data and show modal
-      setReceiptData({
+      // Set the receipt data with the correct structure
+      setRefundDetails({
         transactionDetails,
-        returnedItems,
+        returnedItems: returnedItems.filter((item) => item.kuantitas > 0),
         replacementItems,
         totalReturn,
         totalReplacement,
-        additionalPayment
+        additionalPayment,
       })
-      setIsReceiptModalOpen(true)
+
+      setShowRefundReceipt(true)
 
       toast({
         title: "Berhasil",
@@ -197,7 +200,7 @@ export function NeoRefundInput({ onRefundComplete }: RefundInputProps) {
                         i.produkId === item.produkId ? { ...i, kuantitas: Math.max(0, i.kuantitas - 1) } : i,
                       )
                       setReturnedItems(newItems)
-                      calculateTotalReturn(newItems)
+                      calculateTotalReturn(newItems) // Call the function directly
                     }}
                     disabled={item.kuantitas === 0}
                     className="p-1 bg-gray-200 rounded-full disabled:opacity-50"
@@ -213,7 +216,7 @@ export function NeoRefundInput({ onRefundComplete }: RefundInputProps) {
                           : i,
                       )
                       setReturnedItems(newItems)
-                      calculateTotalReturn(newItems)
+                      calculateTotalReturn(newItems) // Call the function directly
                     }}
                     disabled={item.kuantitas === item.maxKuantitas}
                     className="p-1 bg-gray-200 rounded-full disabled:opacity-50"
@@ -233,8 +236,9 @@ export function NeoRefundInput({ onRefundComplete }: RefundInputProps) {
           onChange={(e) => {
             const selectedProduct = allProducts.find((p) => p.produkId === Number(e.target.value))
             if (selectedProduct) {
-              setReplacementItems([...replacementItems, { ...selectedProduct, kuantitas: 1 }])
-              calculateTotalReplacement([...replacementItems, { ...selectedProduct, kuantitas: 1 }])
+              const newItems = [...replacementItems, { ...selectedProduct, kuantitas: 1 }]
+              setReplacementItems(newItems)
+              calculateTotalReplacement(newItems) // Call the function directly
             }
           }}
           className="w-full px-2 py-1 border-2 border-black mb-2"
@@ -263,7 +267,7 @@ export function NeoRefundInput({ onRefundComplete }: RefundInputProps) {
                       i.produkId === item.produkId ? { ...i, kuantitas: Math.max(1, i.kuantitas - 1) } : i,
                     )
                     setReplacementItems(newItems)
-                    calculateTotalReplacement(newItems)
+                    calculateTotalReplacement(newItems) // Call the function directly
                   }}
                   className="p-1 bg-gray-200 rounded-full"
                 >
@@ -276,7 +280,7 @@ export function NeoRefundInput({ onRefundComplete }: RefundInputProps) {
                       i.produkId === item.produkId ? { ...i, kuantitas: i.kuantitas + 1 } : i,
                     )
                     setReplacementItems(newItems)
-                    calculateTotalReplacement(newItems)
+                    calculateTotalReplacement(newItems) // Call the function directly
                   }}
                   className="p-1 bg-gray-200 rounded-full"
                 >
@@ -335,14 +339,17 @@ export function NeoRefundInput({ onRefundComplete }: RefundInputProps) {
         </button>
       </div>
 
-      <RefundReceiptModal 
-        isOpen={isReceiptModalOpen}
-        onClose={() => {
-          setIsReceiptModalOpen(false)
-          onRefundComplete()
-        }}
-        data={receiptData}
-      />
+      {showRefundReceipt && refundDetails && (
+        <RefundReceiptModal
+          isOpen={showRefundReceipt}
+          onClose={() => {
+            setShowRefundReceipt(false)
+            onRefundComplete()
+          }}
+          data={refundDetails} // Changed from refundDetails to data to match the interface
+        />
+      )}
     </div>
   )
 }
+
