@@ -1,4 +1,5 @@
 "use client";
+
 import { useState, useEffect, useRef } from "react";
 import { Header } from "@/components/header";
 import { CategoryNav } from "@/components/category-nav";
@@ -9,8 +10,7 @@ import { Produk as PrismaProduk, Penjualan, DetailPenjualan } from "@prisma/clie
 import { NeoSearchInput } from "./InputSearch";
 import { NeoOrderSummary } from "./order-summary";
 import { NeoProgressIndicator } from "./NeoProgresIndicator";
-import  ReceiptModal  from "./ReceiptModal";
-import { NeoRefundInput } from "./NeoRefundInput";
+import { ReceiptModal } from "./ReceiptModal";
 
 interface Produk extends PrismaProduk {
   kategori: { nama: string };
@@ -18,7 +18,6 @@ interface Produk extends PrismaProduk {
 }
 
 const Pos = () => {
-  const [showRefundModal, setShowRefundModal] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState("All Menu");
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -55,14 +54,9 @@ const Pos = () => {
 
   const orderSummaryRef = useRef<{ resetCustomerData: () => void } | null>(null);
 
-  const handleRefundComplete = () => {
-    setShowRefundModal(false);
-    // Refresh halaman atau reset data jika diperlukan
-  };
-
   useEffect(() => {
     fetchProducts();
-  }, [selectedCategory]);
+  }, [selectedCategory,]);
 
   const fetchProducts = async () => {
     try {
@@ -158,7 +152,7 @@ const Pos = () => {
     });
   };
 
-  const handlePlaceOrder = async (orderData: Penjualan & { redeemedPoints?: number; uangMasuk?: number; kembalian?: number; customerName?: string; detailPenjualan: (DetailPenjualan & { produk: Produk })[] }) => {
+  const handlePlaceOrder = async (orderData: Penjualan & { redeemedPoints?: number; uangMasuk?: number; kembalian?: number; customerName?: string; detailPenjualan: (DetailPenjualan & { produk: Produk })[]; }) => {
     if (orderData.detailPenjualan.length === 0) {
       toast({
         title: "Error",
@@ -167,10 +161,10 @@ const Pos = () => {
       });
       return;
     }
-
+  
     try {
       setIsLoading(true);
-
+      
       const orderPayload = {
         ...orderData,
         pelangganId: orderData.pelangganId ?? undefined,
@@ -184,9 +178,9 @@ const Pos = () => {
           subtotal: item.subtotal,
         })),
       };
-
+      
       const penjualan = await createOrder(orderPayload);
-
+  
       if (penjualan) {
         const receiptModalData = {
           finalTotal: penjualan.total_harga,
@@ -194,19 +188,19 @@ const Pos = () => {
           change: orderData.kembalian || 0,
           customerId: orderData.pelangganId,
           petugasId: orderData.userId,
-          customerName: orderData.customerName || "Guest",
-          orderItems: orderData.detailPenjualan.map((item) => ({
+          customerName: orderData.customerName || 'Guest',
+          orderItems: orderData.detailPenjualan.map(item => ({
             nama: item.produk.nama,
             kuantitas: item.kuantitas,
-            subtotal: item.subtotal,
+            subtotal: item.subtotal
           })),
-          transactionDate: new Date(),
+          transactionDate: new Date()
         };
 
-        console.log("data di kirim ke modal :", receiptModalData);
+        console.log("data di kirim ke modal :", receiptModalData)
         setReceiptModalData(receiptModalData);
         setShowReceiptModal(true);
-
+        
         setOrder({
           penjualanId: 0,
           tanggalPenjualan: new Date(),
@@ -237,7 +231,13 @@ const Pos = () => {
     setSearchQuery(query);
   };
 
-  const filteredProducts = products.filter((product) => (product?.nama || "").toLowerCase().includes(searchQuery.toLowerCase()) && (selectedCategory === "All Menu" || product?.kategori?.nama === selectedCategory));
+  const filteredProducts = products.filter(
+    (product) =>
+      (product?.nama || "")
+        .toLowerCase()
+        .includes(searchQuery.toLowerCase()) &&
+      (selectedCategory === "All Menu" || product?.kategori?.nama === selectedCategory)
+  );
 
   return (
     <div className="h-screen flex flex-col bg-white">
@@ -246,46 +246,30 @@ const Pos = () => {
         <div className="flex-1 flex flex-col overflow-hidden">
           <CategoryNav selected={selectedCategory} onSelect={setSelectedCategory} />
           <NeoSearchInput onSearch={handleSearch} />
-          <div className="flex-1 overflow-auto">{isLoading ? <NeoProgressIndicator isLoading={isLoading} /> : <ProductGrid products={filteredProducts} onProductSelect={addToOrder} />}</div>
-        </div>
-        <NeoOrderSummary ref={orderSummaryRef} order={order} onUpdateQuantity={handleUpdateQuantity} onDeleteItem={handleDeleteItem} onPlaceOrder={handlePlaceOrder} onEditItem={() => {}} isLoading={isLoading} />
-      </div>
-
-      {/* Refund Button */}
-      <div className="fixed bottom-4 right-4">
-        <button
-          onClick={() => setShowRefundModal(true)}
-          className="px-4 py-2 bg-red-500 text-white font-bold border-2 border-black hover:bg-black hover:text-red-500 transition-colors"
-        >
-          Pengembalian
-        </button>
-      </div>
-
-      {/* Refund Modal */}
-      {showRefundModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-2xl">
-            <h2 className="text-2xl font-bold mb-4">Proses Pengembalian</h2>
-            <NeoRefundInput onRefundComplete={handleRefundComplete} />
-            <button
-              onClick={() => setShowRefundModal(false)}
-              className="mt-4 px-4 py-2 bg-gray-300 text-black font-bold border-2 border-black hover:bg-black hover:text-gray-300 transition-colors"
-            >
-              Batal
-            </button>
+          <div className="flex-1 overflow-auto">
+            {isLoading ? <NeoProgressIndicator isLoading={isLoading} /> : <ProductGrid products={filteredProducts} onProductSelect={addToOrder} />}
           </div>
         </div>
-      )}
-
+        <NeoOrderSummary 
+          ref={orderSummaryRef} 
+          order={order} 
+          onUpdateQuantity={handleUpdateQuantity} 
+          onDeleteItem={handleDeleteItem} 
+          onPlaceOrder={handlePlaceOrder}
+          onEditItem={() => {}}
+          isLoading={isLoading}
+        />
+      </div>
+      
       {showReceiptModal && receiptModalData && (
-        <ReceiptModal
-          receiptData={receiptModalData}
+        <ReceiptModal 
+          receiptData={receiptModalData} 
           onClose={() => {
             setShowReceiptModal(false);
             if (orderSummaryRef.current) {
               orderSummaryRef.current.resetCustomerData();
             }
-          }}
+          }} 
         />
       )}
     </div>
