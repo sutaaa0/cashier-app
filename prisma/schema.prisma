@@ -45,6 +45,7 @@ model Penjualan {
   user             User              @relation(fields: [userId], references: [id]) // Relasi dengan user
   detailPenjualan  DetailPenjualan[] 
   returns          Refund[]          // New field to link returns
+  receipt         Receipt?          @relation(name: "PenjualanReceipt")
 }
 
 model DetailPenjualan {
@@ -100,4 +101,18 @@ model DetailRefund {
   produkId        Int
   produk          Produk           @relation(fields: [produkId], references: [produkId])
   kuantitas       Int
+}
+
+
+model Receipt {
+  id            Int      @id @default(autoincrement())
+  transactionId String   @unique
+  penjualanId   Int     @unique
+  penjualan     Penjualan @relation(name: "PenjualanReceipt", fields: [penjualanId], references: [penjualanId])
+  customerName  String
+  petugasId     Int
+  total         Float
+  pdfUrl        String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 }
