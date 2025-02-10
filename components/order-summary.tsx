@@ -159,7 +159,7 @@ export const NeoOrderSummary = forwardRef<{ resetCustomerData: () => void }, Ord
         } else {
           toast({
             title: "Error",
-            description: "Poin tidak mencukupi",
+            description: "Poin tidak mencukupi, minimum 5000 points",
             variant: "destructive",
           });
         }
