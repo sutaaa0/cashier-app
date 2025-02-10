@@ -151,7 +151,7 @@ export const NeoOrderSummary = forwardRef<{ resetCustomerData: () => void }, Ord
     if (customerData?.pelangganId) {
       try {
         const points = await getMemberPoints(customerData.pelangganId);
-        if (points > 0) {
+        if (points > 0 && points >= 5000) {
           const redeemed = await redeemPoints(customerData.pelangganId, points, order.total_harga);
           setRedeemedPoints(redeemed);
           setMemberPoints(points - redeemed);
@@ -159,7 +159,7 @@ export const NeoOrderSummary = forwardRef<{ resetCustomerData: () => void }, Ord
         } else {
           toast({
             title: "Error",
-            description: "Poin tidak mencukupi atau melebihi total harga",
+            description: "Poin tidak mencukupi",
             variant: "destructive",
           });
         }
