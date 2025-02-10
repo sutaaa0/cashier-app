@@ -11,6 +11,7 @@ import { NeoSearchInput } from "./InputSearch";
 import { NeoOrderSummary } from "./order-summary";
 import { NeoProgressIndicator } from "./NeoProgresIndicator";
 import { ReceiptModal } from "./ReceiptModal";
+import { NeoRefundInput } from "./NeoRefundInput";
 
 interface Produk extends PrismaProduk {
   kategori: { nama: string };
@@ -18,6 +19,7 @@ interface Produk extends PrismaProduk {
 }
 
 const Pos = () => {
+  const [showRefundModal, setShowRefundModal] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState("All Menu");
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -35,6 +37,11 @@ const Pos = () => {
   }
 
   const [receiptModalData, setReceiptModalData] = useState<ReceiptModalData | null>(null);
+
+  const handleRefundComplete = () => {
+    setShowRefundModal(false);
+    // Refresh halaman atau reset data jika diperlukan
+  };
 
   const [order, setOrder] = useState<
     Penjualan & {
@@ -271,6 +278,32 @@ const Pos = () => {
             }
           }} 
         />
+      )}
+
+            {/* Refund Button */}
+            <div className="fixed bottom-4 right-4">
+        <button
+          onClick={() => setShowRefundModal(true)}
+          className="px-4 py-2 bg-red-500 text-white font-bold border-2 border-black hover:bg-black hover:text-red-500 transition-colors"
+        >
+          Pengembalian
+        </button>
+      </div>
+
+      {/* Refund Modal */}
+      {showRefundModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-2xl">
+            <h2 className="text-2xl font-bold mb-4">Proses Pengembalian</h2>
+            <NeoRefundInput onRefundComplete={handleRefundComplete} />
+            <button
+              onClick={() => setShowRefundModal(false)}
+              className="mt-4 px-4 py-2 bg-gray-300 text-black font-bold border-2 border-black hover:bg-black hover:text-gray-300 transition-colors"
+            >
+              Batal
+            </button>
+          </div>
+        </div>
       )}
     </div>
   );
