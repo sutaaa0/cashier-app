@@ -122,9 +122,9 @@ export function RefundReceiptModal({ isOpen, onClose, data }: RefundReceiptModal
                     variants={itemVariants}
                     className="text-center border-4 border-black py-4 bg-yellow-200 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]"
                   >
-                    <h2 className="font-black text-2xl mb-2">TOKO BERKAH</h2>
-                    <p className="text-sm">Jl. Contoh No. 123, Kota</p>
-                    <p className="text-sm">Telp: (021) 123-4567</p>
+                    <h2 className="font-black text-2xl mb-2">Suta Cake</h2>
+                    <p className="text-sm">Jl.Manuggal IV, Sukatali</p>
+                    <p className="text-sm">Telp: 098987765</p>
                   </motion.div>
 
                   {/* Transaction Details */}
