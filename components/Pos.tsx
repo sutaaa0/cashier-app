@@ -88,7 +88,7 @@ const Pos = () => {
   const addToOrder = (product: Produk) => {
     setOrder((prev) => {
       const existingItem = prev.detailPenjualan.find((item) => item.produkId === product.produkId);
-
+  
       let newDetailPenjualan: (DetailPenjualan & { produk: Produk })[];
       if (existingItem) {
         newDetailPenjualan = prev.detailPenjualan.map((item) =>
@@ -96,7 +96,7 @@ const Pos = () => {
             ? {
                 ...item,
                 kuantitas: item.kuantitas + 1,
-                subtotal: (item.kuantitas + 1) * product.harga,
+                subtotal: (item.kuantitas + 1) * product.harga, 
               }
             : item
         );
@@ -108,14 +108,14 @@ const Pos = () => {
             penjualanId: prev.penjualanId,
             produkId: product.produkId,
             kuantitas: 1,
-            subtotal: product.harga,
+            subtotal: product.harga, 
             produk: product,
           },
         ];
       }
-
+  
       const total_harga = newDetailPenjualan.reduce((sum, item) => sum + item.subtotal, 0);
-
+  
       return {
         ...prev,
         detailPenjualan: newDetailPenjualan,
@@ -128,18 +128,17 @@ const Pos = () => {
     setOrder((prevOrder) => {
       const updatedDetailPenjualan = prevOrder.detailPenjualan.map((item) => {
         if (item.produkId === produkId) {
-          const product = products.find((p) => p.produkId === produkId);
           return {
             ...item,
             kuantitas: newQuantity,
-            subtotal: newQuantity * (product?.harga || 0),
+            subtotal: newQuantity * item.produk.harga, // 👈 Gunakan hargaDiskon
           };
         }
         return item;
       });
-
+  
       const newTotal = updatedDetailPenjualan.reduce((sum, item) => sum + item.subtotal, 0);
-
+  
       return {
         ...prevOrder,
         detailPenjualan: updatedDetailPenjualan,
