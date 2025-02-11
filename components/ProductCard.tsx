@@ -1,8 +1,8 @@
 "use client";
-
 import Image from "next/image";
 import { formatRupiah } from "@/lib/formatIdr";
 import { Produk, Promotion } from "@prisma/client";
+import { isAfter, isBefore } from "date-fns";
 
 interface NeoProductCardProps {
   product: Produk & { image: string; kategori: { nama: string }; promotions?: Promotion[] };
@@ -10,9 +10,20 @@ interface NeoProductCardProps {
 }
 
 export function NeoProductCard({ product, onClick }: NeoProductCardProps) {
-  // Menghitung total diskon
-  const totalDiscountPercentage = product.promotions?.reduce((acc, promo) => acc + (promo.discountPercentage || 0), 0) || 0;
-  const totalDiscountAmount = product.promotions?.reduce((acc, promo) => acc + (promo.discountAmount || 0), 0) || 0;
+  // Fungsi untuk memeriksa apakah promosi aktif berdasarkan tanggal
+  const isPromotionActive = (promo: Promotion): boolean => {
+    const today = new Date(); // Tanggal hari ini
+    const startDate = new Date(promo.startDate); // Tanggal mulai promosi
+    const endDate = new Date(promo.endDate); // Tanggal akhir promosi
+    return isAfter(today, startDate) && isBefore(today, endDate);
+  };
+
+  // Filter promosi yang aktif
+  const activePromotions = product.promotions?.filter(isPromotionActive) || [];
+
+  // Menghitung total diskon hanya dari promosi yang aktif
+  const totalDiscountPercentage = activePromotions.reduce((acc, promo) => acc + (promo.discountPercentage || 0), 0) || 0;
+  const totalDiscountAmount = activePromotions.reduce((acc, promo) => acc + (promo.discountAmount || 0), 0) || 0;
 
   // Harga setelah diskon
   const discountedPrice = Math.max(
@@ -22,7 +33,7 @@ export function NeoProductCard({ product, onClick }: NeoProductCardProps) {
 
   return (
     <div 
-    onClick={() => onClick({ ...product, harga: discountedPrice })} // Kirim harga diskon
+      onClick={() => onClick({ ...product, harga: discountedPrice })} // Kirim harga diskon
       className="group cursor-pointer bg-white border-2 border-black p-4 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] 
                  hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all duration-200
                  hover:-translate-y-0.5 active:shadow-none active:translate-y-0.5"
@@ -38,17 +49,14 @@ export function NeoProductCard({ product, onClick }: NeoProductCardProps) {
           className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110" 
         />
       </div>
-
       <div className="space-y-2">
         {/* Nama Produk */}
         <h3 className="font-bold text-lg font-mono">{product.nama}</h3>
-
         {/* Kategori & Harga */}
         <div className="flex items-center justify-between">
           <span className="px-2 py-1 bg-black text-white font-mono text-sm">{product.kategori.nama}</span>
-
-          {/* Jika ada diskon, tampilkan harga yang dicoret */}
-          {totalDiscountPercentage > 0 || totalDiscountAmount > 0 ? (
+          {/* Jika ada diskon aktif, tampilkan harga yang dicoret */}
+          {activePromotions.length > 0 ? (
             <div className="text-right">
               <span className="line-through text-gray-500 font-mono text-sm">{formatRupiah(product.harga)}</span>
               <span className="block font-bold font-mono text-red-600 text-lg">{formatRupiah(discountedPrice)}</span>
@@ -57,11 +65,10 @@ export function NeoProductCard({ product, onClick }: NeoProductCardProps) {
             <span className="font-bold font-mono text-sm">{formatRupiah(product.harga)}</span>
           )}
         </div>
-
         {/* Label Diskon */}
-        {product.promotions && product.promotions.length > 0 && (
+        {activePromotions.length > 0 && (
           <div className="flex flex-wrap gap-1 mt-2">
-            {product.promotions.map((promo) => (
+            {activePromotions.map((promo) => (
               <span 
                 key={promo.promotionId} 
                 className="px-2 py-1 text-xs font-bold font-mono uppercase text-white"
