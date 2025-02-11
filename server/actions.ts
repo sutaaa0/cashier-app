@@ -11,6 +11,7 @@ import { startOfWeek, subWeeks, format, addDays, } from "date-fns";
 import { fromZonedTime, toZonedTime, formatInTimeZone } from "date-fns-tz";
 
 export type Penjualan = {
+  PenjualanId?: number;
   pelangganId?: number;
   guestId?: number;
   userId: number;
@@ -328,6 +329,7 @@ export async function createOrder(orderData: Penjualan & { redeemedPoints?: numb
 
       return {
         ...penjualan,
+        PenjualanId: penjualan.penjualanId,
         pointsAwarded: pointsToAward,
         pointsRedeemed: orderData.redeemedPoints || 0,
         originalTotal: originalTotal,
