@@ -16,9 +16,6 @@ export default async function PromotionsPage() {
   return (
     <div>
       <PromotionManagement
-        initialPromotions={promotionsResult.data}
-        products={productsResult.data}
-        categories={categoriesResult.data}
       />
     </div>
   )
