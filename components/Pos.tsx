@@ -6,7 +6,7 @@ import { CategoryNav } from "@/components/category-nav";
 import { ProductGrid } from "@/components/product-grid";
 import { toast } from "@/hooks/use-toast";
 import { createOrder, getProducts } from "@/server/actions";
-import { Produk as PrismaProduk, Penjualan, DetailPenjualan } from "@prisma/client";
+import { Produk as PrismaProduk, Penjualan, DetailPenjualan, Promotion } from "@prisma/client";
 import { NeoSearchInput } from "./InputSearch";
 import { NeoOrderSummary } from "./order-summary";
 import { NeoProgressIndicator } from "./NeoProgresIndicator";
@@ -16,6 +16,7 @@ import { NeoRefundInput } from "./NeoRefundInput";
 interface Produk extends PrismaProduk {
   kategori: { nama: string };
   image: string;
+  promotions?: Promotion[]
 }
 
 const Pos = () => {
@@ -70,6 +71,7 @@ const Pos = () => {
     try {
       setIsLoading(true);
       const data = await getProducts(selectedCategory);
+      console.log("ini produk dari pos :",data)
       setProducts(data || []);
     } catch (error) {
       console.error("Error fetching products:", error);
