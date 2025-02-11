@@ -99,7 +99,7 @@ export const RefundReceiptModal: React.FC<RefundReceiptModalProps> = ({ data, on
     // Summary
     yPos += 20;
     doc.setFont('helvetica', 'bold');
-    doc.text('Selisih:', 20, yPos);
+    doc.text('Uang Kembalian:', 20, yPos);
     doc.text(formatRupiah(data.totalReplacement - data.totalReturn), 150, yPos);
     
     if (data.additionalPayment > 0) {
