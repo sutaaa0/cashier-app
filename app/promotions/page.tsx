@@ -14,7 +14,7 @@ export default async function PromotionsPage() {
   }
 
   return (
-    <div className="container mx-auto py-6">
+    <div>
       <PromotionManagement
         initialPromotions={promotionsResult.data}
         products={productsResult.data}
