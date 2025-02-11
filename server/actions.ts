@@ -175,6 +175,7 @@ export async function getProducts(category: string) {
       },
       include: {
         kategori: true,
+        promotions: true 
       },
     });
     return products;
