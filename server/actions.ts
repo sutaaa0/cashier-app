@@ -263,9 +263,6 @@ export async function createOrder(orderData: Penjualan & { redeemedPoints?: numb
         orderData.pelangganId = undefined;
       }
 
-      // Calculate points before applying redemption
-      const originalTotal = orderData.total_harga;
-      const pointsToAward = Math.floor(originalTotal / 200); // 1 point for every 200 IDR spent
 
       // Siapkan payload pembuatan penjualan
       const penjualanData = {
@@ -297,27 +294,6 @@ export async function createOrder(orderData: Penjualan & { redeemedPoints?: numb
           user: true,
         },
       });
-      
-      console.log("readdd...")
-
-      // Handle member points if applicable
-      if (orderData.pelangganId) {
-        // First deduct redeemed points if any
-        if (orderData.redeemedPoints && orderData.redeemedPoints > 0) {
-          await tx.pelanggan.update({
-            where: { pelangganId: orderData.pelangganId },
-            data: { points: { decrement: orderData.redeemedPoints } },
-          });
-        }
-
-        // Then award new points based on the purchase
-        if (pointsToAward > 0) {
-          await tx.pelanggan.update({
-            where: { pelangganId: orderData.pelangganId },
-            data: { points: { increment: pointsToAward } },
-          });
-        }
-      }
 
       // Update product stock
       for (const detail of orderData.detailPenjualan) {
@@ -330,9 +306,9 @@ export async function createOrder(orderData: Penjualan & { redeemedPoints?: numb
       return {
         ...penjualan,
         PenjualanId: penjualan.penjualanId,
-        pointsAwarded: pointsToAward,
+        pointsAwarded: orderData.redeemedPoints,
         pointsRedeemed: orderData.redeemedPoints || 0,
-        originalTotal: originalTotal,
+        originalTotal: orderData.total_harga,
         finalTotal: orderData.total_harga,
       } as Penjualan & {
         detailPenjualan: DetailPenjualan[];
