@@ -179,38 +179,33 @@ export const NeoOrderSummary = forwardRef<{ resetCustomerData: () => void }, Ord
 
   return (
     <div className="p-4 border-4 border-black w-[500px] flex flex-col h-[calc(100vh-100px)] bg-[#e8f1fe] font-mono overflow-y-scroll">
-      {order.detailPenjualan.map((item) => (
-        <div key={item.produkId} className="flex items-center justify-between py-2 border-b border-gray-200">
-          <div className="flex items-center">
-            <div
-              className="group cursor-pointer bg-white border-2 border-black p-1 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] 
-                  hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all duration-200
-                  hover:-translate-y-0.5 active:shadow-none active:translate-y-0.5"
-            >
-              <div className="relative w-16 h-16 border-2 border-black">
-                <Image src={item.produk.image || "/placeholder.svg"} alt={item.produk.nama} fill className="object-cover" />
-              </div>
-            </div>
-
-            <div className="ml-4">
-              <p className="text-lg font-medium">{item.produk.nama}</p>
-              <p className="text-sm text-gray-500">{formatTotal(item.produk.harga)}</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-x-2">
-            <Button onClick={() => onUpdateQuantity(item.produkId, item.kuantitas - 1)} disabled={item.kuantitas <= 1} className="w-7 h-7 bg-red-500">
-              <Minus className="h-4 w-4 text-white hover:text-gray-700 cursor-pointer" />
-            </Button>
-            <span className="mx-4">{item.kuantitas}</span>
-            <Button onClick={() => onUpdateQuantity(item.produkId, item.kuantitas + 1)} className="w-7 h-7">
-              <Plus className="h-4 w-4 text-black hover:text-gray-700 cursor-pointer" />
-            </Button>
-            <Button onClick={() => onDeleteItem?.(item.produkId)} className="w-8 h-8 flex bg-red-500 items-center justify-center border-2 border-black hover:bg-black hover:text-white">
-              <Trash2 className="h-4 w-4 text-white" />
-            </Button>
-          </div>
+{order.detailPenjualan.map((item) => (
+  <div key={item.produkId} className="flex items-center justify-between py-2 border-b border-gray-200">
+    <div className="flex items-center">
+      <div className="group cursor-pointer bg-white border-2 border-black p-1 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all duration-200 hover:-translate-y-0.5 active:shadow-none active:translate-y-0.5">
+        <div className="relative w-16 h-16 border-2 border-black">
+          <Image src={item.produk.image || "/placeholder.svg"} alt={item.produk.nama} fill className="object-cover" />
         </div>
-      ))}
+      </div>
+      <div className="ml-4">
+        <p className="text-lg font-medium">{item.produk.nama}</p>
+        <p className="text-sm text-gray-500">{formatTotal(item.subtotal)}</p> {/* 👈 Gunakan hargaDiskon */}
+      </div>
+    </div>
+    <div className="flex items-center gap-x-2">
+      <Button onClick={() => onUpdateQuantity(item.produkId, item.kuantitas - 1)} disabled={item.kuantitas <= 1} className="w-7 h-7 bg-red-500">
+        <Minus className="h-4 w-4 text-white hover:text-gray-700 cursor-pointer" />
+      </Button>
+      <span className="mx-4">{item.kuantitas}</span>
+      <Button onClick={() => onUpdateQuantity(item.produkId, item.kuantitas + 1)} className="w-7 h-7">
+        <Plus className="h-4 w-4 text-black hover:text-gray-700 cursor-pointer" />
+      </Button>
+      <Button onClick={() => onDeleteItem?.(item.produkId)} className="w-8 h-8 flex bg-red-500 items-center justify-center border-2 border-black hover:bg-black hover:text-white">
+        <Trash2 className="h-4 w-4 text-white" />
+      </Button>
+    </div>
+  </div>
+))}
 
       <div className="space-y-4 pt-4 border-t-4 border-black mt-4 py-2">
         <div className="flex justify-between text-black font-bold">
