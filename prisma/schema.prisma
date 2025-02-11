@@ -7,13 +7,17 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// ------------------------
+// Model Utama Aplikasi Kasir
+// ------------------------
+
 model User {
-  id       Int    @id @default(autoincrement())
-  username String @unique
-  password String
-  level    String
-  penjualan Penjualan[] 
-  refunds Refund[]
+  id         Int         @id @default(autoincrement())
+  username   String      @unique
+  password   String
+  level      String
+  penjualan  Penjualan[] 
+  refunds    Refund[]
 }
 
 model Pelanggan {
@@ -37,15 +41,15 @@ model Penjualan {
   total_harga      Float
   pelangganId      Int?
   guestId          Int?
-  uangMasuk        Int?            // Field untuk menyimpan jumlah uang yang diterima
-  kembalian        Int?            // Field untuk menyimpan jumlah kembalian yang diberikan
+  uangMasuk        Int?            // Jumlah uang yang diterima
+  kembalian        Int?            // Jumlah kembalian yang diberikan
   userId           Int               
-  pelanggan        Pelanggan?        @relation(fields: [pelangganId], references: [pelangganId])
-  guest            Guest?            @relation(fields: [guestId], references: [guestId])
-  user             User              @relation(fields: [userId], references: [id]) // Relasi dengan user
-  detailPenjualan  DetailPenjualan[] 
-  returns          Refund[]          // New field to link returns
-  receipt         Receipt?          @relation(name: "PenjualanReceipt")
+  pelanggan        Pelanggan?      @relation(fields: [pelangganId], references: [pelangganId])
+  guest            Guest?          @relation(fields: [guestId], references: [guestId])
+  user             User            @relation(fields: [userId], references: [id])
+  detailPenjualan  DetailPenjualan[]
+  returns          Refund[]
+  receipt          Receipt?        @relation(name: "PenjualanReceipt")
 }
 
 model DetailPenjualan {
@@ -63,16 +67,16 @@ model Kategori {
   nama       String   @unique
   icon       String   
   produk     Produk[]
+  promotions          Promotion[] @relation("PromotionCategories")
 }
-
 
 model Produk {
   produkId        Int               @id @default(autoincrement())
   nama            String
   harga           Int
   stok            Int
-  minimumStok     Int               @default(10)  // Tambahan field baru
-  statusStok      String            @default("NORMAL") // NORMAL, LOW, CRITICAL
+  minimumStok     Int               @default(10)
+  statusStok      String            @default("NORMAL")
   isDeleted       Boolean           @default(false)
   image           String
   detailPenjualan DetailPenjualan[]
@@ -81,38 +85,71 @@ model Produk {
   kategori        Kategori          @relation(fields: [kategoriId], references: [kategoriId])
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
+
+  promotions          Promotion[] @relation("PromotionProducts")
+  
 }
 
 model Refund {
-  refundId        Int              @id @default(autoincrement())
-  penjualanId     Int              // ID transaksi asli yang direfund
-  tanggalRefund   DateTime         @default(now())
-  totalRefund     Float            // Jumlah uang yang dikembalikan
-  userId          Int              // ID petugas yang memproses refund
-  user            User             @relation(fields: [userId], references: [id])
-  detailRefund    DetailRefund[]
-  penjualan       Penjualan         @relation(fields: [penjualanId], references: [penjualanId])
+  refundId       Int            @id @default(autoincrement())
+  penjualanId    Int            
+  tanggalRefund  DateTime       @default(now())
+  totalRefund    Float          
+  userId         Int            
+  user           User           @relation(fields: [userId], references: [id])
+  detailRefund   DetailRefund[]
+  penjualan      Penjualan      @relation(fields: [penjualanId], references: [penjualanId])
 }
 
 model DetailRefund {
-  detailRefundId  Int              @id @default(autoincrement())
+  detailRefundId  Int      @id @default(autoincrement())
   refundId        Int
-  refund          Refund           @relation(fields: [refundId], references: [refundId])
+  refund          Refund   @relation(fields: [refundId], references: [refundId])
   produkId        Int
-  produk          Produk           @relation(fields: [produkId], references: [produkId])
+  produk          Produk   @relation(fields: [produkId], references: [produkId])
   kuantitas       Int
 }
 
-
 model Receipt {
-  id            Int      @id @default(autoincrement())
-  transactionId String   @unique
-  penjualanId   Int     @unique
+  id            Int       @id @default(autoincrement())
+  transactionId String    @unique
+  penjualanId   Int       @unique
   penjualan     Penjualan @relation(name: "PenjualanReceipt", fields: [penjualanId], references: [penjualanId])
   customerName  String
   petugasId     Int
   total         Float
   pdfUrl        String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+// ------------------------
+// Fitur Promosi
+// ------------------------
+
+// Enum untuk menentukan tipe promosi yang ada
+enum PromotionType {
+  FLASH_SALE
+  SPECIAL_DAY
+  WEEKEND
+  PRODUCT_SPECIFIC
+  QUANTITY_BASED
+}
+
+model Promotion {
+  promotionId         Int                  @id @default(autoincrement())
+  title               String
+  description         String?
+  type                PromotionType
+  startDate           DateTime
+  endDate             DateTime
+  discountPercentage  Float?               // Diskon dalam persen (opsional)
+  discountAmount      Float?               // Diskon berupa nominal tetap (opsional)
+  minQuantity         Int?                 // Untuk promosi berbasis kuantitas
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+
+  products            Produk[]  @relation("PromotionProducts")
+  categories          Kategori[]  @relation("PromotionCategories")
+
 }

@@ -159,7 +159,8 @@ export async function getProducts(category: string) {
         isDeleted: false,
       },
       include: {
-        kategori: true, // sertakan data kategori
+        kategori: true,
+        promotions: true,
       },
     });
     return products;
@@ -2161,5 +2162,224 @@ export async function getAllProducts() {
   } catch (error) {
     console.error("Error fetching all products:", error);
     throw error;
+  }
+}
+
+
+// types.ts
+import { PromotionType } from "@prisma/client"
+
+export interface CreatePromotionInput {
+  title: string
+  description?: string
+  type: PromotionType
+  startDate: Date
+  endDate: Date
+  discountPercentage?: number
+  discountAmount?: number
+  minQuantity?: number
+  productIds?: number[]
+  categoryIds?: number[]
+}
+
+// actions/promotions.ts
+
+export async function createPromotion(input: CreatePromotionInput) {
+  try {
+    const {
+      title,
+      description,
+      type,
+      startDate,
+      endDate,
+      discountPercentage,
+      discountAmount,
+      minQuantity,
+      productIds,
+      categoryIds,
+    } = input
+
+    // Validasi input
+    if (!title || !type || !startDate || !endDate) {
+      throw new Error("Missing required fields")
+    }
+
+    if (!discountPercentage && !discountAmount) {
+      throw new Error("Either discount percentage or amount must be provided")
+    }
+
+    // Validasi tanggal
+    const start = new Date(startDate)
+    const end = new Date(endDate)
+    if (end < start) {
+      throw new Error("End date must be after start date")
+    }
+
+    // Buat promosi
+    const promotion = await prisma.promotion.create({
+      data: {
+        title,
+        description,
+        type,
+        startDate: start,
+        endDate: end,
+        discountPercentage,
+        discountAmount,
+        minQuantity,
+        // Hubungkan dengan produk jika ada
+        products: productIds?.length
+          ? {
+              connect: productIds.map((id) => ({ produkId: id })),
+            }
+          : undefined,
+        // Hubungkan dengan kategori jika ada
+        categories: categoryIds?.length
+          ? {
+              connect: categoryIds.map((id) => ({ kategoriId: id })),
+            }
+          : undefined,
+      },
+    })
+
+    revalidatePath("/admin/promotions")
+    return { success: true, data: promotion }
+  } catch (error) {
+    console.error("Error creating promotion:", error)
+    return { success: false, error: error instanceof Error ? error.message : "Failed to create promotion" }
+  }
+}
+
+export async function getPromotions() {
+  try {
+    const promotions = await prisma.promotion.findMany({
+      include: {
+        products: {
+          select: {
+            produkId: true,
+            nama: true,
+            harga: true,
+            kategori: {
+              select: {
+                nama: true
+              }
+            }
+          }
+        },
+        categories: {
+          select: {
+            kategoriId: true,
+            nama: true
+          }
+        }
+      },
+      orderBy: {
+        createdAt: "desc"
+      }
+    })
+    
+
+    return { success: true, data: promotions }
+  } catch (error) {
+    console.error("Error fetching promotions:", error)
+    return { success: false, error: "Failed to fetch promotions" }
+  }
+}
+
+export async function updatePromotion(id: number, input: Partial<CreatePromotionInput>) {
+  try {
+    const promotion = await prisma.promotion.update({
+      where: { promotionId: id },
+      data: {
+        title: input.title,
+        description: input.description,
+        type: input.type,
+        startDate: input.startDate,
+        endDate: input.endDate,
+        discountPercentage: input.discountPercentage,
+        discountAmount: input.discountAmount,
+        minQuantity: input.minQuantity,
+        // Update relasi produk
+        products: input.productIds
+          ? {
+              set: input.productIds.map((id) => ({ produkId: id })),
+            }
+          : undefined,
+        // Update relasi kategori
+        categories: input.categoryIds
+          ? {
+              set: input.categoryIds.map((id) => ({ kategoriId: id })),
+            }
+          : undefined,
+      },
+    })
+
+    revalidatePath("/admin/promotions")
+    return { success: true, data: promotion }
+  } catch (error) {
+    console.error("Error updating promotion:", error)
+    return { success: false, error: "Failed to update promotion" }
+  }
+}
+
+export async function deletePromotion(id: number) {
+  try {
+    await prisma.promotion.delete({
+      where: { promotionId: id },
+    })
+
+    revalidatePath("/admin/promotions")
+    return { success: true }
+  } catch (error) {
+    console.error("Error deleting promotion:", error)
+    return { success: false, error: "Failed to delete promotion" }
+  }
+}
+
+// Fungsi helper untuk mendapatkan daftar produk
+export async function getProductsForPromotions() {
+  try {
+    const products = await prisma.produk.findMany({
+      where: {
+        isDeleted: false,
+      },
+      select: {
+        produkId: true,
+        nama: true,
+        harga: true,
+        kategori: {
+          select: {
+            nama: true,
+          },
+        },
+      },
+      orderBy: {
+        nama: "asc",
+      },
+    })
+
+    return { success: true, data: products }
+  } catch (error) {
+    console.error("Error fetching products:", error)
+    return { success: false, error: "Failed to fetch products" }
+  }
+}
+
+// Fungsi helper untuk mendapatkan daftar kategori
+export async function getCategories() {
+  try {
+    const categories = await prisma.kategori.findMany({
+      select: {
+        kategoriId: true,
+        nama: true,
+      },
+      orderBy: {
+        nama: "asc",
+      },
+    })
+
+    return { success: true, data: categories }
+  } catch (error) {
+    console.error("Error fetching categories:", error)
+    return { success: false, error: "Failed to fetch categories" }
   }
 }
