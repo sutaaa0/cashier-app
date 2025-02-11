@@ -449,7 +449,7 @@ export function PromotionManagement() {
 
               <div className="flex gap-2">
                 <Button
-                  variant="outline"
+                  variant="neutral"
                   size="icon"
                   onClick={() => handleEdit(promo)}
                   disabled={isPending}
@@ -461,7 +461,7 @@ export function PromotionManagement() {
                   <Edit size={20} />
                 </Button>
                 <Button
-                  variant="outline"
+                  variant="neutral"
                   size="icon"
                   onClick={() => handleDelete(promo.promotionId)}
                   disabled={isPending}
