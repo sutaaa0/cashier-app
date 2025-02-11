@@ -9,21 +9,40 @@ interface NeoProductCardProps {
   onClick: (product: Produk & { image: string; kategori: { nama: string }; promotions?: Promotion[] } & { harga: number }) => void;
 }
 
+
 export function NeoProductCard({ product, onClick }: NeoProductCardProps) {
-  // Fungsi untuk memeriksa apakah promosi aktif berdasarkan tanggal
+  // Fungsi untuk memeriksa apakah promosi aktif
   const isPromotionActive = (promo: Promotion): boolean => {
-    const today = new Date(); // Tanggal hari ini
-    const startDate = new Date(promo.startDate); // Tanggal mulai promosi
-    const endDate = new Date(promo.endDate); // Tanggal akhir promosi
-    return isAfter(today, startDate) && isBefore(today, endDate);
+    const today = new Date();
+    const startDate = new Date(promo.startDate);
+    const endDate = new Date(promo.endDate);
+
+    // Periksa apakah tanggal saat ini berada dalam rentang promosi
+    if (!isAfter(today, startDate) || !isBefore(today, endDate)) {
+      return false;
+    }
+
+    // Jika promosi berlaku untuk kategori tertentu, periksa apakah kategori produk ini termasuk
+    if (promo.type === "PRODUCT_SPECIFIC") {
+      return promo.categories.some((category) => category.kategoriId === product.kategoriId);
+    }
+
+    // Untuk promosi lainnya (misalnya FLASH_SALE, SPECIAL_DAY), tidak perlu validasi kategori
+    return true;
   };
 
   // Filter promosi yang aktif
   const activePromotions = product.promotions?.filter(isPromotionActive) || [];
 
-  // Menghitung total diskon hanya dari promosi yang aktif
-  const totalDiscountPercentage = activePromotions.reduce((acc, promo) => acc + (promo.discountPercentage || 0), 0) || 0;
-  const totalDiscountAmount = activePromotions.reduce((acc, promo) => acc + (promo.discountAmount || 0), 0) || 0;
+  // Hitung total diskon hanya dari promosi yang aktif
+  const totalDiscountPercentage = activePromotions.reduce(
+    (acc, promo) => acc + (promo.discountPercentage || 0),
+    0
+  );
+  const totalDiscountAmount = activePromotions.reduce(
+    (acc, promo) => acc + (promo.discountAmount || 0),
+    0
+  );
 
   // Harga setelah diskon
   const discountedPrice = Math.max(
@@ -32,21 +51,21 @@ export function NeoProductCard({ product, onClick }: NeoProductCardProps) {
   );
 
   return (
-    <div 
-      onClick={() => onClick({ ...product, harga: discountedPrice })} // Kirim harga diskon
+    <div
+      onClick={() => onClick({ ...product, harga: discountedPrice })}
       className="group cursor-pointer bg-white border-2 border-black p-4 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] 
                  hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all duration-200
                  hover:-translate-y-0.5 active:shadow-none active:translate-y-0.5"
     >
       {/* Gambar Produk */}
       <div className="aspect-square relative mb-4 border-2 border-black overflow-hidden">
-        <Image 
-          src={product.image || "/placeholder.svg"} 
-          alt={product.nama} 
-          width={300} 
-          height={300} 
-          priority 
-          className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110" 
+        <Image
+          src={product.image || "/placeholder.svg"}
+          alt={product.nama}
+          width={300}
+          height={300}
+          priority
+          className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
         />
       </div>
       <div className="space-y-2">
@@ -69,15 +88,20 @@ export function NeoProductCard({ product, onClick }: NeoProductCardProps) {
         {activePromotions.length > 0 && (
           <div className="flex flex-wrap gap-1 mt-2">
             {activePromotions.map((promo) => (
-              <span 
-                key={promo.promotionId} 
+              <span
+                key={promo.promotionId}
                 className="px-2 py-1 text-xs font-bold font-mono uppercase text-white"
                 style={{
-                  backgroundColor: promo.type === "FLASH_SALE" ? "#ff3b30" :
-                                   promo.type === "SPECIAL_DAY" ? "#ff9500" :
-                                   promo.type === "WEEKEND" ? "#4cd964" :
-                                   promo.type === "PRODUCT_SPECIFIC" ? "#007aff" :
-                                   "#8e8e93" // Default untuk lainnya
+                  backgroundColor:
+                    promo.type === "FLASH_SALE"
+                      ? "#ff3b30"
+                      : promo.type === "SPECIAL_DAY"
+                      ? "#ff9500"
+                      : promo.type === "WEEKEND"
+                      ? "#4cd964"
+                      : promo.type === "PRODUCT_SPECIFIC"
+                      ? "#007aff"
+                      : "#8e8e93", // Default untuk lainnya
                 }}
               >
                 {promo.type.replace("_", " ")}
