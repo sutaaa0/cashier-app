@@ -26,6 +26,7 @@ const Pos = () => {
   const [products, setProducts] = useState<Produk[]>([]);
   const [showReceiptModal, setShowReceiptModal] = useState(false);
   interface ReceiptModalData {
+    PenjualanId: number | undefined;
     finalTotal: number;
     amountReceived: number;
     change: number;
@@ -63,7 +64,7 @@ const Pos = () => {
 
   useEffect(() => {
     fetchProducts();
-  }, [selectedCategory,]);
+  }, [selectedCategory]);
 
   const fetchProducts = async () => {
     try {
@@ -194,6 +195,7 @@ const Pos = () => {
           amountReceived: orderData.uangMasuk || 0,
           change: orderData.kembalian || 0,
           customerId: orderData.pelangganId,
+          PenjualanId: penjualan.PenjualanId,
           petugasId: orderData.userId,
           customerName: orderData.customerName || 'Guest',
           orderItems: orderData.detailPenjualan.map(item => ({
