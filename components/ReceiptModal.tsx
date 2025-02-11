@@ -2,10 +2,12 @@ import React, { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { CheckCircle2, Download } from "lucide-react";
 import { getCustomerById } from "@/server/actions";
+import { QRCodeSVG } from 'qrcode.react';
 import jsPDF from 'jspdf';
 
 interface ReceiptModalProps {
   receiptData: {
+    PenjualanId: number | undefined; 
     finalTotal: number;
     amountReceived: number;
     change: number;
@@ -23,6 +25,7 @@ interface ReceiptModalProps {
 
 export const ReceiptModal: React.FC<ReceiptModalProps> = ({ receiptData, onClose }) => {
   const [customerName, setCustomerName] = useState<string>("Guest");
+  const [qrData, setQrData] = useState<string>("");
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("id-ID", {
@@ -47,9 +50,19 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ receiptData, onClose
     };
 
     fetchCustomer();
+    
+    // Generate QR code URL menggunakan PenjualanId
+    if (receiptData.PenjualanId) {
+      const downloadUrl = `/api/receipts/${receiptData.PenjualanId}/download`;
+      // Gunakan window.location.origin untuk mendapatkan base URL yang benar
+      const fullUrl = typeof window !== 'undefined' ? 
+        `${window.location.origin}${downloadUrl}` : 
+        downloadUrl;
+      setQrData(fullUrl);
+    }
   }, [receiptData]);
 
-  const handleDownloadPDF = () => {
+  const generatePDF = () => {
     const doc = new jsPDF();
     
     // Header
@@ -65,6 +78,7 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ receiptData, onClose
       day: "numeric",
     }), 20, 40);
     doc.text(`Pelanggan: ${customerName}`, 20, 50);
+    doc.text(`No. Transaksi: ${receiptData.PenjualanId}`, 20, 60);
     
     // Items
     doc.text('Detail Pesanan:', 20, 70);
@@ -90,8 +104,17 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ receiptData, onClose
     doc.text('Kembalian:', 20, yPos);
     doc.text(formatCurrency(receiptData.change), 150, yPos);
     
-    // Save the PDF
-    doc.save('bukti-transaksi.pdf');
+    return doc;
+  };
+
+  const handleDownloadPDF = () => {
+    try {
+      const doc = generatePDF();
+      doc.save(`receipt-${receiptData.PenjualanId}.pdf`);
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      alert('Failed to generate receipt. Please try again.');
+    }
   };
 
   return (
@@ -122,6 +145,7 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ receiptData, onClose
             })}
           </p>
           <p className="font-medium">Pelanggan: {customerName}</p>
+          <p className="text-sm text-gray-600">No. Transaksi: {receiptData.PenjualanId}</p>
         </div>
         <div className="border-t-2 border-b-2 border-black py-2 mb-4">
           {receiptData.orderItems.map((item, index) => (
@@ -147,6 +171,22 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ receiptData, onClose
             <span>{formatCurrency(receiptData.change)}</span>
           </div>
         </div>
+
+        {/* QR Code Section */}
+        {receiptData.PenjualanId && (
+          <div className="mt-4 flex flex-col items-center">
+            <p className="text-sm text-gray-600 mb-2">Scan untuk download receipt</p>
+            <div className="bg-white p-2 rounded-lg shadow-md">
+              <QRCodeSVG
+                value={qrData}
+                size={120}
+                level={"H"}
+                includeMargin={true}
+              />
+            </div>
+          </div>
+        )}
+
         <div className="mt-4 space-y-2">
           <button
             onClick={handleDownloadPDF}
