@@ -45,7 +45,7 @@ export function MultiSelect({ options, value, onChange, placeholder }: MultiSele
   const selectables = options.filter((option) => !value.includes(option.value))
 
   return (
-    <Command onKeyDown={handleKeyDown} className="overflow-visible bg-transparent">
+    <Command onKeyDown={handleKeyDown} className="overflow-visible bg-white">
       <div className="group border border-input px-3 py-2 text-sm ring-offset-background rounded-md focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2">
         <div className="flex gap-1 flex-wrap">
           {selectedOptions.map((option) => {
