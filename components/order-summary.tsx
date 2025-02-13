@@ -146,7 +146,7 @@ export const NeoOrderSummary = forwardRef<{ resetCustomerData: () => void }, Ord
       try {
         const points = await getMemberPoints(customerData.pelangganId);
         if (points > 0 && points >= 5000) {
-          const redeemed = await redeemPoints(customerData.pelangganId, points, order.total_harga);
+          const redeemed = await redeemPoints(customerData.pelangganId, points);
           setRedeemedPoints(redeemed);
           setMemberPoints(points - redeemed);
           console.log("Poin berhasil diredeem:", redeemed);
