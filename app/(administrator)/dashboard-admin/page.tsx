@@ -15,7 +15,7 @@ import { CategoryManagement } from "@/components/CategoryManagement";
 import {PromotionManagement} from "@/components/PromotionManagement";
 
 export default function AdminPage() {
-  const [activeSection, setActiveSection] = useState("users");
+  const [activeSection, setActiveSection] = useState("dashboard");
 
   const renderSection = () => {
     switch (activeSection) {
