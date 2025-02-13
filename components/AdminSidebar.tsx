@@ -1,8 +1,8 @@
 import { Users, ShoppingBag, UsersIcon as Customers, FileText, Package, BarChart, BarChart2, LayoutDashboardIcon, CalendarRange, Tag } from 'lucide-react'
 
 const menuItems = [
-  { id: 'users', label: 'Users', icon: Users },
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboardIcon },
+  { id: 'users', label: 'Users', icon: Users },
   { id: 'products', label: 'Products', icon: ShoppingBag },
   { id: 'categories', label: 'Categories', icon: Tag },
   { id: 'customers', label: 'Customers', icon: Customers },
