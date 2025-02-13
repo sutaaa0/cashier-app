@@ -7,7 +7,7 @@ import { DetailPenjualan, Pelanggan, Produk } from "@prisma/client";
 import { CreateOrderDetail, CustomerTransactionData } from "@/types/types";
 import { revalidatePath } from "next/cache";
 import { v2 as cloudinary } from "cloudinary";
-import { startOfWeek, subWeeks, format, addDays, } from "date-fns";
+import { startOfWeek, subWeeks, format, addDays } from "date-fns";
 import { fromZonedTime, toZonedTime, formatInTimeZone } from "date-fns-tz";
 
 export type Penjualan = {
@@ -175,7 +175,7 @@ export async function getProducts(category: string) {
       },
       include: {
         kategori: true,
-        promotions: true 
+        promotions: true,
       },
     });
     return products;
@@ -265,6 +265,14 @@ export async function createOrder(orderData: Penjualan & { redeemedPoints?: numb
         orderData.pelangganId = undefined;
       }
 
+      if (orderData.pelangganId) {
+        const poinAfterDiscount = orderData.total_harga / 200;
+
+        await prisma.pelanggan.update({
+          where: { pelangganId: orderData.pelangganId },
+          data: { points: { increment: poinAfterDiscount } },
+        });
+      }
 
       // Siapkan payload pembuatan penjualan
       const penjualanData = {
@@ -272,7 +280,7 @@ export async function createOrder(orderData: Penjualan & { redeemedPoints?: numb
         total_harga: orderData.total_harga,
         userId: orderData.userId,
         uangMasuk: orderData.uangMasuk || 0, // Simpan uang masuk
-        kembalian: orderData.kembalian || 0 , // Simpan kembalian
+        kembalian: orderData.kembalian || 0, // Simpan kembalian
         pelangganId: orderData.pelangganId !== null ? orderData.pelangganId : undefined,
         guestId: orderData.guestId !== null ? orderData.guestId : undefined,
         detailPenjualan: {
@@ -355,7 +363,7 @@ export async function getMemberPoints(pelangganId: number) {
   return member?.points || 0;
 }
 
-export async function redeemPoints(pelangganId: number, pointsToRedeem: number, totalHarga: number) {
+export async function redeemPoints(pelangganId: number, pointsToRedeem: number) {
   const member = await prisma.pelanggan.findUnique({
     where: { pelangganId },
   });
@@ -368,14 +376,6 @@ export async function redeemPoints(pelangganId: number, pointsToRedeem: number, 
     where: { pelangganId },
     data: { points: { decrement: pointsToRedeem } },
   });
-
-  const poinAfterDiscount = totalHarga / 200;
-
-  await prisma.pelanggan.update({
-    where: { pelangganId },
-    data: { points: { increment: poinAfterDiscount } },
-  });
-
   return pointsToRedeem;
 }
 
@@ -470,14 +470,13 @@ export async function fetchCategories(): Promise<{ status: string; data?: Catego
   }
 }
 
-
 export async function getCategory() {
   try {
     const res = await prisma.kategori.findMany({
-      orderBy: { nama: "asc" }
-    })
+      orderBy: { nama: "asc" },
+    });
 
-    return res
+    return res;
   } catch (error) {
     console.log(error);
   }
@@ -527,15 +526,7 @@ export async function addCategory(data: { nama: string; icon?: string; color?: s
   }
 }
 
-export async function updateProduct(formData: { 
-  id: number; 
-  name: string; 
-  price: number; 
-  stock: number; 
-  minimumStok: number; 
-  category: string; 
-  imageUrl: string 
-}): Promise<{ status: string; message: string; data?: Produk }> {
+export async function updateProduct(formData: { id: number; name: string; price: number; stock: number; minimumStok: number; category: string; imageUrl: string }): Promise<{ status: string; message: string; data?: Produk }> {
   try {
     let statusStok: "CRITICAL" | "LOW" | "NORMAL";
     if (formData.stock <= formData.minimumStok * 0.5) {
@@ -564,7 +555,7 @@ export async function updateProduct(formData: {
     return { status: "Success", message: "Product updated successfully", data: product };
   } catch (error) {
     console.error("Error updating product:", error);
-    return { 
+    return {
       status: "Error",
       message: error instanceof Error ? error.message : "Failed to update product",
     };
@@ -940,7 +931,6 @@ export interface ReportData {
   data: Record<string, unknown>[];
 }
 
-
 export async function generateReport(type: string): Promise<ReportData> {
   const currentDate = new Date();
   const firstDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
@@ -1000,7 +990,6 @@ export async function generateReport(type: string): Promise<ReportData> {
     generatedDate: new Date().toISOString(),
   };
 }
-
 
 export const getRevenue = async () => {
   try {
@@ -1798,7 +1787,6 @@ export async function getCustomerById(id: number) {
   }
 }
 
-
 export type DailySalesData = {
   date: string;
   sales: number;
@@ -1931,31 +1919,27 @@ export async function getCustomerTransactions(): Promise<{
     ]);
 
     // Calculate metrics for regular customers (guests)
-    const currentRegularSales = currentPeriodSales.filter(sale => sale.guestId !== null);
-    const previousRegularSales = previousPeriodSales.filter(sale => sale.guestId !== null);
-    
+    const currentRegularSales = currentPeriodSales.filter((sale) => sale.guestId !== null);
+    const previousRegularSales = previousPeriodSales.filter((sale) => sale.guestId !== null);
+
     // Calculate metrics for members (pelanggan)
-    const currentMemberSales = currentPeriodSales.filter(sale => sale.pelangganId !== null);
-    const previousMemberSales = previousPeriodSales.filter(sale => sale.pelangganId !== null);
+    const currentMemberSales = currentPeriodSales.filter((sale) => sale.pelangganId !== null);
+    const previousMemberSales = previousPeriodSales.filter((sale) => sale.pelangganId !== null);
 
     // Calculate total transactions
     const totalTransactions = currentPeriodSales.length;
-    
+
     // Calculate percentages and growth
     const regularTransactions = currentRegularSales.length;
     const memberTransactions = currentMemberSales.length;
-    
+
     const regularPercentage = (regularTransactions / totalTransactions) * 100;
     const memberPercentage = (memberTransactions / totalTransactions) * 100;
 
     // Calculate growth rates
-    const regularGrowth = previousRegularSales.length > 0
-      ? ((regularTransactions - previousRegularSales.length) / previousRegularSales.length) * 100
-      : 0;
+    const regularGrowth = previousRegularSales.length > 0 ? ((regularTransactions - previousRegularSales.length) / previousRegularSales.length) * 100 : 0;
 
-    const memberGrowth = previousMemberSales.length > 0
-      ? ((memberTransactions - previousMemberSales.length) / previousMemberSales.length) * 100
-      : 0;
+    const memberGrowth = previousMemberSales.length > 0 ? ((memberTransactions - previousMemberSales.length) / previousMemberSales.length) * 100 : 0;
 
     return {
       success: true,
@@ -1964,48 +1948,31 @@ export async function getCustomerTransactions(): Promise<{
           name: "Regular",
           value: Math.round(regularPercentage),
           transactions: regularTransactions,
-          growth: `${regularGrowth > 0 ? '+' : ''}${regularGrowth.toFixed(1)}%`,
+          growth: `${regularGrowth > 0 ? "+" : ""}${regularGrowth.toFixed(1)}%`,
         },
         {
           name: "Member",
           value: Math.round(memberPercentage),
           transactions: memberTransactions,
-          growth: `${memberGrowth > 0 ? '+' : ''}${memberGrowth.toFixed(1)}%`,
+          growth: `${memberGrowth > 0 ? "+" : ""}${memberGrowth.toFixed(1)}%`,
         },
       ],
     };
   } catch (error) {
-    console.error('Error fetching customer transactions:', error);
+    console.error("Error fetching customer transactions:", error);
     return {
       success: false,
-      error: 'Failed to fetch customer transactions',
+      error: "Failed to fetch customer transactions",
     };
   }
 }
 
-
-
-
-
-
-
-
-
-
 // refund pembelian
 
-export async function processRefund(
-  refundData: {
-    penjualanId: number;
-    userId: number;
-    refundedItems: { produkId: number; kuantitas: number }[];
-    totalRefund: number;
-  }
-) {
+export async function processRefund(refundData: { penjualanId: number; userId: number; refundedItems: { produkId: number; kuantitas: number }[]; totalRefund: number }) {
   try {
     return await prisma.$transaction(async (tx) => {
       console.log("Properti dalam tx:", Object.keys(tx));
-
 
       console.log("Isi tx:", tx);
 
@@ -2066,15 +2033,7 @@ export async function processReturn(returnData: {
   totalReplacement: number;
   additionalPayment: number;
 }) {
-  const {
-    penjualanId,
-    userId,
-    returnedItems,
-    replacementItems,
-    totalReturn,
-    totalReplacement,
-    additionalPayment,
-  } = returnData;
+  const { penjualanId, userId, returnedItems, replacementItems, totalReturn, totalReplacement, additionalPayment } = returnData;
 
   try {
     return await prisma.$transaction(async (tx) => {
@@ -2129,7 +2088,7 @@ export async function processReturn(returnData: {
             total_harga: additionalPayment,
             uangMasuk: additionalPayment,
             pelangganId: null, // Add default values for required fields
-            guestId: null,     // Add default values for required fields
+            guestId: null, // Add default values for required fields
             detailPenjualan: {
               create: replacementItems.map((item) => ({
                 produkId: item.produkId,
@@ -2141,17 +2100,16 @@ export async function processReturn(returnData: {
         });
       }
 
-      return { 
-        status: "Success", 
+      return {
+        status: "Success",
         message: "Return processed successfully",
-        additionalPaymentProcessed: additionalPayment > 0
+        additionalPaymentProcessed: additionalPayment > 0,
       };
     });
   } catch (error) {
     throw new Error(`Gagal memproses return: ${error}`);
   }
 }
-
 
 export async function getAllProducts() {
   try {
@@ -2166,54 +2124,42 @@ export async function getAllProducts() {
   }
 }
 
-
 // types.ts
-import { PromotionType } from "@prisma/client"
+import { PromotionType } from "@prisma/client";
 
 export interface CreatePromotionInput {
-  title: string
-  description?: string
-  type: PromotionType
-  startDate: Date
-  endDate: Date
-  discountPercentage?: number
-  discountAmount?: number
-  minQuantity?: number
-  productIds?: number[]
-  categoryIds?: number[]
+  title: string;
+  description?: string;
+  type: PromotionType;
+  startDate: Date;
+  endDate: Date;
+  discountPercentage?: number;
+  discountAmount?: number;
+  minQuantity?: number;
+  productIds?: number[];
+  categoryIds?: number[];
 }
 
 // actions/promotions.ts
 
 export async function createPromotion(input: CreatePromotionInput) {
   try {
-    const {
-      title,
-      description,
-      type,
-      startDate,
-      endDate,
-      discountPercentage,
-      discountAmount,
-      minQuantity,
-      productIds,
-      categoryIds,
-    } = input
+    const { title, description, type, startDate, endDate, discountPercentage, discountAmount, minQuantity, productIds, categoryIds } = input;
 
     // Validasi input
     if (!title || !type || !startDate || !endDate) {
-      throw new Error("Missing required fields")
+      throw new Error("Missing required fields");
     }
 
     if (!discountPercentage && !discountAmount) {
-      throw new Error("Either discount percentage or amount must be provided")
+      throw new Error("Either discount percentage or amount must be provided");
     }
 
     // Validasi tanggal
-    const start = new Date(startDate)
-    const end = new Date(endDate)
+    const start = new Date(startDate);
+    const end = new Date(endDate);
     if (end < start) {
-      throw new Error("End date must be after start date")
+      throw new Error("End date must be after start date");
     }
 
     // Buat promosi
@@ -2240,13 +2186,13 @@ export async function createPromotion(input: CreatePromotionInput) {
             }
           : undefined,
       },
-    })
+    });
 
-    revalidatePath("/admin/promotions")
-    return { success: true, data: promotion }
+    revalidatePath("/admin/promotions");
+    return { success: true, data: promotion };
   } catch (error) {
-    console.error("Error creating promotion:", error)
-    return { success: false, error: error instanceof Error ? error.message : "Failed to create promotion" }
+    console.error("Error creating promotion:", error);
+    return { success: false, error: error instanceof Error ? error.message : "Failed to create promotion" };
   }
 }
 
@@ -2261,28 +2207,27 @@ export async function getPromotions() {
             harga: true,
             kategori: {
               select: {
-                nama: true
-              }
-            }
-          }
+                nama: true,
+              },
+            },
+          },
         },
         categories: {
           select: {
             kategoriId: true,
-            nama: true
-          }
-        }
+            nama: true,
+          },
+        },
       },
       orderBy: {
-        createdAt: "desc"
-      }
-    })
-    
+        createdAt: "desc",
+      },
+    });
 
-    return { success: true, data: promotions }
+    return { success: true, data: promotions };
   } catch (error) {
-    console.error("Error fetching promotions:", error)
-    return { success: false, error: "Failed to fetch promotions" }
+    console.error("Error fetching promotions:", error);
+    return { success: false, error: "Failed to fetch promotions" };
   }
 }
 
@@ -2312,13 +2257,13 @@ export async function updatePromotion(id: number, input: Partial<CreatePromotion
             }
           : undefined,
       },
-    })
+    });
 
-    revalidatePath("/admin/promotions")
-    return { success: true, data: promotion }
+    revalidatePath("/admin/promotions");
+    return { success: true, data: promotion };
   } catch (error) {
-    console.error("Error updating promotion:", error)
-    return { success: false, error: "Failed to update promotion" }
+    console.error("Error updating promotion:", error);
+    return { success: false, error: "Failed to update promotion" };
   }
 }
 
@@ -2326,13 +2271,13 @@ export async function deletePromotion(id: number) {
   try {
     await prisma.promotion.delete({
       where: { promotionId: id },
-    })
+    });
 
-    revalidatePath("/admin/promotions")
-    return { success: true }
+    revalidatePath("/admin/promotions");
+    return { success: true };
   } catch (error) {
-    console.error("Error deleting promotion:", error)
-    return { success: false, error: "Failed to delete promotion" }
+    console.error("Error deleting promotion:", error);
+    return { success: false, error: "Failed to delete promotion" };
   }
 }
 
@@ -2356,12 +2301,12 @@ export async function getProductsForPromotions() {
       orderBy: {
         nama: "asc",
       },
-    })
+    });
 
-    return { success: true, data: products }
+    return { success: true, data: products };
   } catch (error) {
-    console.error("Error fetching products:", error)
-    return { success: false, error: "Failed to fetch products" }
+    console.error("Error fetching products:", error);
+    return { success: false, error: "Failed to fetch products" };
   }
 }
 
@@ -2376,11 +2321,11 @@ export async function getCategories() {
       orderBy: {
         nama: "asc",
       },
-    })
+    });
 
-    return { success: true, data: categories }
+    return { success: true, data: categories };
   } catch (error) {
-    console.error("Error fetching categories:", error)
-    return { success: false, error: "Failed to fetch categories" }
+    console.error("Error fetching categories:", error);
+    return { success: false, error: "Failed to fetch categories" };
   }
 }
