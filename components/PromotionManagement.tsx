@@ -1,35 +1,15 @@
 "use client";
 
 import React, { useEffect, useState, useTransition } from "react";
-import {
-  Plus,
-  Edit,
-  Trash2,
-  Calendar,
-  Tag,
-  Percent,
-  DollarSign,
-} from "lucide-react";
+import { Plus, Edit, Trash2, Calendar, Tag, Percent, DollarSign } from "lucide-react";
 import { formatRupiah } from "@/lib/formatIdr";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PromotionType } from "@prisma/client";
-import {
-  createPromotion,
-  deletePromotion,
-  getCategories,
-  getProductsForPromotions,
-  getPromotions,
-} from "@/server/actions";
+import { createPromotion, deletePromotion, getCategories, getProductsForPromotions, getPromotions } from "@/server/actions";
 import { MultiSelect } from "./Multiselect";
 import { DeleteConfirmModal } from "./DeleteConfirmModal";
 import { toast } from "@/hooks/use-toast";
@@ -51,6 +31,8 @@ interface PromotionFormData {
   applicableType: "products" | "categories";
   selectedProductIds: number[];
   selectedCategoryIds: number[];
+  startTime: string;
+  endTime: string;
 }
 
 interface ProductsType {
@@ -66,12 +48,7 @@ interface Promotion {
   promotionId: number;
   title: string;
   description: string | null;
-  type:
-    | "FLASH_SALE"
-    | "SPECIAL_DAY"
-    | "WEEKEND"
-    | "PRODUCT_SPECIFIC"
-    | "QUANTITY_BASED";
+  type: "FLASH_SALE" | "SPECIAL_DAY" | "WEEKEND" | "PRODUCT_SPECIFIC" | "QUANTITY_BASED";
   startDate: Date;
   endDate: Date;
   discountPercentage: number | null;
@@ -115,6 +92,8 @@ export function PromotionManagement() {
     applicableType: "products",
     selectedProductIds: [],
     selectedCategoryIds: [],
+    startTime: "00:00",
+    endTime: "23:59",
   });
 
   // Fetch categories
@@ -147,25 +126,23 @@ export function PromotionManagement() {
   // Submit handler for adding a new promotion
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+
     startTransition(async () => {
+      const combinedStartDate = new Date(`${formData.startDate}T${formData.startTime}:00`);
+      const combinedEndDate = new Date(`${formData.endDate}T${formData.endTime}:00`);
+
       const input = {
         title: formData.title,
         description: formData.description,
         type: formData.type,
-        startDate: new Date(formData.startDate),
-        endDate: new Date(formData.endDate),
-        discountPercentage:
-          formData.discountType === "percentage"
-            ? formData.discountValue
-            : undefined,
-        discountAmount:
-          formData.discountType === "amount" ? formData.discountValue : undefined,
-        minQuantity:
-          formData.type === PromotionType.QUANTITY_BASED ? formData.minQuantity : undefined,
-        productIds:
-          formData.applicableType === "products" ? formData.selectedProductIds : undefined,
-        categoryIds:
-          formData.applicableType === "categories" ? formData.selectedCategoryIds : undefined,
+        startDate: combinedStartDate,
+        endDate: combinedEndDate,
+
+        discountPercentage: formData.discountType === "percentage" ? formData.discountValue : undefined,
+        discountAmount: formData.discountType === "amount" ? formData.discountValue : undefined,
+        minQuantity: formData.type === PromotionType.QUANTITY_BASED ? formData.minQuantity : undefined,
+        productIds: formData.applicableType === "products" ? formData.selectedProductIds : undefined,
+        categoryIds: formData.applicableType === "categories" ? formData.selectedCategoryIds : undefined,
       };
 
       const result = await createPromotion(input);
@@ -221,6 +198,8 @@ export function PromotionManagement() {
       applicableType: "products",
       selectedProductIds: [],
       selectedCategoryIds: [],
+      startTime: "00:00",
+      endTime: "23:59",
     });
   };
 
@@ -255,33 +234,17 @@ export function PromotionManagement() {
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <Label className="font-bold">Judul Promosi</Label>
-                <Input
-                  value={formData.title}
-                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                  required
-                  className="border-2 border-black"
-                />
+                <Input value={formData.title} onChange={(e) => setFormData({ ...formData, title: e.target.value })} required className="border-2 border-black" />
               </div>
 
               <div>
                 <Label className="font-bold">Deskripsi</Label>
-                <Textarea
-                  value={formData.description}
-                  onChange={(e) =>
-                    setFormData({ ...formData, description: e.target.value })
-                  }
-                  className="border-2 border-black"
-                />
+                <Textarea value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} className="border-2 border-black" />
               </div>
 
               <div>
                 <Label className="font-bold">Tipe Promosi</Label>
-                <Select
-                  value={formData.type}
-                  onValueChange={(value) =>
-                    setFormData({ ...formData, type: value as PromotionType })
-                  }
-                >
+                <Select value={formData.type} onValueChange={(value) => setFormData({ ...formData, type: value as PromotionType })}>
                   <SelectTrigger className="border-2 border-black">
                     <SelectValue placeholder="Pilih tipe promosi" />
                   </SelectTrigger>
@@ -289,43 +252,28 @@ export function PromotionManagement() {
                     <SelectItem value={PromotionType.FLASH_SALE}>Flash Sale</SelectItem>
                     <SelectItem value={PromotionType.SPECIAL_DAY}>Special Day</SelectItem>
                     <SelectItem value={PromotionType.WEEKEND}>Weekend</SelectItem>
-                    <SelectItem value={PromotionType.PRODUCT_SPECIFIC}>
-                      Product Specific
-                    </SelectItem>
-                    <SelectItem value={PromotionType.QUANTITY_BASED}>
-                      Quantity Based
-                    </SelectItem>
+                    <SelectItem value={PromotionType.PRODUCT_SPECIFIC}>Product Specific</SelectItem>
+                    <SelectItem value={PromotionType.QUANTITY_BASED}>Quantity Based</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
-                <div>
+                <div className="space-y-2">
                   <Label className="font-bold">Tanggal Mulai</Label>
-                  <Input
-                    type="date"
-                    value={formData.startDate}
-                    onChange={(e) =>
-                      setFormData({ ...formData, startDate: e.target.value })
-                    }
-                    required
-                    className="border-2 border-black"
-                  />
+                  <div className="grid grid-cols-2 gap-2">
+                    <Input type="date" value={formData.startDate} onChange={(e) => setFormData({ ...formData, startDate: e.target.value })} required className="border-2 border-black" />
+                    <Input type="time" value={formData.startTime} onChange={(e) => setFormData({ ...formData, startTime: e.target.value })} required className="border-2 border-black" placeholder="00:00" />
+                  </div>
                 </div>
-                <div>
+                <div className="space-y-2">
                   <Label className="font-bold">Tanggal Berakhir</Label>
-                  <Input
-                    type="date"
-                    value={formData.endDate}
-                    onChange={(e) =>
-                      setFormData({ ...formData, endDate: e.target.value })
-                    }
-                    required
-                    className="border-2 border-black"
-                  />
+                  <div className="grid grid-cols-2 gap-2">
+                    <Input type="date" value={formData.endDate} onChange={(e) => setFormData({ ...formData, endDate: e.target.value })} required className="border-2 border-black" />
+                    <Input type="time" value={formData.endTime} onChange={(e) => setFormData({ ...formData, endTime: e.target.value })} required className="border-2 border-black" placeholder="23:59" />
+                  </div>
                 </div>
               </div>
-
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label className="font-bold">Tipe Diskon</Label>
@@ -349,43 +297,20 @@ export function PromotionManagement() {
                 </div>
                 <div>
                   <Label className="font-bold">Nilai Diskon</Label>
-                  <Input
-                    type="number"
-                    value={formData.discountValue}
-                    onChange={(e) =>
-                      setFormData({ ...formData, discountValue: Number(e.target.value) })
-                    }
-                    required
-                    min="0"
-                    className="border-2 border-black"
-                  />
+                  <Input type="number" value={formData.discountValue} onChange={(e) => setFormData({ ...formData, discountValue: Number(e.target.value) })} required min="0" className="border-2 border-black" />
                 </div>
               </div>
 
               {formData.type === PromotionType.QUANTITY_BASED && (
                 <div>
                   <Label className="font-bold">Minimal Kuantitas</Label>
-                  <Input
-                    type="number"
-                    value={formData.minQuantity}
-                    onChange={(e) =>
-                      setFormData({ ...formData, minQuantity: Number(e.target.value) })
-                    }
-                    required
-                    min="1"
-                    className="border-2 border-black"
-                  />
+                  <Input type="number" value={formData.minQuantity} onChange={(e) => setFormData({ ...formData, minQuantity: Number(e.target.value) })} required min="1" className="border-2 border-black" />
                 </div>
               )}
 
               <div>
                 <Label className="font-bold">Berlaku Untuk</Label>
-                <Select
-                  value={formData.applicableType}
-                  onValueChange={(value) =>
-                    setFormData({ ...formData, applicableType: value as "products" | "categories" })
-                  }
-                >
+                <Select value={formData.applicableType} onValueChange={(value) => setFormData({ ...formData, applicableType: value as "products" | "categories" })}>
                   <SelectTrigger className="border-2 border-black">
                     <SelectValue placeholder="Pilih tipe aplikasi" />
                   </SelectTrigger>
@@ -405,9 +330,7 @@ export function PromotionManagement() {
                       label: `${product.nama} - ${formatRupiah(product.harga)} (${product.kategori.nama})`,
                     }))}
                     value={formData.selectedProductIds.map(String)}
-                    onChange={(values) =>
-                      setFormData({ ...formData, selectedProductIds: values.map(Number) })
-                    }
+                    onChange={(values) => setFormData({ ...formData, selectedProductIds: values.map(Number) })}
                     placeholder="Pilih produk yang akan mendapat promosi"
                   />
                 </div>
@@ -422,9 +345,7 @@ export function PromotionManagement() {
                       label: category.nama,
                     }))}
                     value={formData.selectedCategoryIds.map(String)}
-                    onChange={(values) =>
-                      setFormData({ ...formData, selectedCategoryIds: values.map(Number) })
-                    }
+                    onChange={(values) => setFormData({ ...formData, selectedCategoryIds: values.map(Number) })}
                     placeholder="Pilih kategori yang akan mendapat promosi"
                   />
                 </div>
@@ -443,11 +364,7 @@ export function PromotionManagement() {
                 >
                   Batal
                 </Button>
-                <Button
-                  type="submit"
-                  disabled={isPending}
-                  className="bg-[#FFD700] text-black hover:bg-black hover:text-[#FFD700] border-2 border-black font-bold"
-                >
+                <Button type="submit" disabled={isPending} className="bg-[#FFD700] text-black hover:bg-black hover:text-[#FFD700] border-2 border-black font-bold">
                   {isPending ? "Menyimpan..." : "Simpan Promosi"}
                 </Button>
               </div>
@@ -468,17 +385,8 @@ export function PromotionManagement() {
             <div className="flex justify-between items-start">
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
-                  <h3 className="text-xl font-bold transform -rotate-1">
-                    {promo.title}
-                  </h3>
-                  <span
-                    className={`px-2 py-1 text-xs font-black border-2 border-black ${getPromotionStatusColor(
-                      promo.startDate,
-                      promo.endDate
-                    )} transform rotate-2`}
-                  >
-                    {getPromotionStatus(promo.startDate, promo.endDate)}
-                  </span>
+                  <h3 className="text-xl font-bold transform -rotate-1">{promo.title}</h3>
+                  <span className={`px-2 py-1 text-xs font-black border-2 border-black ${getPromotionStatusColor(promo.startDate, promo.endDate)} transform rotate-2`}>{getPromotionStatus(promo.startDate, promo.endDate)}</span>
                 </div>
                 <p className="text-gray-600">{promo.description}</p>
 
@@ -500,8 +408,7 @@ export function PromotionManagement() {
                   <div className="flex items-center gap-1 bg-purple-100 px-3 py-1 border-2 border-black">
                     <Calendar size={16} className="text-purple-500" />
                     <span className="font-bold">
-                      {new Date(promo.startDate).toLocaleDateString()} -{" "}
-                      {new Date(promo.endDate).toLocaleDateString()}
+                      {new Date(promo.startDate).toLocaleDateString()} - {new Date(promo.endDate).toLocaleDateString()}
                     </span>
                   </div>
 
@@ -519,10 +426,7 @@ export function PromotionManagement() {
                     <p className="text-sm font-bold">Produk:</p>
                     <div className="flex flex-wrap gap-2">
                       {promo.products.map((product) => (
-                        <span
-                          key={product.produkId}
-                          className="px-2 py-1 text-xs bg-gray-100 border-2 border-black font-bold transform -rotate-1"
-                        >
+                        <span key={product.produkId} className="px-2 py-1 text-xs bg-gray-100 border-2 border-black font-bold transform -rotate-1">
                           {product.nama}
                         </span>
                       ))}
@@ -536,10 +440,7 @@ export function PromotionManagement() {
                     <p className="text-sm font-bold">Kategori:</p>
                     <div className="flex flex-wrap gap-2">
                       {promo.categories.map((category) => (
-                        <span
-                          key={category.kategoriId}
-                          className="px-2 py-1 text-xs bg-gray-100 border-2 border-black font-bold transform rotate-1"
-                        >
+                        <span key={category.kategoriId} className="px-2 py-1 text-xs bg-gray-100 border-2 border-black font-bold transform rotate-1">
                           {category.nama}
                         </span>
                       ))}
