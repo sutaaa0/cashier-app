@@ -45,9 +45,9 @@ export function MultiSelect({ options, value, onChange, placeholder }: MultiSele
   const selectables = options.filter((option) => !value.includes(option.value))
 
   return (
-    <Command onKeyDown={handleKeyDown} className="overflow-visible bg-white">
+    <Command onKeyDown={handleKeyDown} className="overflow-visible bg-white ">
       <div className="group border border-input px-3 py-2 text-sm ring-offset-background rounded-md focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2">
-        <div className="flex gap-1 flex-wrap">
+        <div className="flex gap-1 flex-wrap bg-[#fff] border-[3px] border-black p-4 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transform hover:-rotate-1 transition-transform">
           {selectedOptions.map((option) => {
             return (
               <Badge key={option.value} variant="default">
@@ -83,7 +83,7 @@ export function MultiSelect({ options, value, onChange, placeholder }: MultiSele
       </div>
       <div className="relative mt-2">
         {open && selectables.length > 0 ? (
-          <div className="absolute w-full z-10 top-0 rounded-md border bg-popover text-popover-foreground shadow-md outline-none animate-in">
+          <div className="bg-[#fff] border-[3px] border-black p-4 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transform hover:-rotate-1 transition-transform absolute w-full z-10 top-0 rounded-md border bg-popover text-popover-foreground shadow-md outline-none animate-in">
             <CommandGroup className="h-full overflow-auto max-h-60">
               {selectables.map((option) => {
                 return (
