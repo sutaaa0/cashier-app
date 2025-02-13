@@ -363,7 +363,11 @@ export async function getMemberPoints(pelangganId: number) {
   return member?.points || 0;
 }
 
-export async function redeemPoints(pelangganId: number, pointsToRedeem: number) {
+export async function redeemPoints(
+  pelangganId: number, 
+  pointsToRedeem: number, 
+  harga: number
+) {
   const member = await prisma.pelanggan.findUnique({
     where: { pelangganId },
   });
@@ -372,12 +376,17 @@ export async function redeemPoints(pelangganId: number, pointsToRedeem: number) 
     throw new Error("Pelanggan tidak ditemukan");
   }
 
+  // Batasi poin yang diredeem agar tidak melebihi harga transaksi
+  const effectiveRedeem = Math.min(pointsToRedeem, harga, member.points);
+
   await prisma.pelanggan.update({
     where: { pelangganId },
-    data: { points: { decrement: pointsToRedeem } },
+    data: { points: { decrement: effectiveRedeem } },
   });
-  return pointsToRedeem;
+  
+  return effectiveRedeem;
 }
+
 
 // Configure Cloudinary
 cloudinary.config({
