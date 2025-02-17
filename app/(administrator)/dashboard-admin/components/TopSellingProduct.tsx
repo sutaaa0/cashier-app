@@ -1,16 +1,16 @@
-import React, { useState } from 'react';
-import { Bar, BarChart, CartesianGrid, Cell,  ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { Coffee, TrendingUp, Sparkles, Crown } from 'lucide-react';
+import React, { useEffect, useState } from "react";
+import { Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Coffee, TrendingUp, Sparkles, Crown } from "lucide-react";
+import { getTopProducts } from "@/server/actions";
+import LoadingAnimationsTopSelling from "./LoadingAnimationsTopSelling";
 
-const COLORS = ['#FF6B6B', '#4ECDC4', '#FFE66D', '#FF8364', '#45B7D1'];
+interface Product {
+  name: string;
+  sales: number;
+  growth: string;
+}
 
-const topProducts = [
-  { name: "Espresso", sales: 450, growth: "+15%" },
-  { name: "Latte", sales: 300, growth: "+12%" },
-  { name: "Cappuccino", sales: 250, growth: "+8%" },
-  { name: "Mocha", sales: 200, growth: "+5%" },
-  { name: "Americano", sales: 180, growth: "+3%" },
-];
+const COLORS = ["#FF6B6B", "#4ECDC4", "#FFE66D", "#FF8364", "#45B7D1"];
 
 const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?: { name: string; value: number }[]; label?: string }) => {
   if (active && payload && payload.length) {
@@ -22,9 +22,7 @@ const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?:
             <Coffee className="text-yellow-400" size={20} />
             <h3 className="font-black text-xl">{label}</h3>
           </div>
-          <div className="font-mono bg-black text-white p-2 transform rotate-1">
-            {payload[0].value} CUPS SOLD
-          </div>
+          <div className="font-mono bg-black text-white p-2 transform rotate-1">{payload[0].value} CUPS SOLD</div>
         </div>
       </div>
     );
@@ -34,6 +32,29 @@ const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?:
 
 export function TopSellingProducts() {
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
+  const [topProducts, setTopProducts] = useState<Product[]>([]);
+
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setIsLoading(true);
+        const res = await getTopProducts();
+        setTopProducts(res);
+      } catch (error) {
+        console.error("Error fetching top products:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+  if (isLoading) {
+    return <LoadingAnimationsTopSelling />;
+  }
 
   return (
     <div className="relative bg-white border-4 border-black p-6 transition-all duration-300 group">
@@ -46,8 +67,8 @@ export function TopSellingProducts() {
             style={{
               left: `${Math.random() * 100}%`,
               top: `${Math.random() * 100}%`,
-              width: '20px',
-              height: '20px'
+              width: "20px",
+              height: "20px",
             }}
           />
         ))}
@@ -63,9 +84,7 @@ export function TopSellingProducts() {
           <div className="transform -rotate-2 bg-gradient-to-r from-yellow-300 to-yellow-400 border-4 border-black p-3 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
             <div className="flex items-center gap-2">
               <Crown className="text-black" size={24} />
-              <h2 className="text-2xl font-black tracking-tighter">
-                TOP SELLERS
-              </h2>
+              <h2 className="text-2xl font-black tracking-tighter">TOP SELLERS</h2>
             </div>
           </div>
           <div className="bg-black text-white p-3 transform rotate-3 hover:rotate-6 transition-transform">
@@ -76,7 +95,7 @@ export function TopSellingProducts() {
         {/* Chart */}
         <div className="bg-white border-4 border-black p-6">
           <ResponsiveContainer width="100%" height={300}>
-            <BarChart 
+            <BarChart
               data={topProducts}
               onMouseMove={(state) => {
                 if (state?.activeTooltipIndex !== undefined) {
@@ -85,37 +104,13 @@ export function TopSellingProducts() {
               }}
               onMouseLeave={() => setActiveIndex(null)}
             >
-              <CartesianGrid 
-                strokeDasharray="3 3" 
-                stroke="#000"
-                strokeWidth={2}
-              />
-              <XAxis 
-                dataKey="name" 
-                stroke="#000"
-                strokeWidth={2}
-                tick={{ fill: '#000', fontSize: 14, fontWeight: 'bold' }}
-              />
-              <YAxis 
-                stroke="#000"
-                strokeWidth={2}
-                tick={{ fill: '#000', fontSize: 14, fontWeight: 'bold' }}
-              />
-              <Tooltip content={<CustomTooltip active={true} payload={topProducts.map((product) => ({ name: product.name, value: product.sales }))} label={activeIndex !== null ? topProducts[activeIndex].name : ''} />} />
-              <Bar 
-                dataKey="sales" 
-                radius={[8, 8, 0, 0]}
-              >
+              <CartesianGrid strokeDasharray="3 3" stroke="#000" strokeWidth={2} />
+              <XAxis dataKey="name" stroke="#000" strokeWidth={2} tick={{ fill: "#000", fontSize: 14, fontWeight: "bold" }} />
+              <YAxis stroke="#000" strokeWidth={2} tick={{ fill: "#000", fontSize: 14, fontWeight: "bold" }} />
+              <Tooltip content={<CustomTooltip active={true} payload={topProducts.map((product) => ({ name: product.name, value: product.sales }))} label={activeIndex !== null ? topProducts[activeIndex].name : ""} />} />
+              <Bar dataKey="sales" radius={[8, 8, 0, 0]}>
                 {topProducts.map((entry, index) => (
-                  <Cell
-                    key={`cell-${index}`}
-                    fill={COLORS[index % COLORS.length]}
-                    className={`transition-all duration-300 ${
-                      activeIndex === index ? 'opacity-100' : 'opacity-80'
-                    }`}
-                    stroke="#000"
-                    strokeWidth={3}
-                  />
+                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} className={`transition-all duration-300 ${activeIndex === index ? "opacity-100" : "opacity-80"}`} stroke="#000" strokeWidth={3} />
                 ))}
               </Bar>
             </BarChart>
@@ -125,24 +120,19 @@ export function TopSellingProducts() {
         {/* Product List */}
         <div className="mt-6 grid grid-cols-1 gap-4">
           {topProducts.map((product, index) => (
-            <div 
+            <div
               key={`product-${index}`}
               className={`
                 relative group/item border-3 border-black p-3
                 transform transition-all duration-300 hover:-translate-y-1
-                ${activeIndex === index ? 'bg-black text-white' : 'bg-white'}
+                ${activeIndex === index ? "bg-black text-white" : "bg-white"}
               `}
             >
               <div className="flex items-center gap-3">
-                <div
-                  className="w-8 h-8 border-3 border-black transform rotate-45 transition-transform group-hover/item:rotate-0"
-                  style={{ backgroundColor: COLORS[index] }}
-                />
+                <div className="w-8 h-8 border-3 border-black transform rotate-45 transition-transform group-hover/item:rotate-0" style={{ backgroundColor: COLORS[index] }} />
                 <span className="font-bold text-lg">{product.name}</span>
                 <div className="ml-auto flex items-center gap-2">
-                  <span className="font-mono bg-white text-black px-2 py-1 border-2 border-black">
-                    {product.sales} CUPS
-                  </span>
+                  <span className="font-mono bg-white text-black px-2 py-1 border-2 border-black">{product.sales} CUPS</span>
                   <span className="flex items-center text-green-500 font-bold">
                     <TrendingUp size={16} className="mr-1" />
                     {product.growth}
