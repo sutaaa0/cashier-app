@@ -67,7 +67,7 @@ const CashierPerforma = () => {
   return (
     <div className="bg-white border-4 border-black p-6 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] transform -rotate-1">
       <h2 className="text-2xl font-bold mb-4">Performa Kasir</h2>
-      <div className="h-[300px]">
+      <div className="h-[650px]">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={performance}>
             <CartesianGrid strokeDasharray="3 3" />
