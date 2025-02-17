@@ -805,6 +805,44 @@ interface ApiResponse<T> {
   message?: string;
 }
 
+export async function getStockItemsManagement(): Promise<ApiResponse<StockData[]>> {
+  try {
+    const products = await prisma.produk.findMany({
+      where: {
+        isDeleted: false,
+      },
+      include: {
+        kategori: true,
+      },
+      orderBy: {
+        updatedAt: "desc",
+      },
+    });
+
+    const stockItems: StockData[] = products.map((product) => ({
+      id: product.produkId,
+      name: product.nama,
+      currentStock: product.stok,
+      minStock: product.minimumStok,
+      category: product.kategori.nama,
+      lastUpdated: product.updatedAt.toISOString(),
+    }));
+
+    return {
+      status: "Success",
+      data: stockItems,
+    };
+  } catch (error) {
+    console.error("Failed to fetch stock items:", error);
+    return {
+      status: "Error",
+      message: "Failed to fetch stock items",
+    };
+  }
+}
+
+
+
 export async function getStockItems(): Promise<ApiResponse<StockData[]>> {
   try {
     const products = await prisma.produk.findMany({
@@ -2336,5 +2374,287 @@ export async function getCategories() {
   } catch (error) {
     console.error("Error fetching categories:", error);
     return { success: false, error: "Failed to fetch categories" };
+  }
+}
+
+
+export async function getTopProducts() {
+  try {
+    // Get all sales details grouped by product with total quantity
+    const productSales = await prisma.detailPenjualan.groupBy({
+      by: ['produkId'],
+      _sum: {
+        kuantitas: true
+      },
+      orderBy: {
+        _sum: {
+          kuantitas: "desc"
+        }
+      },
+      take: 5
+    })
+
+    // Get the product details and calculate growth
+    const topProducts = await Promise.all(
+      productSales.map(async (sale) => {
+        const product = await prisma.produk.findUnique({
+          where: { produkId: sale.produkId },
+          select: { nama: true }
+        })
+
+        // Calculate sales growth by comparing with previous period
+        const currentPeriodSales = await prisma.detailPenjualan.aggregate({
+          where: {
+            produkId: sale.produkId,
+            penjualan: {
+              tanggalPenjualan: {
+                gte: new Date(new Date().setMonth(new Date().getMonth() - 1))
+              }
+            }
+          },
+          _sum: {
+            kuantitas: true
+          }
+        })
+
+        const previousPeriodSales = await prisma.detailPenjualan.aggregate({
+          where: {
+            produkId: sale.produkId,
+            penjualan: {
+              tanggalPenjualan: {
+                gte: new Date(new Date().setMonth(new Date().getMonth() - 2)),
+                lt: new Date(new Date().setMonth(new Date().getMonth() - 1))
+              }
+            }
+          },
+          _sum: {
+            kuantitas: true
+          }
+        })
+
+        const currentSales = currentPeriodSales._sum.kuantitas || 0
+        const previousSales = previousPeriodSales._sum.kuantitas || 0
+        
+        let growthPercentage = 0
+        if (previousSales > 0) {
+          growthPercentage = ((currentSales - previousSales) / previousSales) * 100
+        }
+
+        return {
+          name: product?.nama || 'Unknown Product',
+          sales: sale._sum.kuantitas || 0,
+          growth: `${growthPercentage >= 0 ? '+' : ''}${growthPercentage.toFixed(1)}%`
+        }
+      })
+    )
+
+    return topProducts
+
+  } catch (error) {
+    console.error('Error fetching top products:', error)
+    throw new Error('Failed to fetch top products')
+  }
+}
+
+export async function getCustomerTransactionsAnalytic() {
+  try {
+    // Get current date and date 1 month ago
+    const currentDate = new Date();
+    const lastMonth = new Date(currentDate);
+    lastMonth.setMonth(lastMonth.getMonth() - 1);
+
+    // Create a separate variable for the previous month start date
+    const previousMonthStart = new Date(lastMonth);
+    previousMonthStart.setMonth(previousMonthStart.getMonth() - 1);
+
+    // Get guest transactions (Regular customers)
+    const guestTransactions = await prisma.penjualan.count({
+      where: {
+        guestId: { not: null },
+        tanggalPenjualan: {
+          gte: lastMonth
+        }
+      }
+    });
+
+    // Get previous month guest transactions for growth calculation
+    const previousGuestTransactions = await prisma.penjualan.count({
+      where: {
+        guestId: { not: null },
+        tanggalPenjualan: {
+          gte: previousMonthStart,
+          lt: lastMonth
+        }
+      }
+    });
+
+    // Get member transactions (Registered customers)
+    const memberTransactions = await prisma.penjualan.count({
+      where: {
+        pelangganId: { not: null },
+        tanggalPenjualan: {
+          gte: lastMonth
+        }
+      }
+    });
+
+    // Get previous month member transactions for growth calculation
+    const previousMemberTransactions = await prisma.penjualan.count({
+      where: {
+        pelangganId: { not: null },
+        tanggalPenjualan: {
+          gte: previousMonthStart,
+          lt: lastMonth
+        }
+      }
+    });
+
+    // Calculate total transactions
+    const totalTransactions = guestTransactions + memberTransactions;
+
+    // Calculate growth percentages
+    const guestGrowth = previousGuestTransactions > 0 
+      ? ((guestTransactions - previousGuestTransactions) / previousGuestTransactions) * 100 
+      : 0;
+
+    const memberGrowth = previousMemberTransactions > 0 
+      ? ((memberTransactions - previousMemberTransactions) / previousMemberTransactions) * 100 
+      : 0;
+
+    // Format the response
+    return [
+      {
+        name: "Regular",
+        value: totalTransactions > 0 ? Math.round((guestTransactions / totalTransactions) * 100) : 0,
+        transactions: guestTransactions,
+        growth: `${guestGrowth >= 0 ? '+' : ''}${guestGrowth.toFixed(1)}%`
+      },
+      {
+        name: "Member",
+        value: totalTransactions > 0 ? Math.round((memberTransactions / totalTransactions) * 100) : 0,
+        transactions: memberTransactions,
+        growth: `${memberGrowth >= 0 ? '+' : ''}${memberGrowth.toFixed(1)}%`
+      }
+    ];
+
+  } catch (error) {
+    console.error('Error fetching customer transactions:', error);
+    throw new Error('Failed to fetch customer transactions');
+  }
+}
+
+
+export async function getLowStockProducts() {
+  try {
+    // Get all products where stock is below minimum stock level
+    // or stock status is not NORMAL, ordered by stock level
+    const lowStockProducts = await prisma.produk.findMany({
+      where: {
+        OR: [
+          {
+            stok: {
+              lte: prisma.produk.fields.minimumStok
+            }
+          },
+          {
+            statusStok: {
+              not: 'NORMAL'
+            }
+          }
+        ],
+        isDeleted: false
+      },
+      select: {
+        nama: true,
+        stok: true,
+        minimumStok: true,
+        statusStok: true
+      },
+      orderBy: {
+        stok: 'asc'
+      },
+      take: 5 // Limit to 5 products with lowest stock
+    })
+
+    // Format the response to match the expected structure
+    return lowStockProducts.map(product => ({
+      name: product.nama,
+      stock: product.stok,
+      minimumStock: product.minimumStok,
+      status: product.statusStok
+    }))
+
+  } catch (error) {
+    console.error('Error fetching low stock products:', error)
+    throw new Error('Failed to fetch low stock products')
+  }
+}
+
+export async function getCategoryRevenue() {
+  try {
+    // Get current date and date 1 month ago for the monthly revenue calculation
+    const currentDate = new Date()
+    const startOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1)
+
+    // Calculate revenue by category using joins and aggregation
+    const categoryRevenue = await prisma.kategori.findMany({
+      select: {
+        nama: true,
+        produk: {
+          where: {
+            isDeleted: false,
+            detailPenjualan: {
+              some: {
+                penjualan: {
+                  tanggalPenjualan: {
+                    gte: startOfMonth
+                  }
+                }
+              }
+            }
+          },
+          select: {
+            detailPenjualan: {
+              where: {
+                penjualan: {
+                  tanggalPenjualan: {
+                    gte: startOfMonth
+                  }
+                }
+              },
+              select: {
+                subtotal: true
+              }
+            }
+          }
+        }
+      }
+    })
+
+    // Process and format the data
+    const formattedRevenue = categoryRevenue
+      .map(category => {
+        // Calculate total revenue for the category
+        const revenue = category.produk.reduce((total, product) => {
+          return total + product.detailPenjualan.reduce((subtotal, detail) => {
+            return subtotal + detail.subtotal
+          }, 0)
+        }, 0)
+
+        return {
+          category: category.nama,
+          revenue: revenue
+        }
+      })
+      // Filter out categories with no revenue
+      .filter(category => category.revenue > 0)
+      // Sort by revenue in descending order
+      .sort((a, b) => b.revenue - a.revenue)
+
+    return formattedRevenue
+
+  } catch (error) {
+    console.error('Error calculating category revenue:', error)
+    throw new Error('Failed to calculate category revenue')
   }
 }
