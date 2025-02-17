@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { DollarSign, TrendingUp, Sparkles, BarChart as BarChartIcon } from 'lucide-react';
 
 import {
@@ -11,16 +11,11 @@ import {
   YAxis,
   Cell
 } from 'recharts';
+import { getCategoryRevenue } from '@/server/actions';
+import RevenueByCategoryLoading from './RevenueByCategoryLoading';
 
 // Neo-brutalist vibrant color palette
 const COLORS = ['#FF6B6B', '#4ECDC4', '#FFE66D', '#FF8364'];
-
-const categoryRevenue = [
-  { category: 'Hot Drinks', revenue: 5000 },
-  { category: 'Cold Drinks', revenue: 3500 },
-  { category: 'Pastries', revenue: 2000 },
-  { category: 'Snacks', revenue: 1500 },
-];
 
 interface CustomTooltipProps {
   active?: boolean;
@@ -33,6 +28,30 @@ interface CustomTooltipProps {
 
 export function RevenueByCategoryChart() {
   const [activeBar, setActiveBar] = useState<number | null>(null);
+  const [categoryRevenue, setCategoryRevenue] = useState<{ category: string; revenue: number }[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    const fetchDataCategoruRevenue = async () => {
+      try {
+        setIsLoading(true);
+        const res = await getCategoryRevenue();
+        setCategoryRevenue(res);
+      } catch (error) {
+        console.error('Error fetching category revenue:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    fetchDataCategoruRevenue();
+  }, []);
+
+  if (isLoading) {
+    return <RevenueByCategoryLoading />;
+  }
+
+  
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('en-US', {
