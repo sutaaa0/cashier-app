@@ -9,6 +9,7 @@ import { toast } from "@/hooks/use-toast";
 import { getCurrentUser, getMemberPoints, redeemPoints } from "@/server/actions";
 import { Button } from "./ui/button";
 
+
 interface Produk {
   produkId: number;
   nama: string;
@@ -57,6 +58,34 @@ export const NeoOrderSummary = forwardRef<{ resetCustomerData: () => void }, Ord
 
   // State untuk input uang masuk dan tampilan struk
   const [amountReceived, setAmountReceived] = useState<number>(0);
+  const [formattedAmount, setFormattedAmount] = useState<string>("");
+
+
+  const formatRupiah = (value: number): string => {
+    return new Intl.NumberFormat("id-ID", {
+      style: "currency",
+      currency: "IDR",
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(value).replace(/\s/g, '');
+  };
+  
+  // Parse string Rupiah ke number
+  const parseRupiah = (value: string): number => {
+    return Number(value.replace(/[^\d]/g, ''));
+  };
+
+  // Handle perubahan input uang masuk
+  const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const inputValue = e.target.value;
+    // Hapus semua karakter non-digit
+    const numericValue = parseRupiah(inputValue);
+    
+    // Update nilai actual dan format
+    setAmountReceived(numericValue);
+    setFormattedAmount(formatRupiah(numericValue));
+  };
+
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -75,6 +104,7 @@ export const NeoOrderSummary = forwardRef<{ resetCustomerData: () => void }, Ord
       setMemberPoints(0);
       setRedeemedPoints(0);
       setAmountReceived(0);
+      setFormattedAmount("");
     },
   }));
 
@@ -224,27 +254,27 @@ export const NeoOrderSummary = forwardRef<{ resetCustomerData: () => void }, Ord
         </div>
 
         {/* Input untuk Uang Masuk */}
-        <div className="flex flex-col">
-          {/* Input untuk Uang Masuk */}
-          <label className="block mb-2 font-bold">Uang Masuk:</label>
-          <input
-            type="number"
-            value={amountReceived}
-            onChange={(e) => setAmountReceived(Number(e.target.value))}
-            onFocus={(e) => {
-              if (e.target.value === "0") {
-                e.target.value = ""; // Hapus nilai 0 ketika input mendapatkan fokus
-              }
-            }}
-            onBlur={(e) => {
-              if (e.target.value === "") {
-                setAmountReceived(0); // Kembalikan ke 0 jika input kosong saat kehilangan fokus
-              }
-            }}
-            placeholder="Masukkan jumlah uang masuk"
-            className="p-2 border-2 border-black rounded w-full"
-          />{" "}
-        </div>
+      <div className="flex flex-col">
+        <label className="block mb-2 font-bold">Uang Masuk:</label>
+        <input
+          type="text"
+          value={formattedAmount}
+          onChange={handleAmountChange}
+          onFocus={(e) => {
+            if (parseRupiah(e.target.value) === 0) {
+              setFormattedAmount("");
+            }
+          }}
+          onBlur={(e) => {
+            if (e.target.value === "") {
+              setAmountReceived(0);
+              setFormattedAmount("");
+            }
+          }}
+          placeholder="Masukkan jumlah uang masuk"
+          className="p-2 border-2 border-black rounded w-full"
+        />
+      </div>
 
         {customerData && (
           <div className="bg-white border-2 border-black p-2 mt-2">
