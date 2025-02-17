@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { Package, Plus, Minus, AlertTriangle, Save, RotateCcw } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
-import { getStockItems, updateStockItem } from "@/server/actions";
+import { getStockItemsManagement, updateStockItem } from "@/server/actions";
 import { NeoProgressIndicator } from "@/components/NeoProgresIndicator";
 
 interface StockData {
@@ -32,7 +32,7 @@ export function StockManagement() {
   const fetchStockItems = async () => {
     setIsLoading(true);
     try {
-      const result = await getStockItems();
+      const result = await getStockItemsManagement();
       if (result.status === "Success") {
         setStock(result.data || []);
       } else {
