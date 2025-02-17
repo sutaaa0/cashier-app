@@ -18,6 +18,7 @@ import {
 } from "recharts";
 import { getDailySalesData, getSalesStats } from "@/server/actions";
 import type { DailySalesData, SalesStats } from "@/server/actions";
+import SalesOverTimeLoading from "./SalesOverTimeLoading";
 
 const StatCard = ({
   title,
@@ -65,7 +66,7 @@ const CustomTooltip = ({
   label,
 }: {
   active?: boolean;
-  payload?: any[];
+  payload?: { name: string; value: number }[];
   label?: string;
 }) => {
   if (active && payload && payload.length) {
@@ -131,7 +132,11 @@ export default function SalesOverTime() {
     }, 3000);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [salesData.length]);
+
+  if(isLoading) {
+    return <SalesOverTimeLoading/>
+  }
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat("id-ID", {
@@ -200,13 +205,7 @@ export default function SalesOverTime() {
 
           {/* Main Chart */}
           <div className="relative bg-white border-4 border-black p-6">
-            {isLoading ? (
-              <div className="h-[400px] flex items-center justify-center">
-                <div className="animate-bounce bg-black text-white border-4 border-white p-4 transform -rotate-3">
-                  <p className="font-bold text-xl">LOADING DATA...</p>
-                </div>
-              </div>
-            ) : (
+
               <ResponsiveContainer width="100%" height={400}>
                 <AreaChart
                   data={salesData}
@@ -302,7 +301,6 @@ export default function SalesOverTime() {
                   />
                 </AreaChart>
               </ResponsiveContainer>
-            )}
           </div>
 
           {/* Highlighted Data */}
