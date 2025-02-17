@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Package2, AlertTriangle, Sparkles, ArrowDown } from 'lucide-react';
 import {
   Bar,
@@ -10,17 +10,18 @@ import {
   XAxis,
   YAxis
 } from 'recharts';
+import { getLowStockProducts } from '@/server/actions';
 
 // Neo-brutalist vibrant color palette
 const COLORS = ['#FF6B6B', '#4ECDC4', '#FFE66D', '#FF8364', '#45B7D1'];
 
-const lowStockProducts = [
-  { name: 'Coffee Beans', stock: 15 },
-  { name: 'Milk', stock: 8 },
-  { name: 'Sugar', stock: 5 },
-  { name: 'Cups', stock: 20 },
-  { name: 'Lids', stock: 12 },
-];
+// const lowStockProducts = [
+//   { name: 'Coffee Beans', stock: 15 },
+//   { name: 'Milk', stock: 8 },
+//   { name: 'Sugar', stock: 5 },
+//   { name: 'Cups', stock: 20 },
+//   { name: 'Lids', stock: 12 },
+// ];
 
 interface CustomTooltipProps {
   active?: boolean;
@@ -33,6 +34,18 @@ interface CustomTooltipProps {
 
 export function LowStockProductsChart() {
   const [activeBar, setActiveBar] = useState<number | null>(null);
+  const [lowStockProducts, setLowStockProducts] = useState<{ name: string; stock: number; minimumStock: number; status: string }[]>([])
+
+  useEffect(() => {
+    const fetchDataStock = async () => {
+      const res = await getLowStockProducts();
+
+      setLowStockProducts(res);
+    }
+
+    fetchDataStock();
+  }, [])
+  
 
   const CustomTooltip = ({ active, payload, label }: CustomTooltipProps) => {
     if (active && payload && payload.length) {
