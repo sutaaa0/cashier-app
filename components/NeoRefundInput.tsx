@@ -1,16 +1,30 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { toast } from "@/hooks/use-toast"
-import { getTransactionDetails, processReturn, getAllProducts } from "@/server/actions"
+import { getTransactionDetails, processReturn, getAllProducts, getRecentTransactions } from "@/server/actions"
 import type { Produk } from "@prisma/client"
 import Image from "next/image"
-import { Minus, Plus, Trash2 } from "lucide-react"
+import { Clock, Minus, Plus, Trash2 } from "lucide-react"
 import { RefundReceiptModal } from "./RefunReceiptModal"
 
 interface RefundInputProps {
   onRefundComplete: () => void
 }
+
+interface Transaction {
+  penjualanId: number
+  tanggalPenjualan: Date
+  total_harga: number
+  uangMasuk: number
+  kembalian: number
+}
+
+interface RefundInputProps {
+  onRefundComplete: () => void
+}
+
+
 
 export function NeoRefundInput({ onRefundComplete }: RefundInputProps) {
   const [penjualanId, setPenjualanId] = useState("")
@@ -28,6 +42,32 @@ export function NeoRefundInput({ onRefundComplete }: RefundInputProps) {
   const [additionalPayment, setAdditionalPayment] = useState(0)
   const [showRefundReceipt, setShowRefundReceipt] = useState(false)
   const [refundDetails, setRefundDetails] = useState<any>(null)
+  const [recentTransactions, setRecentTransactions] = useState<Transaction[]>([])
+
+  // Fetch recent transactions on component mount
+  useEffect(() => {
+    const fetchRecentTransactions = async () => {
+      try {
+        const transactions = await getRecentTransactions()
+        setRecentTransactions(transactions)
+      } catch (error) {
+        console.error("Error fetching recent transactions:", error)
+        toast({
+          title: "Error",
+          description: "Gagal mengambil daftar transaksi",
+          variant: "destructive",
+        })
+      }
+    }
+
+    fetchRecentTransactions()
+  }, [])
+
+  const handleTransactionClick = async (id: number) => {
+    setPenjualanId(id.toString())
+    await fetchTransactionDetails(id.toString())
+  }
+
 
   const fetchTransactionDetails = async () => {
     setIsLoading(true)
@@ -147,6 +187,33 @@ export function NeoRefundInput({ onRefundComplete }: RefundInputProps) {
   return (
     <div className="bg-white border-4 border-black p-4 font-mono">
       <h2 className="text-2xl font-bold mb-4">Proses Pengembalian</h2>
+
+      {/* Recent Transactions List */}
+      <div className="mb-6">
+        <h3 className="text-xl font-bold mb-2">Transaksi Terbaru</h3>
+        <div className="space-y-2 max-h-64 overflow-y-auto">
+          {recentTransactions.map((transaction) => (
+            <button
+              key={transaction.penjualanId}
+              onClick={() => handleTransactionClick(transaction.penjualanId)}
+              className="w-full p-3 border-2 border-black hover:bg-gray-100 transition-colors text-left flex justify-between items-center"
+            >
+              <div>
+                <div className="font-bold">ID: {transaction.penjualanId}</div>
+                <div className="text-sm">{new Date(transaction.tanggalPenjualan).toLocaleString()}</div>
+              </div>
+              <div>
+                <div className="font-bold text-right">{formatRupiah(transaction.total_harga)}</div>
+                <div className="flex items-center text-sm text-gray-600">
+                  <Clock className="w-4 h-4 mr-1" />
+                  {new Date(transaction.tanggalPenjualan).toLocaleDateString()}
+                </div>
+              </div>
+            </button>
+          ))}
+        </div>
+      </div>
+
       <div className="mb-4">
         <label htmlFor="penjualanId" className="block mb-2 font-bold">
           ID Transaksi
