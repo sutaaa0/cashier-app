@@ -2062,6 +2062,7 @@ export async function getTransactionDetails(penjualanId: number) {
         detailPenjualan: {
           include: { produk: true },
         },
+        user: true,
       },
     });
     return transaction;
@@ -2657,4 +2658,23 @@ export async function getCategoryRevenue() {
     console.error('Error calculating category revenue:', error)
     throw new Error('Failed to calculate category revenue')
   }
+}
+
+
+export async function getRecentTransactions() {
+  const transactions = await prisma.penjualan.findMany({
+    orderBy: {
+      tanggalPenjualan: 'desc'
+    },
+    take: 10, // Get last 10 transactions
+    select: {
+      penjualanId: true,
+      tanggalPenjualan: true,
+      total_harga: true,
+      uangMasuk: true,
+      kembalian: true
+    }
+  });
+  
+  return transactions;
 }
