@@ -2244,6 +2244,76 @@ export async function createPromotion(input: CreatePromotionInput) {
   }
 }
 
+
+export async function cleanupExpiredPromotions() {
+  try {
+    const now = new Date();
+    
+    // Find all expired promotions
+    const expiredPromotions = await prisma.promotion.findMany({
+      where: {
+        endDate: {
+          lt: now
+        }
+      },
+      include: {
+        products: true,
+        categories: true
+      }
+    });
+    
+    const results = [];
+    
+    // Disconnect products and categories for each expired promotion
+    for (const promotion of expiredPromotions) {
+      // Only disconnect if there are products/categories to disconnect
+      if (promotion.products.length > 0 || promotion.categories.length > 0) {
+         await prisma.promotion.update({
+          where: {
+            promotionId: promotion.promotionId
+          },
+          data: {
+            products: {
+              disconnect: promotion.products.map(product => ({ 
+                produkId: product.produkId 
+              }))
+            },
+            categories: {
+              disconnect: promotion.categories.map(category => ({ 
+                kategoriId: category.kategoriId 
+              }))
+            }
+          }
+        });
+        
+        results.push({
+          promotionId: promotion.promotionId,
+          title: promotion.title,
+          disconnected: true
+        });
+      }
+    }
+    
+    // Revalidate the promotions page to reflect changes
+    revalidatePath('/admin/promotions');
+    
+    return { 
+      success: true, 
+      message: `Disconnected relations for ${results.length} expired promotions`,
+      results
+    };
+  } catch (error) {
+    console.error('Error cleaning up expired promotions:', error);
+    return { 
+      success: false, 
+      message: 'Failed to disconnect relations for expired promotions',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    };
+  }
+}
+
+
+
 export async function getPromotions() {
   try {
     const promotions = await prisma.promotion.findMany({
@@ -2677,4 +2747,69 @@ export async function getRecentTransactions() {
   });
   
   return transactions;
+}
+
+interface PromotionAnalytics {
+  name: string;
+  revenue: number;
+  transactions: number;
+}
+
+export async function getPromotionAnalytics(): Promise<PromotionAnalytics[]> {
+  try {
+    // Get all promotions with their related sales details
+    const promotionsWithSales = await prisma.promotion.findMany({
+      select: {
+        title: true,
+        products: {
+          select: {
+            detailPenjualan: {
+              select: {
+                subtotal: true,
+                penjualan: {
+                  select: {
+                    penjualanId: true,
+                    tanggalPenjualan: true
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    });
+
+    // Process and aggregate the data
+    const promotionAnalytics: PromotionAnalytics[] = await Promise.all(
+      promotionsWithSales.map(async (promotion) => {
+        // Flatten all sales details for this promotion
+        const allSales = promotion.products.flatMap(product => 
+          product.detailPenjualan
+        );
+
+        // Calculate total revenue
+        const revenue = allSales.reduce((sum, sale) => 
+          sum + sale.subtotal, 0
+        );
+
+        // Count unique transactions
+        const uniqueTransactions = new Set(
+          allSales.map(sale => sale.penjualan.penjualanId)
+        ).size;
+
+        return {
+          name: promotion.title,
+          revenue: revenue,
+          transactions: uniqueTransactions
+        };
+      })
+    );
+
+    // Sort by revenue in descending order
+    return promotionAnalytics.sort((a, b) => b.revenue - a.revenue);
+
+  } catch (error) {
+    console.error("Error fetching promotion analytics:", error);
+    throw new Error("Failed to fetch promotion analytics");
+  }
 }
