@@ -12,6 +12,7 @@ import { NeoOrderSummary } from "./order-summary";
 import { NeoProgressIndicator } from "./NeoProgresIndicator";
 import { ReceiptModal } from "./ReceiptModal";
 import { NeoRefundInput } from "./NeoRefundInput";
+import { Button } from "./ui/button";
 
 interface Produk extends PrismaProduk {
   kategori: { nama: string };
@@ -61,6 +62,8 @@ const Pos = () => {
     detailPenjualan: [],
   });
 
+  console.log("order :", order)
+
   const orderSummaryRef = useRef<{ resetCustomerData: () => void } | null>(null);
 
   useEffect(() => {
@@ -86,6 +89,7 @@ const Pos = () => {
   };
 
   const addToOrder = (product: Produk) => {
+    console.log("produk yang di tambahkan ke order :", product)
     setOrder((prev) => {
       const existingItem = prev.detailPenjualan.find((item) => item.produkId === product.produkId);
   
@@ -285,12 +289,12 @@ const Pos = () => {
 
             {/* Refund Button */}
             <div className="fixed bottom-4 right-4">
-        <button
+        <Button
           onClick={() => setShowRefundModal(true)}
-          className="px-4 py-2 bg-red-500 text-white font-bold border-2 border-black hover:bg-black hover:text-red-500 transition-colors"
+          className="mb-3 px-4 py-2 bg-red-500 text-white font-bold border-2 border-black hover:bg-black hover:text-red-500"
         >
           Pengembalian
-        </button>
+        </Button>
       </div>
 
       {/* Refund Modal */}
@@ -299,12 +303,12 @@ const Pos = () => {
           <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-2xl">
             <h2 className="text-2xl font-bold mb-4">Proses Pengembalian</h2>
             <NeoRefundInput onRefundComplete={handleRefundComplete} />
-            <button
+            <Button
               onClick={() => setShowRefundModal(false)}
-              className="mt-4 px-4 py-2 bg-gray-300 text-black font-bold border-2 border-black hover:bg-black hover:text-gray-300 transition-colors"
+              className=""
             >
               Batal
-            </button>
+            </Button>
           </div>
         </div>
       )}
