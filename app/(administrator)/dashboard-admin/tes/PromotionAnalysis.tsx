@@ -1,15 +1,28 @@
+"use client";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts"
 import { Percent } from "lucide-react"
 import { formatRupiah } from "@/lib/formatIdr"
+import { useEffect, useState } from "react";
+import { getPromotionAnalytics } from "@/server/actions";
 
-const promotionData = [
-  { name: "Diskon 10%", revenue: 15000000, transactions: 150 },
-  { name: "Beli 1 Gratis 1", revenue: 22000000, transactions: 200 },
-  { name: "Paket Hemat", revenue: 18000000, transactions: 180 },
-  { name: "Flash Sale", revenue: 25000000, transactions: 250 },
-]
+interface PromotionAnalytics {
+  name: string;
+  revenue: number;
+  transactions: number;
+}
+
 
 export function PromotionAnalysis() {
+  const [promotionData, setPromotionData] = useState<PromotionAnalytics[]>([])
+  useEffect(() => {
+    const fetchData = async () => {
+      const res = await getPromotionAnalytics();
+      setPromotionData(res);
+      console.log("data promosi :",res)
+    }
+    fetchData()
+  }, [])
+  
   return (
     <div className="bg-white border-4 border-black p-6 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] mb-8">
       <div className="flex items-center justify-between mb-4">
