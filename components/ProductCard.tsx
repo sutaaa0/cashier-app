@@ -5,14 +5,26 @@ import { Produk, Promotion } from "@prisma/client";
 import { isAfter, isBefore } from "date-fns";
 
 interface NeoProductCardProps {
-  product: Produk & { image: string; kategori: { nama: string }; promotions?: Promotion[] };
-  onClick: (product: Produk & { image: string; kategori: { nama: string }; promotions?: Promotion[] } & { harga: number }) => void;
+  product: Produk & { 
+    image: string; 
+    kategori: { 
+      nama: string;
+      kategoriId: number;
+    }; 
+    promotions?: (Promotion & {
+      categories: { kategoriId: number }[];
+    })[];
+  };
+  onClick: (product: Produk & { 
+    image: string; 
+    kategori: { nama: string }; 
+    promotions?: Promotion[]; 
+  } & { harga: number }) => void;
 }
-
 
 export function NeoProductCard({ product, onClick }: NeoProductCardProps) {
   // Fungsi untuk memeriksa apakah promosi aktif
-  const isPromotionActive = (promo: Promotion): boolean => {
+  const isPromotionActive = (promo: Promotion & { categories?: { kategoriId: number }[] }): boolean => {
     const today = new Date();
     const startDate = new Date(promo.startDate);
     const endDate = new Date(promo.endDate);
@@ -23,8 +35,8 @@ export function NeoProductCard({ product, onClick }: NeoProductCardProps) {
     }
 
     // Jika promosi berlaku untuk kategori tertentu, periksa apakah kategori produk ini termasuk
-    if (promo.type === "PRODUCT_SPECIFIC") {
-      return promo.categories.some((category) => category.kategoriId === product.kategoriId);
+    if (promo.type === "PRODUCT_SPECIFIC" && promo.categories) {
+      return promo.categories.some(category => category.kategoriId === product.kategoriId);
     }
 
     // Untuk promosi lainnya (misalnya FLASH_SALE, SPECIAL_DAY), tidak perlu validasi kategori
