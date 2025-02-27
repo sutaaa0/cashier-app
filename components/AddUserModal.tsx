@@ -1,4 +1,3 @@
-// components/AddUserModal.tsx
 import React, { useState } from 'react';
 import { X } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
@@ -16,6 +15,16 @@ export function AddUserModal({ isOpen, onClose }: AddUserModalProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Validasi: Password minimal 8 karakter
+    if (password.length < 8) {
+      toast({
+        title: "Error",
+        description: "Password harus minimal 8 karakter",
+        variant: "destructive",
+      });
+      return;
+    }
 
     try {
       const response = await addUser({
