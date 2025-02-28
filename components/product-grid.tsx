@@ -5,14 +5,12 @@ import { NeoProductCard } from "./ProductCard";
 import { isAfter, isBefore } from "date-fns";
 
 interface ProductGridProps {
-  products: (Produk & { image: string; kategori: { nama: string }; promotions?: Promotion[] })[];
-  onProductSelect: (product: Produk & { image: string; kategori: { nama: string }; harga: number }) => void;
+  products: (Produk & { image: string; kategori: { nama: string; kategoriId: number }; promotions?: (Promotion & { categories: { kategoriId: number }[] })[] })[];
+  onProductSelect: (product: Produk & { image: string; kategori: { nama: string; kategoriId: number }; harga: number }) => void;
 }
 
-
-
 export function ProductGrid({ products, onProductSelect }: ProductGridProps) {
-  console.log("produk", products)
+  console.log("produk", products);
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8 p-8">
       {products.map((product) => {
