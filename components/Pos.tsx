@@ -60,6 +60,8 @@ const Pos = () => {
     uangMasuk: 0,
     kembalian: 0,
     detailPenjualan: [],
+    keuntungan: 0,
+    total_modal: 0,
   });
 
   console.log("order :", order)
@@ -74,7 +76,7 @@ const Pos = () => {
     try {
       setIsLoading(true);
       const data = await getProducts(selectedCategory);
-      console.log("ini produk dari pos :",data)
+      console.log("ini produk dari pos :", data)
       setProducts(data || []);
     } catch (error) {
       console.error("Error fetching products:", error);
@@ -118,12 +120,17 @@ const Pos = () => {
         ];
       }
   
+      // Calculate total_harga and total_modal
       const total_harga = newDetailPenjualan.reduce((sum, item) => sum + item.subtotal, 0);
+      const total_modal = newDetailPenjualan.reduce((sum, item) => sum + (item.produk.hargaModal * item.kuantitas), 0);
+      const keuntungan = total_harga - total_modal;
   
       return {
         ...prev,
         detailPenjualan: newDetailPenjualan,
         total_harga,
+        total_modal,
+        keuntungan,
       };
     });
   };
@@ -135,18 +142,23 @@ const Pos = () => {
           return {
             ...item,
             kuantitas: newQuantity,
-            subtotal: newQuantity * item.produk.harga, // 👈 Gunakan hargaDiskon
+            subtotal: newQuantity * item.produk.harga,
           };
         }
         return item;
       });
   
-      const newTotal = updatedDetailPenjualan.reduce((sum, item) => sum + item.subtotal, 0);
+      // Recalculate totals
+      const total_harga = updatedDetailPenjualan.reduce((sum, item) => sum + item.subtotal, 0);
+      const total_modal = updatedDetailPenjualan.reduce((sum, item) => sum + (item.produk.hargaModal * item.kuantitas), 0);
+      const keuntungan = total_harga - total_modal;
   
       return {
         ...prevOrder,
         detailPenjualan: updatedDetailPenjualan,
-        total_harga: newTotal,
+        total_harga,
+        total_modal,
+        keuntungan,
       };
     });
   };
@@ -155,12 +167,17 @@ const Pos = () => {
     setOrder((prevOrder) => {
       const updatedDetailPenjualan = prevOrder.detailPenjualan.filter((item) => item.produkId !== produkId);
 
-      const newTotal = updatedDetailPenjualan.reduce((sum, item) => sum + item.subtotal, 0);
+      // Recalculate totals
+      const total_harga = updatedDetailPenjualan.reduce((sum, item) => sum + item.subtotal, 0);
+      const total_modal = updatedDetailPenjualan.reduce((sum, item) => sum + (item.produk.hargaModal * item.kuantitas), 0);
+      const keuntungan = total_harga - total_modal;
 
       return {
         ...prevOrder,
         detailPenjualan: updatedDetailPenjualan,
-        total_harga: newTotal,
+        total_harga,
+        total_modal,
+        keuntungan,
       };
     });
   };
@@ -178,11 +195,14 @@ const Pos = () => {
     try {
       setIsLoading(true);
       
+      // Make sure to include the total_modal and keuntungan in the order payload
       const orderPayload = {
         ...orderData,
         pelangganId: orderData.pelangganId ?? undefined,
         guestId: orderData.guestId ?? undefined,
         total_harga: orderData.total_harga,
+        total_modal: orderData.total_modal,
+        keuntungan: orderData.keuntungan,
         redeemedPoints: orderData.redeemedPoints || 0,
         userId: orderData.userId,
         detailPenjualan: orderData.detailPenjualan.map((item) => ({
@@ -193,8 +213,9 @@ const Pos = () => {
       };
       
       const penjualan = await createOrder(orderPayload);
+      console.log("penjualan :", penjualan)
   
-      if (penjualan) {
+      if (penjualan && 'total_harga' in penjualan) {
         const receiptModalData = {
           finalTotal: penjualan.total_harga,
           amountReceived: orderData.uangMasuk || 0,
@@ -225,6 +246,8 @@ const Pos = () => {
           detailPenjualan: [],
           uangMasuk: 0,
           kembalian: 0,
+          keuntungan: 0,
+          total_modal: 0,
         });
       } else {
         throw new Error("Failed to create order");
@@ -287,8 +310,8 @@ const Pos = () => {
         />
       )}
 
-            {/* Refund Button */}
-            <div className="fixed bottom-4 right-4">
+      {/* Refund Button */}
+      <div className="fixed bottom-4 right-4">
         <Button
           onClick={() => setShowRefundModal(true)}
           className="mb-3 px-4 py-2 bg-red-500 text-white font-bold border-2 border-black hover:bg-black hover:text-red-500"
