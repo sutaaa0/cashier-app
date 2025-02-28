@@ -22,7 +22,7 @@ interface Produk {
   kategoriId: number;
   createdAt: Date;
   updatedAt: Date;
-  kategori: { nama: string };
+  kategori: { nama: string; kategoriId: number };
 }
 
 interface OrderSummaryProps {
