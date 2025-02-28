@@ -13,12 +13,22 @@ interface EditProductModalProps {
     kategori: Kategori;
   };
   categories: Kategori[];
-  onEditProduct: (product: { id: string; name: string; price: number; stock: number; minimumStok: number; category: string; imageUrl: string }) => void;
+  onEditProduct: (product: { 
+    id: string; 
+    name: string; 
+    price: number; 
+    costPrice: number; // Added costPrice (hargaModal)
+    stock: number; 
+    minimumStok: number; 
+    category: string; 
+    imageUrl: string 
+  }) => void;
 }
 
 export function EditProductModal({ isOpen, onClose, product, categories: initialCategories, onEditProduct }: EditProductModalProps) {
   const [productName, setProductName] = useState(product.nama);
   const [price, setPrice] = useState(product.harga.toString());
+  const [costPrice, setCostPrice] = useState(product.hargaModal.toString()); // Added costPrice state
   const [stock, setStock] = useState(product.stok.toString());
   const [minStock, setMinStock] = useState(product.minimumStok.toString());
   const [category, setCategory] = useState(product.kategori.nama);
@@ -32,6 +42,7 @@ export function EditProductModal({ isOpen, onClose, product, categories: initial
     if (isOpen) {
       setProductName(product.nama);
       setPrice(product.harga.toString());
+      setCostPrice(product.hargaModal.toString()); // Set costPrice from product data
       setStock(product.stok.toString());
       setMinStock(product.minimumStok.toString());
       setCategory(product.kategori.nama);
@@ -63,6 +74,7 @@ export function EditProductModal({ isOpen, onClose, product, categories: initial
         id: product.produkId.toString(),
         name: productName,
         price: parseFloat(price),
+        costPrice: parseFloat(costPrice), // Include costPrice in updated product
         stock: parseInt(stock, 10),
         minimumStok: parseInt(minStock, 10),
         category,
@@ -108,13 +120,29 @@ export function EditProductModal({ isOpen, onClose, product, categories: initial
           </div>
           <div>
             <label htmlFor="price" className="block mb-1 font-bold">
-              Price
+              Selling Price
             </label>
             <input
               type="number"
               id="price"
               value={price}
               onChange={(e) => setPrice(e.target.value)}
+              min="0"
+              step="0.01"
+              className="w-full p-2 border-[3px] border-black rounded focus:outline-none focus:ring-2 focus:ring-[#93B8F3]"
+              required
+            />
+          </div>
+          {/* Add Cost Price Field */}
+          <div>
+            <label htmlFor="costPrice" className="block mb-1 font-bold">
+              Cost Price
+            </label>
+            <input
+              type="number"
+              id="costPrice"
+              value={costPrice}
+              onChange={(e) => setCostPrice(e.target.value)}
               min="0"
               step="0.01"
               className="w-full p-2 border-[3px] border-black rounded focus:outline-none focus:ring-2 focus:ring-[#93B8F3]"
