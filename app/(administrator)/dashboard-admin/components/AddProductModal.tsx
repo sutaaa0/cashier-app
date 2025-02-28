@@ -19,7 +19,8 @@ interface Category {
 
 export function AddProductModal({ isOpen, onClose, onProductAdded }: AddProductModalProps) {
   const [productName, setProductName] = useState("");
-  const [price, setPrice] = useState("");
+  const [sellingPrice, setSellingPrice] = useState(""); // hargaJual
+  const [costPrice, setCostPrice] = useState("");       // hargaModal
   const [stock, setStock] = useState("");
   const [minStock, setMinStock] = useState("");
   const [categories, setCategories] = useState<Category[]>([]);
@@ -65,7 +66,8 @@ export function AddProductModal({ isOpen, onClose, onProductAdded }: AddProductM
 
       const result = await addProduct({
         name: productName,
-        price: Number(price),
+        harga: Number(sellingPrice),
+        hargaModal: Number(costPrice),
         stock: Number(stock),
         minimumStok: Number(minStock) || 10,
         categoryId: Number(selectedCategoryId),
@@ -78,7 +80,8 @@ export function AddProductModal({ isOpen, onClose, onProductAdded }: AddProductM
         onProductAdded();
         // Reset form fields
         setProductName("");
-        setPrice("");
+        setSellingPrice("");
+        setCostPrice("");
         setStock("");
         setMinStock("");
         setSelectedCategoryId("");
@@ -110,36 +113,85 @@ export function AddProductModal({ isOpen, onClose, onProductAdded }: AddProductM
           </button>
         </div>
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Product fields */}
+          {/* Product Name */}
           <div>
             <label htmlFor="productName" className="block mb-1 font-bold">
               Product Name
             </label>
-            <input type="text" id="productName" value={productName} onChange={(e) => setProductName(e.target.value)} className="w-full p-2 border-[3px] border-black rounded focus:outline-none focus:ring-2 focus:ring-[#93B8F3]" required />
+            <input
+              type="text"
+              id="productName"
+              value={productName}
+              onChange={(e) => setProductName(e.target.value)}
+              className="w-full p-2 border-[3px] border-black rounded focus:outline-none focus:ring-2 focus:ring-[#93B8F3]"
+              required
+            />
           </div>
 
+          {/* Selling Price (Harga Jual) */}
           <div>
-            <label htmlFor="price" className="block mb-1 font-bold">
-              Price
+            <label htmlFor="sellingPrice" className="block mb-1 font-bold">
+              Selling Price
             </label>
-            <input type="number" id="price" value={price} onChange={(e) => setPrice(e.target.value)} min="0" className="w-full p-2 border-[3px] border-black rounded focus:outline-none focus:ring-2 focus:ring-[#93B8F3]" required />
+            <input
+              type="number"
+              id="sellingPrice"
+              value={sellingPrice}
+              onChange={(e) => setSellingPrice(e.target.value)}
+              min="0"
+              className="w-full p-2 border-[3px] border-black rounded focus:outline-none focus:ring-2 focus:ring-[#93B8F3]"
+              required
+            />
           </div>
 
+          {/* Cost Price (Harga Modal) */}
+          <div>
+            <label htmlFor="costPrice" className="block mb-1 font-bold">
+              Cost Price
+            </label>
+            <input
+              type="number"
+              id="costPrice"
+              value={costPrice}
+              onChange={(e) => setCostPrice(e.target.value)}
+              min="0"
+              className="w-full p-2 border-[3px] border-black rounded focus:outline-none focus:ring-2 focus:ring-[#93B8F3]"
+              required
+            />
+          </div>
+
+          {/* Stock */}
           <div>
             <label htmlFor="stock" className="block mb-1 font-bold">
               Initial Stock
             </label>
-            <input type="number" id="stock" value={stock} onChange={(e) => setStock(e.target.value)} min="0" className="w-full p-2 border-[3px] border-black rounded focus:outline-none focus:ring-2 focus:ring-[#93B8F3]" required />
+            <input
+              type="number"
+              id="stock"
+              value={stock}
+              onChange={(e) => setStock(e.target.value)}
+              min="0"
+              className="w-full p-2 border-[3px] border-black rounded focus:outline-none focus:ring-2 focus:ring-[#93B8F3]"
+              required
+            />
           </div>
 
+          {/* Minimum Stock */}
           <div>
             <label htmlFor="minStock" className="block mb-1 font-bold">
               Minimum Stock
             </label>
-            <input type="number" id="minStock" value={minStock} onChange={(e) => setMinStock(e.target.value)} min="0" className="w-full p-2 border-[3px] border-black rounded focus:outline-none focus:ring-2 focus:ring-[#93B8F3]" />
+            <input
+              type="number"
+              id="minStock"
+              value={minStock}
+              onChange={(e) => setMinStock(e.target.value)}
+              min="0"
+              className="w-full p-2 border-[3px] border-black rounded focus:outline-none focus:ring-2 focus:ring-[#93B8F3]"
+            />
           </div>
 
-          {/* Existing Categories */}
+          {/* Category */}
           <div>
             <label htmlFor="category" className="block mb-1 font-bold">
               Category
@@ -160,7 +212,7 @@ export function AddProductModal({ isOpen, onClose, onProductAdded }: AddProductM
             </select>
           </div>
 
-          {/* Upload Product Image */}
+          {/* Product Image */}
           <div>
             <label htmlFor="image" className="block mb-1 font-bold">
               Product Image
