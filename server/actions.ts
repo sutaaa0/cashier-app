@@ -18,6 +18,8 @@ export type Penjualan = {
   total_harga: number;
   uangMasuk: number | null;
   kembalian: number | null;
+  keuntungan: number | null;
+  total_modal: number | null;
   detailPenjualan: Array<{
     produkId: number;
     kuantitas: number;
@@ -241,7 +243,7 @@ export async function deleteProduct(productId: number) {
   };
 }
 
-export async function createOrder(orderData: Penjualan & { redeemedPoints?: number }): Promise<
+export async function createOrder(orderData: Penjualan & { redeemedPoints?: number }): Promise<CategoryCount
   | (Penjualan & {
       detailPenjualan: DetailPenjualan[];
       pointsAwarded: number;
@@ -251,7 +253,6 @@ export async function createOrder(orderData: Penjualan & { redeemedPoints?: numb
     })
   | null
 > {
-  console.log("Data yang diterima di createOrder:", orderData);
   try {
     return await prisma.$transaction(async (tx) => {
       // Jika pembeli bukan member (guest), pastikan guestId ada
@@ -278,6 +279,9 @@ export async function createOrder(orderData: Penjualan & { redeemedPoints?: numb
       const penjualanData = {
         tanggalPenjualan: new Date(),
         total_harga: orderData.total_harga,
+        // Add total_modal and keuntungan fields
+        total_modal: orderData.total_modal,
+        keuntungan: orderData.keuntungan,
         userId: orderData.userId,
         uangMasuk: orderData.uangMasuk || 0, // Simpan uang masuk
         kembalian: orderData.kembalian || 0, // Simpan kembalian
@@ -333,6 +337,7 @@ export async function createOrder(orderData: Penjualan & { redeemedPoints?: numb
     throw error;
   }
 }
+
 
 export async function getCustomers(query: string) {
   const customers = await prisma.pelanggan.findMany({
@@ -408,46 +413,57 @@ interface Category {
   nama: string;
 }
 
-export async function addProduct(formData: { name: string; price: number; stock: number; minimumStok: number; categoryId: number; imageUrl: string }): Promise<{ status: string; message: string; data?: Produk }> {
+
+export async function addProduct(formData: {
+  name: string;
+  harga: number;
+  hargaModal: number;
+  stock: number;
+  minimumStok: number;
+  categoryId: number;
+  imageUrl: string;
+}): Promise<{ status: string; message: string; data?: Produk | null }> {
   try {
-    if (!formData.name || !formData.price || !formData.stock || !formData.minimumStok || !formData.categoryId || !formData.imageUrl) {
+    const { name, harga, hargaModal, stock, minimumStok, categoryId, imageUrl } = formData;
+    
+    if (!name || !harga || !hargaModal || !stock || !minimumStok || !categoryId || !imageUrl) {
       return {
         status: "Error",
         message: "Semua data produk harus diisi",
       };
     }
-
-    if (formData.price <= 0 || formData.stock < 0 || formData.minimumStok < 0) {
+    
+    if (harga <= 0 || hargaModal < 0 || stock < 0 || minimumStok < 0) {
       return {
         status: "Error",
-        message: "Harga, stok, dan minimum stok harus bernilai positif",
+        message: "Harga jual, harga modal, stok, dan minimum stok harus bernilai positif",
       };
     }
-
+    
     let statusStok: "CRITICAL" | "LOW" | "NORMAL";
-    if (formData.stock <= formData.minimumStok * 0.5) {
+    if (stock <= minimumStok * 0.5) {
       statusStok = "CRITICAL";
-    } else if (formData.stock > formData.minimumStok * 0.5 && formData.stock <= formData.minimumStok) {
+    } else if (stock > minimumStok * 0.5 && stock <= minimumStok) {
       statusStok = "LOW";
     } else {
       statusStok = "NORMAL";
     }
-
+    
     const product = await prisma.produk.create({
       data: {
-        nama: formData.name,
-        harga: formData.price,
-        stok: formData.stock,
-        kategoriId: formData.categoryId,
-        image: formData.imageUrl,
-        minimumStok: formData.minimumStok,
+        nama: name,
+        harga: harga,
+        hargaModal: hargaModal,
+        stok: stock,
+        kategoriId: categoryId,
+        image: imageUrl,
+        minimumStok: minimumStok,
         statusStok: statusStok,
       },
     });
-
-    // Memicu revalidasi path (sesuaikan dengan kebutuhan project Anda)
+    
     revalidatePath("/dashboard-admin");
-
+    
     return {
       status: "Success",
       message: "Produk berhasil ditambahkan",
@@ -535,7 +551,16 @@ export async function addCategory(data: { nama: string; icon?: string; color?: s
   }
 }
 
-export async function updateProduct(formData: { id: number; name: string; price: number; stock: number; minimumStok: number; category: string; imageUrl: string }): Promise<{ status: string; message: string; data?: Produk }> {
+export async function updateProduct(formData: { 
+  id: number; 
+  name: string; 
+  price: number; 
+  costPrice: number; // Added costPrice (hargaModal)
+  stock: number; 
+  minimumStok: number; 
+  category: string; 
+  imageUrl: string 
+}): Promise<{ status: string; message: string; data?: Produk }> {
   try {
     let statusStok: "CRITICAL" | "LOW" | "NORMAL";
     if (formData.stock <= formData.minimumStok * 0.5) {
@@ -551,6 +576,7 @@ export async function updateProduct(formData: { id: number; name: string; price:
       data: {
         nama: formData.name,
         harga: formData.price,
+        hargaModal: formData.costPrice, // Added hargaModal field
         stok: formData.stock,
         kategori: { connect: { nama: formData.category } },
         image: formData.imageUrl,
@@ -559,6 +585,7 @@ export async function updateProduct(formData: { id: number; name: string; price:
       },
     });
 
+    // Use the proper revalidatePath with options
     revalidatePath("/dashboard-admin");
 
     return { status: "Success", message: "Product updated successfully", data: product };
@@ -1834,90 +1861,223 @@ export async function getCustomerById(id: number) {
   }
 }
 
-export type DailySalesData = {
+export type TimeRange = "daily" | "weekly" | "monthly" | "yearly";
+
+export type ProfitData = {
   date: string;
   sales: number;
-  traffic: number;
+  profit: number;
+  transactions: number;
 };
 
-export type SalesStats = {
+export type ProfitStats = {
   totalSales: number;
-  totalTraffic: number;
+  totalProfit: number;
+  totalTransactions: number;
   salesIncrease: number;
-  trafficIncrease: number;
+  profitIncrease: number;
+  transactionsIncrease: number;
 };
 
-export async function getDailySalesData(): Promise<DailySalesData[]> {
-  try {
-    const dailySales = await prisma.penjualan.groupBy({
-      by: ["tanggalPenjualan"],
-      _sum: { total_harga: true },
-      _count: { penjualanId: true },
-      orderBy: { tanggalPenjualan: "asc" },
-    });
+// Helper function to create date range based on time range
+function getDateRanges(timeRange: TimeRange) {
+  const currentDate = new Date();
+  let currentPeriodStart: Date;
+  let previousPeriodStart: Date;
+  
+  switch (timeRange) {
+    case "daily":
+      // Current: Last 7 days, Previous: 7 days before that
+      currentPeriodStart = new Date(currentDate);
+      currentPeriodStart.setDate(currentDate.getDate() - 7);
+      previousPeriodStart = new Date(currentPeriodStart);
+      previousPeriodStart.setDate(previousPeriodStart.getDate() - 7);
+      break;
+    
+    case "weekly":
+      // Current: Last 4 weeks, Previous: 4 weeks before that
+      currentPeriodStart = new Date(currentDate);
+      currentPeriodStart.setDate(currentDate.getDate() - 28);
+      previousPeriodStart = new Date(currentPeriodStart);
+      previousPeriodStart.setDate(previousPeriodStart.getDate() - 28);
+      break;
+    
+    case "monthly":
+      // Current: Last 12 months, Previous: 12 months before that
+      currentPeriodStart = new Date(currentDate);
+      currentPeriodStart.setMonth(currentDate.getMonth() - 12);
+      previousPeriodStart = new Date(currentPeriodStart);
+      previousPeriodStart.setMonth(previousPeriodStart.getMonth() - 12);
+      break;
+    
+    case "yearly":
+      // Current: Last 5 years, Previous: 5 years before that
+      currentPeriodStart = new Date(currentDate);
+      currentPeriodStart.setFullYear(currentDate.getFullYear() - 5);
+      previousPeriodStart = new Date(currentPeriodStart);
+      previousPeriodStart.setFullYear(previousPeriodStart.getFullYear() - 5);
+      break;
+  }
+  
+  const currentPeriodEnd = new Date(currentDate);
+  const previousPeriodEnd = new Date(currentPeriodStart);
+  
+  return {
+    currentPeriodStart,
+    currentPeriodEnd,
+    previousPeriodStart,
+    previousPeriodEnd
+  };
+}
 
-    return dailySales.map((sale) => ({
-      date: sale.tanggalPenjualan.toISOString().split("T")[0],
-      sales: sale._sum.total_harga || 0,
-      traffic: sale._count.penjualanId,
+// Format date for groupBy based on time range
+function getDateFormat(date: Date, timeRange: TimeRange): string {
+  switch (timeRange) {
+    case "daily":
+      return date.toISOString().split('T')[0]; // YYYY-MM-DD
+    case "weekly":
+      const firstDayOfWeek = new Date(date);
+      firstDayOfWeek.setDate(date.getDate() - date.getDay()); // Get Sunday
+      return firstDayOfWeek.toISOString().split('T')[0];
+    case "monthly":
+      return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`; // YYYY-MM
+    case "yearly":
+      return date.getFullYear().toString(); // YYYY
+    default:
+      return date.toISOString().split('T')[0];
+  }
+}
+
+export async function getProfitData(timeRange: TimeRange): Promise<ProfitData[]> {
+  try {
+    const { currentPeriodStart, currentPeriodEnd } = getDateRanges(timeRange);
+    
+    // Get sales from database
+    const salesData = await prisma.penjualan.findMany({
+      where: {
+        tanggalPenjualan: {
+          gte: currentPeriodStart,
+          lte: currentPeriodEnd
+        }
+      },
+      select: {
+        tanggalPenjualan: true,
+        total_harga: true,
+        keuntungan: true,
+        penjualanId: true
+      },
+      orderBy: {
+        tanggalPenjualan: 'asc'
+      }
+    });
+    
+    // Group by time range
+    const groupedData = new Map<string, { sales: number; profit: number; transactions: number }>();
+    
+    // Process the data
+    for (const sale of salesData) {
+      const dateKey = getDateFormat(sale.tanggalPenjualan, timeRange);
+      
+      if (!groupedData.has(dateKey)) {
+        groupedData.set(dateKey, { sales: 0, profit: 0, transactions: 0 });
+      }
+      
+      const entry = groupedData.get(dateKey)!;
+      entry.sales += sale.total_harga;
+      entry.profit += sale.keuntungan || 0; // Use 0 if keuntungan is null
+      entry.transactions += 1;
+    }
+    
+    // Convert the map to array
+    const result: ProfitData[] = [...groupedData.entries()].map(([date, data]) => ({
+      date,
+      sales: data.sales,
+      profit: data.profit,
+      transactions: data.transactions
     }));
+    
+    return result;
   } catch (error) {
-    console.error("Error fetching daily sales:", error);
+    console.error(`Error fetching ${timeRange} profit data:`, error);
     return [];
   }
 }
 
-export async function getSalesStats(): Promise<SalesStats> {
+export async function getProfitStats(timeRange: TimeRange): Promise<ProfitStats> {
   try {
-    const currentDate = new Date();
-    const currentPeriodStart = new Date(currentDate);
-    currentPeriodStart.setDate(currentDate.getDate() - 7);
-    const currentPeriodEnd = currentDate;
-
-    const previousPeriodStart = new Date(currentPeriodStart);
-    previousPeriodStart.setDate(previousPeriodStart.getDate() - 7);
-    const previousPeriodEnd = new Date(currentPeriodStart);
-
-    const [currentData, previousData] = await Promise.all([
-      prisma.penjualan.aggregate({
-        _sum: { total_harga: true },
-        _count: { penjualanId: true },
-        where: {
-          tanggalPenjualan: { gte: currentPeriodStart, lte: currentPeriodEnd },
-        },
-      }),
-      prisma.penjualan.aggregate({
-        _sum: { total_harga: true },
-        _count: { penjualanId: true },
-        where: {
-          tanggalPenjualan: { gte: previousPeriodStart, lte: previousPeriodEnd },
-        },
-      }),
-    ]);
-
+    const {
+      currentPeriodStart,
+      currentPeriodEnd,
+      previousPeriodStart,
+      previousPeriodEnd
+    } = getDateRanges(timeRange);
+    
+    // Get current period data
+    const currentData = await prisma.penjualan.aggregate({
+      _sum: {
+        total_harga: true,
+        keuntungan: true
+      },
+      _count: {
+        penjualanId: true
+      },
+      where: {
+        tanggalPenjualan: {
+          gte: currentPeriodStart,
+          lte: currentPeriodEnd
+        }
+      }
+    });
+    
+    // Get previous period data
+    const previousData = await prisma.penjualan.aggregate({
+      _sum: {
+        total_harga: true,
+        keuntungan: true
+      },
+      _count: {
+        penjualanId: true
+      },
+      where: {
+        tanggalPenjualan: {
+          gte: previousPeriodStart,
+          lte: previousPeriodEnd
+        }
+      }
+    });
+    
+    // Extract values
     const currentSales = currentData._sum.total_harga || 0;
-    const currentTraffic = currentData._count.penjualanId;
+    const currentProfit = currentData._sum.keuntungan || 0;
+    const currentTransactions = currentData._count.penjualanId;
+    
     const previousSales = previousData._sum.total_harga || 0;
-    const previousTraffic = previousData._count.penjualanId;
-
+    const previousProfit = previousData._sum.keuntungan || 0;
+    const previousTransactions = previousData._count.penjualanId;
+    
+    // Calculate percentage increases
     const calculateIncrease = (current: number, previous: number) => {
       if (previous === 0) return current === 0 ? 0 : 100;
       return ((current - previous) / previous) * 100;
     };
-
+    
     return {
       totalSales: currentSales,
-      totalTraffic: currentTraffic,
+      totalProfit: currentProfit,
+      totalTransactions: currentTransactions,
       salesIncrease: calculateIncrease(currentSales, previousSales),
-      trafficIncrease: calculateIncrease(currentTraffic, previousTraffic),
+      profitIncrease: calculateIncrease(currentProfit, previousProfit),
+      transactionsIncrease: calculateIncrease(currentTransactions, previousTransactions)
     };
   } catch (error) {
-    console.error("Error fetching sales stats:", error);
+    console.error(`Error fetching ${timeRange} profit stats:`, error);
     return {
       totalSales: 0,
-      totalTraffic: 0,
+      totalProfit: 0,
+      totalTransactions: 0,
       salesIncrease: 0,
-      trafficIncrease: 0,
+      profitIncrease: 0,
+      transactionsIncrease: 0
     };
   }
 }
