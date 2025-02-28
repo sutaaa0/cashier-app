@@ -107,7 +107,7 @@ export function ProductManagement() {
     setIsEditModalOpen(true);
   };
 
-  const handleEditProduct = async (updatedProduct: { id: string; name: string; price: number; stock: number; minimumStok: number; category: string; imageUrl: string; }) => {
+  const handleEditProduct = async (updatedProduct: { id: string; name: string; price: number; costPrice: number; stock: number; minimumStok: number; category: string; imageUrl: string; }) => {
     setIsLoading(true);
     setLoadingMessage("Updating product...");
     try {
@@ -115,6 +115,7 @@ export function ProductManagement() {
         id: Number(updatedProduct.id),
         name: updatedProduct.name,
         price: updatedProduct.price,
+        costPrice: updatedProduct.costPrice,
         stock: updatedProduct.stock,
         minimumStok: updatedProduct.minimumStok,
         category: updatedProduct.category,
@@ -197,6 +198,13 @@ export function ProductManagement() {
                       style: "currency",
                       currency: "IDR",
                     }).format(product.harga)}
+                  </p>
+                  <p className="text-sm">
+                    Const Price:{" "}
+                    {new Intl.NumberFormat("id-ID", {
+                      style: "currency",
+                      currency: "IDR",
+                    }).format(product.hargaModal)}
                   </p>
                   <p className="text-sm">
                     Stock: {product.stok} | Min Stock: {product.minimumStok}
