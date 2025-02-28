@@ -162,7 +162,11 @@ export async function getProducts(category: string) {
       },
       include: {
         kategori: true,
-        promotions: true,
+        promotions: {
+          include:{
+            categories: true,
+          }
+        }
       },
     });
     return products;
