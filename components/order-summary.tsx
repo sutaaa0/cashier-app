@@ -9,11 +9,11 @@ import { toast } from "@/hooks/use-toast";
 import { getCurrentUser, getMemberPoints, redeemPoints } from "@/server/actions";
 import { Button } from "./ui/button";
 
-
 interface Produk {
   produkId: number;
   nama: string;
   harga: number;
+  hargaModal: number; // Adding hargaModal field
   stok: number;
   minimumStok: number;
   statusStok: string;
@@ -60,7 +60,6 @@ export const NeoOrderSummary = forwardRef<{ resetCustomerData: () => void }, Ord
   const [amountReceived, setAmountReceived] = useState<number>(0);
   const [formattedAmount, setFormattedAmount] = useState<string>("");
 
-
   const formatRupiah = (value: number): string => {
     return new Intl.NumberFormat("id-ID", {
       style: "currency",
@@ -85,7 +84,6 @@ export const NeoOrderSummary = forwardRef<{ resetCustomerData: () => void }, Ord
     setAmountReceived(numericValue);
     setFormattedAmount(formatRupiah(numericValue));
   };
-
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -154,6 +152,9 @@ export const NeoOrderSummary = forwardRef<{ resetCustomerData: () => void }, Ord
     // Hitung kembalian
     const change = amountReceived - finalTotal;
 
+    // Calculate adjusted profit after points redemption
+    const adjustedKeuntungan = order.keuntungan ? (order.keuntungan - redeemedPoints) : 0;
+
     console.log("uang masuk :", amountReceived);
     console.log("uang kembalian :", change);
 
@@ -161,14 +162,18 @@ export const NeoOrderSummary = forwardRef<{ resetCustomerData: () => void }, Ord
     onPlaceOrder({
       ...order,
       total_harga: finalTotal,
+      // Keep the original total_modal
+      total_modal: order.total_modal,
+      // Adjust keuntungan according to points redeemed
+      keuntungan: adjustedKeuntungan,
       pelangganId: customerData?.pelangganId ?? null,
       guestId: customerData?.guestId ?? null,
       redeemedPoints: redeemedPoints,
       userId: user.id,
       uangMasuk: amountReceived,
       kembalian: change,
+      customerName: customerData?.nama || 'Guest'
     });
-
   };
 
   const handleRedeemPoints = useCallback(async () => {
@@ -207,74 +212,96 @@ export const NeoOrderSummary = forwardRef<{ resetCustomerData: () => void }, Ord
     });
   }, [redeemedPoints]);
 
+  // Calculate profit margins for display
+  const calculateProfitPercentage = () => {
+    if (!order.total_harga || !order.total_modal || order.total_harga === 0) return 0;
+    return ((order.keuntungan || 0) / order.total_harga * 100).toFixed(1);
+  };
+
   return (
     <div className="p-4 border-4 border-black w-[500px] flex flex-col h-[calc(100vh-100px)] bg-[#e8f1fe] font-mono overflow-y-scroll">
-{order.detailPenjualan.map((item) => (
-  <div key={item.produkId} className="flex items-center justify-between py-2 border-b border-gray-200">
-    <div className="flex items-center">
-      <div className="group cursor-pointer bg-white border-2 border-black p-1 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all duration-200 hover:-translate-y-0.5 active:shadow-none active:translate-y-0.5">
-        <div className="relative w-16 h-16 border-2 border-black">
-          <Image src={item.produk.image || "/placeholder.svg"} alt={item.produk.nama} fill className="object-cover" />
+      {order.detailPenjualan.map((item) => (
+        <div key={item.produkId} className="flex items-center justify-between py-2 border-b border-gray-200">
+          <div className="flex items-center">
+            <div className="group cursor-pointer bg-white border-2 border-black p-1 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all duration-200 hover:-translate-y-0.5 active:shadow-none active:translate-y-0.5">
+              <div className="relative w-16 h-16 border-2 border-black">
+                <Image src={item.produk.image || "/placeholder.svg"} alt={item.produk.nama} fill className="object-cover" />
+              </div>
+            </div>
+            <div className="ml-4">
+              <p className="text-lg font-medium">{item.produk.nama}</p>
+              <p className="text-sm text-gray-500">{formatTotal(item.subtotal)}</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-x-2">
+            <Button onClick={() => onUpdateQuantity(item.produkId, item.kuantitas - 1)} disabled={item.kuantitas <= 1} className="w-7 h-7 bg-red-500">
+              <Minus className="h-4 w-4 text-white hover:text-gray-700 cursor-pointer" />
+            </Button>
+            <span className="mx-4">{item.kuantitas}</span>
+            <Button onClick={() => onUpdateQuantity(item.produkId, item.kuantitas + 1)} className="w-7 h-7">
+              <Plus className="h-4 w-4 text-black hover:text-gray-700 cursor-pointer" />
+            </Button>
+            <Button onClick={() => onDeleteItem?.(item.produkId)} className="w-8 h-8 flex bg-red-500 items-center justify-center border-2 border-black hover:bg-black hover:text-white">
+              <Trash2 className="h-4 w-4 text-white" />
+            </Button>
+          </div>
         </div>
-      </div>
-      <div className="ml-4">
-        <p className="text-lg font-medium">{item.produk.nama}</p>
-        <p className="text-sm text-gray-500">{formatTotal(item.subtotal)}</p> {/* 👈 Gunakan hargaDiskon */}
-      </div>
-    </div>
-    <div className="flex items-center gap-x-2">
-      <Button onClick={() => onUpdateQuantity(item.produkId, item.kuantitas - 1)} disabled={item.kuantitas <= 1} className="w-7 h-7 bg-red-500">
-        <Minus className="h-4 w-4 text-white hover:text-gray-700 cursor-pointer" />
-      </Button>
-      <span className="mx-4">{item.kuantitas}</span>
-      <Button onClick={() => onUpdateQuantity(item.produkId, item.kuantitas + 1)} className="w-7 h-7">
-        <Plus className="h-4 w-4 text-black hover:text-gray-700 cursor-pointer" />
-      </Button>
-      <Button onClick={() => onDeleteItem?.(item.produkId)} className="w-8 h-8 flex bg-red-500 items-center justify-center border-2 border-black hover:bg-black hover:text-white">
-        <Trash2 className="h-4 w-4 text-white" />
-      </Button>
-    </div>
-  </div>
-))}
+      ))}
 
       <div className="space-y-4 pt-4 border-t-4 border-black mt-4 py-2">
         <div className="flex justify-between text-black font-bold">
           <span>Subtotal</span>
           <span>{formatTotal(order.total_harga)}</span>
         </div>
+        
+        {order.total_modal !== null && order.total_modal > 0 && (
+          <div className="flex justify-between text-black">
+            <span>Modal</span>
+            <span>{formatTotal(order.total_modal)}</span>
+          </div>
+        )}
+        
+        {order.keuntungan !== null && order.keuntungan > 0 && (
+          <div className="flex justify-between text-green-600">
+            <span>Keuntungan</span>
+            <span>{formatTotal(order.keuntungan)} ({calculateProfitPercentage()}%)</span>
+          </div>
+        )}
+        
         {redeemedPoints > 0 && (
           <div className="flex justify-between text-green-600 font-bold">
             <span>Potongan Poin</span>
             <span>-{formatTotal(redeemedPoints)}</span>
           </div>
         )}
+        
         <div className="flex justify-between font-bold text-xl">
           <span>TOTAL</span>
           <span>{formatTotal(order.total_harga - redeemedPoints)}</span>
         </div>
 
         {/* Input untuk Uang Masuk */}
-      <div className="flex flex-col">
-        <label className="block mb-2 font-bold">Uang Masuk:</label>
-        <input
-          type="text"
-          value={formattedAmount}
-          onChange={handleAmountChange}
-          onFocus={(e) => {
-            if (parseRupiah(e.target.value) === 0) {
-              setFormattedAmount("");
-            }
-          }}
-          onBlur={(e) => {
-            if (e.target.value === "") {
-              setAmountReceived(0);
-              setFormattedAmount("");
-            }
-          }}
-          placeholder="Masukkan jumlah uang masuk"
-          className="p-2 border-2 border-black rounded w-full"
-        />
-      </div>
+        <div className="flex flex-col">
+          <label className="block mb-2 font-bold">Uang Masuk:</label>
+          <input
+            type="text"
+            value={formattedAmount}
+            onChange={handleAmountChange}
+            onFocus={(e) => {
+              if (parseRupiah(e.target.value) === 0) {
+                setFormattedAmount("");
+              }
+            }}
+            onBlur={(e) => {
+              if (e.target.value === "") {
+                setAmountReceived(0);
+                setFormattedAmount("");
+              }
+            }}
+            placeholder="Masukkan jumlah uang masuk"
+            className="p-2 border-2 border-black rounded w-full"
+          />
+        </div>
 
         {customerData && (
           <div className="bg-white border-2 border-black p-2 mt-2">
