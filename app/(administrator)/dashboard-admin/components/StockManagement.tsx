@@ -1,10 +1,11 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Package, Plus, Minus, AlertTriangle, Save, RotateCcw } from "lucide-react";
+import { Plus, Minus, AlertTriangle, Save, RotateCcw, Package } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { getStockItemsManagement, updateStockItem } from "@/server/actions";
 import { NeoProgressIndicator } from "@/components/NeoProgresIndicator";
+import Image from "next/image";
 
 interface StockData {
   id: number;
@@ -13,6 +14,7 @@ interface StockData {
   minStock: number;
   category: string;
   lastUpdated: string;
+  image?: string;
 }
 
 interface DraftChanges {
@@ -133,6 +135,8 @@ export function StockManagement() {
 
   const hasPendingChanges = Object.keys(draftChanges).length > 0;
 
+  console.log("item di stok produk:", stock);
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -172,9 +176,19 @@ export function StockManagement() {
               <div key={item.id} className="bg-white border-[3px] border-black p-4 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-4">
-                    <div className="p-2 bg-[#93B8F3] border-[3px] border-black">
-                      <Package size={24} />
-                    </div>
+                  <div className="w-16 h-16 bg-[#93B8F3] border-[3px] border-black flex items-center justify-center overflow-hidden">
+                  {item.image ? (
+                    <Image
+                      src={item.image || "/placeholder.svg"}
+                      alt={item.name}
+                      width={100}
+                      height={100}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <Package size={32} />
+                  )}
+                </div>
                     <div>
                       <h3 className="font-bold text-lg">{item.name}</h3>
                       <span className="inline-block px-2 py-1 bg-black text-white text-sm">{item.category}</span>
