@@ -13,7 +13,7 @@ interface NeoProductCardProps {
       kategoriId: number;
     }; 
     promotions?: (Promotion & {
-      categories: { kategoriId: number }[];
+      categories?: { kategoriId: number }[];
     })[];
   };
   onClick: (product: Produk & { 
