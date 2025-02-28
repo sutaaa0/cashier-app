@@ -7,6 +7,7 @@ import { isAfter, isBefore } from "date-fns";
 interface NeoProductCardProps {
   product: Produk & { 
     image: string; 
+    kategoriId: number;
     kategori: { 
       nama: string;
       kategoriId: number;
