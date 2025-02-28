@@ -32,9 +32,11 @@ model Guest {
 }
 
 model Penjualan {
-  total_harga      Float
-  pelangganId      Int?
   penjualanId      Int               @id @default(autoincrement())
+  total_harga      Float
+  total_modal      Float?             // Total modal dari semua produk di transaksi ini
+  keuntungan       Float?             // Keuntungan = total_harga - total_modal
+  pelangganId      Int?
   tanggalPenjualan DateTime          @default(now())
   guestId          Int?
   userId           Int
@@ -69,6 +71,7 @@ model Kategori {
 model Produk {
   nama            String
   harga           Int
+  hargaModal      Int
   stok            Int
   produkId        Int               @id @default(autoincrement())
   image           String
