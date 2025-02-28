@@ -824,6 +824,7 @@ interface StockData {
   category: string;
   lastUpdated: string;
   status?: "CRITICAL" | "LOW" | "NORMAL";
+  image?:string;
 }
 
 interface ApiResponse<T> {
@@ -853,6 +854,7 @@ export async function getStockItemsManagement(): Promise<ApiResponse<StockData[]
       minStock: product.minimumStok,
       category: product.kategori.nama,
       lastUpdated: product.updatedAt.toISOString(),
+      image: product.image,
     }));
 
     return {
