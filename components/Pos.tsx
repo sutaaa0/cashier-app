@@ -15,9 +15,10 @@ import { NeoRefundInput } from "./NeoRefundInput";
 import { Button } from "./ui/button";
 
 interface Produk extends PrismaProduk {
-  kategori: { nama: string };
+  kategori: { nama: string; kategoriId: number };
   image: string;
-  promotions?: Promotion[]
+  promotions?: (Promotion & { categories?: { kategoriId?: number }[] })[];
+
 }
 
 const Pos = () => {
