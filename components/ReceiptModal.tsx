@@ -2,7 +2,6 @@ import React, { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { CheckCircle2, Download } from "lucide-react";
 import { getCustomerById, getPetugasById } from "@/server/actions";
-import { QRCodeSVG } from 'qrcode.react';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 
@@ -28,7 +27,6 @@ interface ReceiptModalProps {
 export const ReceiptModal: React.FC<ReceiptModalProps> = ({ receiptData, onClose }) => {
   const [customerName, setCustomerName] = useState<string>("Guest");
   const [petugasName, setPetugasName] = useState<string>("");
-  const [qrData, setQrData] = useState<string>("");
   const [storeName] = useState<string>("Toko Cita Rasa");
   const [storeAddress] = useState<string>("Jl. Manunggal No. IV, Sukatali");
   const [storePhone] = useState<string>("0831-2422-7215");
@@ -68,15 +66,6 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ receiptData, onClose
     };
 
     fetchData();
-    
-    // Generate QR code URL menggunakan PenjualanId
-    if (receiptData.PenjualanId) {
-      const downloadUrl = `/api/receipts/${receiptData.PenjualanId}/download`;
-      const fullUrl = typeof window !== 'undefined' ? 
-        `${window.location.origin}${downloadUrl}` : 
-        downloadUrl;
-      setQrData(fullUrl);
-    }
   }, [receiptData]);
 
   const generatePDF = () => {
@@ -280,21 +269,6 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ receiptData, onClose
             <span>{formatCurrency(receiptData.change)}</span>
           </div>
         </div>
-
-        {/* QR Code Section */}
-        {receiptData.PenjualanId && (
-          <div className="mt-4 flex flex-col items-center">
-            <p className="text-sm text-gray-600 mb-2">Scan untuk download struk</p>
-            <div className="bg-white p-2 rounded-lg shadow-md">
-              <QRCodeSVG
-                value={qrData}
-                size={120}
-                level={"H"}
-                includeMargin={true}
-              />
-            </div>
-          </div>
-        )}
 
         <div className="mt-4 space-y-2">
           <button
