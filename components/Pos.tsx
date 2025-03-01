@@ -13,6 +13,7 @@ import { NeoProgressIndicator } from "./NeoProgresIndicator";
 import { ReceiptModal } from "./ReceiptModal";
 import { NeoRefundInput } from "./NeoRefundInput";
 import { Button } from "./ui/button";
+import { useRouter } from "next/navigation";
 
 interface Produk extends PrismaProduk {
   kategori: { nama: string; kategoriId: number };
@@ -28,6 +29,7 @@ const Pos = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [products, setProducts] = useState<Produk[]>([]);
   const [showReceiptModal, setShowReceiptModal] = useState(false);
+  const router = useRouter();
   interface ReceiptModalData {
     PenjualanId: number | undefined;
     finalTotal: number;
@@ -314,7 +316,7 @@ const Pos = () => {
       {/* Refund Button */}
       <div className="fixed bottom-4 right-4">
         <Button
-          onClick={() => setShowRefundModal(true)}
+          onClick={() => router.push("/kasir/return")}
           className="mb-3 px-4 py-2 bg-red-500 text-white font-bold border-2 border-black hover:bg-black hover:text-red-500"
         >
           Pengembalian
