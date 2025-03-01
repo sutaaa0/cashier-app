@@ -30,6 +30,9 @@ interface TransactionDetailsType {
   user?: {
     username: string;
   };
+  pelanggan?: {
+    nama: string;
+  };
 }
 
 interface ReturnedItem {
@@ -55,6 +58,9 @@ interface RefundDetails {
     tanggalPenjualan: string;
     user?: {
       username: string;
+    };
+    pelanggan?: {
+      nama: string;
     };
   };
   returnedItems: ReturnedItem[];
@@ -95,7 +101,8 @@ export function ReturnsPage() {
         total_harga: details.total_harga,
         uangMasuk: details.uangMasuk ?? 0,
         kembalian: details.kembalian ?? 0,
-        user: { username: details.user.username }
+        user: { username: details.user.username },
+        pelanggan: details.pelanggan ? { nama: details.pelanggan.nama } : undefined
       })
       setReturnedItems(
         details.detailPenjualan.map((item: TransactionDetail) => ({
@@ -163,6 +170,7 @@ export function ReturnsPage() {
           penjualanId: transactionDetails.penjualanId,
           tanggalPenjualan: transactionDetails.tanggalPenjualan,
           user: transactionDetails.user,
+          pelanggan: transactionDetails.pelanggan
         },
         returnedItems: returnedItems.filter((item) => item.kuantitas > 0),
         replacementItems,
@@ -243,4 +251,3 @@ export function ReturnsPage() {
     </div>
   )
 }
-
