@@ -1,124 +1,165 @@
-"use client"
+"use client";
 
-import type React from "react"
-import { useEffect, useState, useRef } from "react"
-import { toast } from "@/hooks/use-toast"
-import Image from "next/image"
-import { Plus, Save, X, Edit, Trash2 } from "lucide-react"
-import { fetchCategories, updateCategory, } from "@/server/actions"
-import { NeoProgressIndicator } from "./NeoProgresIndicator"
-import { AddCategoryModal } from "@/app/(administrator)/dashboard-admin/components/AddCategoryModal"
+import type React from "react";
+import { useEffect, useState, useRef } from "react";
+import { toast } from "@/hooks/use-toast";
+import Image from "next/image";
+import { Plus, Save, X, Edit, Trash2 } from "lucide-react";
+import { deleteCategory, fetchCategories, updateCategory } from "@/server/actions";
+import { NeoProgressIndicator } from "./NeoProgresIndicator";
+import { AddCategoryModal } from "@/app/(administrator)/dashboard-admin/components/AddCategoryModal";
+import { DeleteConfirmModal } from "./DeleteConfirmModal";
 
 interface Category {
-  kategoriId: number
-  nama: string
-  icon: string
+  kategoriId: number;
+  nama: string;
+  icon: string;
 }
 
 export function CategoryManagement() {
-  const [categories, setCategories] = useState<Category[]>([])
-  const [isLoading, setIsLoading] = useState(false)
-  const [editingCategory, setEditingCategory] = useState<Category | null>(null)
-  const [newIconFile, setNewIconFile] = useState<File | null>(null)
-  const fileInputRef = useRef<HTMLInputElement>(null)
-  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [editingCategory, setEditingCategory] = useState<Category | null>(null);
+  const [originalCategories, setOriginalCategories] = useState<Category[]>([]); // Store original state
+  const [newIconFile, setNewIconFile] = useState<File | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
 
   const loadCategories = async () => {
-    setIsLoading(true)
+    setIsLoading(true);
     try {
-      const response = await fetchCategories()
+      const response = await fetchCategories();
       if (response.status === "Success" && response.data) {
-        setCategories(response.data.map((cat: { kategoriId: number; nama: string; icon?: string }) => ({
+        const formattedCategories = response.data.map((cat: { kategoriId: number; nama: string; icon?: string }) => ({
           kategoriId: cat.kategoriId,
           nama: cat.nama,
-          icon: cat.icon || "/placeholder.svg"
-        })))
+          icon: cat.icon || "/placeholder.svg",
+        }));
+        setCategories(formattedCategories);
+        setOriginalCategories(JSON.parse(JSON.stringify(formattedCategories))); // Deep copy
       }
     } catch (error) {
-      console.error(error)
-      toast({ title: "Error", description: "Failed to fetch categories", variant: "destructive" })
+      console.error(error);
+      toast({ title: "Error", description: "Failed to fetch categories", variant: "destructive" });
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   useEffect(() => {
-    loadCategories()
-  }, []) //Fixed: Added empty dependency array to useEffect
+    loadCategories();
+  }, []);
 
   const handleIconChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      setNewIconFile(e.target.files[0])
+      setNewIconFile(e.target.files[0]);
     }
-  }
+  };
+
+  const handleEditClick = (category: Category) => {
+    // Save current state before editing
+    setOriginalCategories(JSON.parse(JSON.stringify(categories)));
+    setEditingCategory(category);
+  };
+
+  const handleCancelEdit = () => {
+    // Restore original state when canceling edit
+    setCategories(JSON.parse(JSON.stringify(originalCategories)));
+    setEditingCategory(null);
+    setNewIconFile(null);
+  };
 
   const handleSaveCategory = async (categoryToUpdate: Category) => {
-    setIsLoading(true)
+    // Improved validation: check if category name is empty or only contains whitespace
+    if (!categoryToUpdate.nama.trim()) {
+      toast({ title: "Validation Error", description: "Category name cannot be empty", variant: "destructive" });
+      return;
+    }
+  
+    // Validation: Make sure an icon is provided
+    // If there's no new file uploaded and the current icon is a placeholder, show error
+    if (!newIconFile && (!categoryToUpdate.icon || categoryToUpdate.icon === "/placeholder.svg")) {
+      toast({ title: "Validation Error", description: "Please upload a category icon", variant: "destructive" });
+      return;
+    }
+  
+    setIsLoading(true);
     try {
-      let iconUrl = categoryToUpdate.icon
+      let iconUrl = categoryToUpdate.icon;
       if (newIconFile) {
-        const formData = new FormData()
-        formData.append("file", newIconFile)
+        const formData = new FormData();
+        formData.append("file", newIconFile);
         const uploadResponse = await fetch("/api/upload", {
           method: "POST",
           body: formData,
-        })
+        });
+        
         if (!uploadResponse.ok) {
-          throw new Error("Failed to upload category icon")
+          throw new Error("Failed to upload category icon");
         }
-        const uploadResult = await uploadResponse.json()
-        iconUrl = uploadResult.secure_url
+        
+        const uploadResult = await uploadResponse.json();
+        iconUrl = uploadResult.secure_url;
       }
-
+  
       const updateResponse = await updateCategory({
         kategoriId: categoryToUpdate.kategoriId,
         nama: categoryToUpdate.nama,
         icon: iconUrl,
-      })
-
+      });
+  
       if (updateResponse.status === "Success") {
-        toast({ title: "Success", description: "Category updated successfully" })
-        setEditingCategory(null)
-        setNewIconFile(null)
-        loadCategories()
+        toast({ title: "Success", description: "Category updated successfully" });
+        setEditingCategory(null);
+        setNewIconFile(null);
+        loadCategories(); // Reload categories to get updated data
       } else {
         toast({
-          title: "Error",
+          title: "Update Error",
           description: updateResponse.message || "Failed to update category",
           variant: "destructive",
-        })
+        });
       }
     } catch (error) {
-      console.error(error)
-      toast({ title: "Error", description: "Failed to update category", variant: "destructive" })
+      console.error(error);
+      toast({ title: "Error", description: "An error occurred while updating the category", variant: "destructive" });
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
+  
+  const handleDeleteClick = (category: Category) => {
+    setSelectedCategory(category);
+    setIsDeleteModalOpen(true);
+  };
 
-//   const handleDeleteCategory = async (categoryId: number) => {
-//     if (window.confirm("Are you sure you want to delete this category?")) {
-//       setIsLoading(true)
-//       try {
-//         const deleteResponse = await deleteCategory(categoryId)
-//         if (deleteResponse.status === "Success") {
-//           toast({ title: "Success", description: "Category deleted successfully" })
-//           loadCategories()
-//         } else {
-//           toast({
-//             title: "Error",
-//             description: deleteResponse.message || "Failed to delete category",
-//             variant: "destructive",
-//           })
-//         }
-//       } catch (error) {
-//         console.error(error)
-//         toast({ title: "Error", description: "Failed to delete category", variant: "destructive" })
-//       } finally {
-//         setIsLoading(false)
-//       }
-//     }
-//   }
+  const handleDeleteCategory = async () => {
+    if (selectedCategory) {
+      setIsLoading(true);
+      try {
+        const deleteResponse = await deleteCategory(selectedCategory.kategoriId);
+        if (deleteResponse.status === "Success") {
+          toast({ title: "Success", description: "Category deleted successfully" });
+          loadCategories();
+        } else {
+          toast({
+            title: "Delete Error",
+            description: deleteResponse.message || "Failed to delete category",
+            variant: "destructive",
+          });
+        }
+      } catch (error) {
+        console.error(error);
+        toast({ title: "Error", description: "An error occurred while deleting the category", variant: "destructive" });
+      } finally {
+        setIsLoading(false);
+        setIsDeleteModalOpen(false);
+        setSelectedCategory(null);
+      }
+    }
+  };
 
   return (
     <div className="p-6 bg-[#F3F3F3] min-h-screen">
@@ -153,34 +194,18 @@ export function CategoryManagement() {
                       type="text"
                       value={cat.nama}
                       onChange={(e) => {
-                        const newName = e.target.value
-                        setCategories((prev) =>
-                          prev.map((c) => (c.kategoriId === cat.kategoriId ? { ...c, nama: newName } : c)),
-                        )
+                        const newName = e.target.value;
+                        setCategories((prev) => prev.map((c) => (c.kategoriId === cat.kategoriId ? { ...c, nama: newName } : c)));
                       }}
                       className="border-4 border-black p-2 text-xl font-bold focus:outline-none focus:ring-4 focus:ring-[#FFD700]"
                     />
                     <div className="flex items-center gap-4">
                       {cat.icon ? (
-                        <Image
-                          src={cat.icon || "/placeholder.svg"}
-                          alt={cat.nama}
-                          width={60}
-                          height={60}
-                          className="border-4 border-black"
-                        />
+                        <Image src={cat.icon || "/placeholder.svg"} alt={cat.nama} width={60} height={60} className="border-4 border-black" />
                       ) : (
-                        <div className="w-[60px] h-[60px] bg-gray-300 border-4 border-black flex items-center justify-center font-bold">
-                          No Icon
-                        </div>
+                        <div className="w-[60px] h-[60px] bg-gray-300 border-4 border-black flex items-center justify-center font-bold">No Icon</div>
                       )}
-                      <input
-                        type="file"
-                        onChange={handleIconChange}
-                        accept="image/*"
-                        ref={fileInputRef}
-                        className="hidden"
-                      />
+                      <input type="file" onChange={handleIconChange} accept="image/*" ref={fileInputRef} className="hidden" />
                       <button
                         type="button"
                         onClick={() => fileInputRef.current?.click()}
@@ -195,17 +220,9 @@ export function CategoryManagement() {
                   <>
                     <div className="flex items-center gap-6">
                       {cat.icon ? (
-                        <Image
-                          src={cat.icon || "/placeholder.svg"}
-                          alt={cat.nama}
-                          width={60}
-                          height={60}
-                          className="border-4 border-black"
-                        />
+                        <Image src={cat.icon || "/placeholder.svg"} alt={cat.nama} width={60} height={60} className="border-4 border-black" />
                       ) : (
-                        <div className="w-[60px] h-[60px] bg-gray-300 border-4 border-black flex items-center justify-center font-bold">
-                          No Icon
-                        </div>
+                        <div className="w-[60px] h-[60px] bg-gray-300 border-4 border-black flex items-center justify-center font-bold">No Icon</div>
                       )}
                       <span className="text-2xl font-bold">{cat.nama}</span>
                     </div>
@@ -225,7 +242,7 @@ export function CategoryManagement() {
                       Save
                     </button>
                     <button
-                      onClick={() => setEditingCategory(null)}
+                      onClick={handleCancelEdit} // Using the new cancel function
                       className="p-3 bg-[#F44336] text-white font-bold border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] 
                                  hover:translate-x-[3px] hover:translate-y-[3px] hover:shadow-none transition-all"
                     >
@@ -235,13 +252,14 @@ export function CategoryManagement() {
                 ) : (
                   <>
                     <button
-                      onClick={() => setEditingCategory(cat)}
+                      onClick={() => handleEditClick(cat)} // Using the new edit function
                       className="p-3 bg-[#2196F3] text-white font-bold border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] 
                                  hover:translate-x-[3px] hover:translate-y-[3px] hover:shadow-none transition-all"
                     >
                       <Edit size={24} />
                     </button>
                     <button
+                      onClick={() => handleDeleteClick(cat)}
                       className="p-3 bg-[#F44336] text-white font-bold border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] 
                                  hover:translate-x-[3px] hover:translate-y-[3px] hover:shadow-none transition-all"
                     >
@@ -255,8 +273,9 @@ export function CategoryManagement() {
         ))}
       </div>
 
+      <DeleteConfirmModal isOpen={isDeleteModalOpen} onClose={() => setIsDeleteModalOpen(false)} onConfirm={handleDeleteCategory} itemName={selectedCategory?.nama || ""} subject="Category" />
+
       <AddCategoryModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onCategoryAdded={loadCategories} />
     </div>
-  )
+  );
 }
-
