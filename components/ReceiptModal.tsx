@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { CheckCircle2, Download } from "lucide-react";
-import { getCustomerById } from "@/server/actions";
+import { getCustomerById, getPetugasById } from "@/server/actions";
 import { QRCodeSVG } from 'qrcode.react';
 import jsPDF from 'jspdf';
+import 'jspdf-autotable';
 
 interface ReceiptModalProps {
   receiptData: {
@@ -17,6 +18,7 @@ interface ReceiptModalProps {
       nama: string;
       kuantitas: number;
       subtotal: number;
+      hargaSatuan?: number;
     }>;
     transactionDate: Date;
   };
@@ -25,17 +27,24 @@ interface ReceiptModalProps {
 
 export const ReceiptModal: React.FC<ReceiptModalProps> = ({ receiptData, onClose }) => {
   const [customerName, setCustomerName] = useState<string>("Guest");
+  const [petugasName, setPetugasName] = useState<string>("");
   const [qrData, setQrData] = useState<string>("");
+  const [storeName] = useState<string>("Toko Cita Rasa");
+  const [storeAddress] = useState<string>("Jl. Manunggal No. IV, Sukatali");
+  const [storePhone] = useState<string>("0831-2422-7215");
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("id-ID", {
       style: "currency",
       currency: "IDR",
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
     }).format(amount);
   };
 
   useEffect(() => {
-    const fetchCustomer = async () => {
+    const fetchData = async () => {
+      // Fetch customer data
       if (receiptData.customerId) {
         try {
           const customer = await getCustomerById(receiptData.customerId);
@@ -44,17 +53,25 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ receiptData, onClose
           console.error("Error fetching customer:", error);
           setCustomerName("Guest");
         }
-      } else {
-        setCustomerName("Guest");
+      }
+      
+      // Fetch petugas data
+      if (receiptData.petugasId) {
+        try {
+          const petugas = await getPetugasById(receiptData.petugasId);
+          setPetugasName(petugas?.username || "Unknown");
+        } catch (error) {
+          console.error("Error fetching petugas:", error);
+          setPetugasName("Unknown");
+        }
       }
     };
 
-    fetchCustomer();
+    fetchData();
     
     // Generate QR code URL menggunakan PenjualanId
     if (receiptData.PenjualanId) {
       const downloadUrl = `/api/receipts/${receiptData.PenjualanId}/download`;
-      // Gunakan window.location.origin untuk mendapatkan base URL yang benar
       const fullUrl = typeof window !== 'undefined' ? 
         `${window.location.origin}${downloadUrl}` : 
         downloadUrl;
@@ -63,57 +80,148 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ receiptData, onClose
   }, [receiptData]);
 
   const generatePDF = () => {
-    const doc = new jsPDF();
-    
-    // Header
-    doc.setFontSize(20);
-    doc.text('Bukti Transaksi', 105, 20, { align: 'center' });
-    
-    // Date and Customer
+    // Tentukan ukuran struk: lebar 80mm, tinggi 200mm (silakan sesuaikan tinggi sesuai kebutuhan)
+    const receiptWidth = 80; // 80mm
+    const receiptHeight = 200; // tinggi tetap, bisa diubah jika diperlukan
+    const doc = new jsPDF({
+      orientation: 'portrait',
+      unit: 'mm',
+      format: [receiptWidth, receiptHeight]
+    });
+  
+    const lineHeight = 3.5; // mm
+    let yPos = 10;
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const margin = 5;
+  
+    // Fungsi bantu untuk menampilkan teks di tengah
+    const centerText = (text: string, y: number) => {
+      doc.text(text, pageWidth / 2, y, { align: 'center' });
+    };
+  
+    // Fungsi bantu untuk teks rata kiri-kanan
+    const leftRightText = (left: string, right: string, y: number) => {
+      doc.text(left, margin, y);
+      doc.text(right, pageWidth - margin, y, { align: 'right' });
+    };
+  
+    // Fungsi bantu untuk menambahkan garis putus-putus
+    const addDashedLine = (y: number) => {
+      doc.setDrawColor(0);
+      doc.setLineDashPattern([0.5, 0.5], 0);
+      doc.line(margin, y, pageWidth - margin, y);
+    };
+  
+    // Informasi toko (header)
     doc.setFontSize(12);
-    doc.text(receiptData.transactionDate.toLocaleDateString("id-ID", {
-      weekday: "long",
+    doc.setFont('helvetica', 'bold');
+    centerText(storeName, yPos);
+    yPos += lineHeight * 1.2;
+  
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'normal');
+    centerText(storeAddress, yPos);
+    yPos += lineHeight;
+    centerText(`Telp: ${storePhone}`, yPos);
+    yPos += lineHeight * 1.5;
+  
+    addDashedLine(yPos);
+    yPos += lineHeight;
+  
+    // Informasi struk
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'bold');
+    centerText("BUKTI PEMBAYARAN", yPos);
+    yPos += lineHeight * 1.5;
+  
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'normal');
+  
+    // Detail transaksi
+    leftRightText("No. Transaksi:", `#${receiptData.PenjualanId}`, yPos);
+    yPos += lineHeight;
+  
+    const formattedDate = receiptData.transactionDate.toLocaleDateString("id-ID", {
       year: "numeric",
       month: "long",
       day: "numeric",
-    }), 20, 40);
-    doc.text(`Pelanggan: ${customerName}`, 20, 50);
-    doc.text(`No. Transaksi: ${receiptData.PenjualanId}`, 20, 60);
-    
-    // Items
-    doc.text('Detail Pesanan:', 20, 70);
-    let yPos = 80;
-    
-    receiptData.orderItems.forEach((item) => {
-      doc.text(`${item.nama} x${item.kuantitas}`, 20, yPos);
-      doc.text(formatCurrency(item.subtotal), 150, yPos);
-      yPos += 10;
     });
-    
-    // Totals
-    yPos += 10;
-    doc.text('Total Bayar:', 20, yPos);
-    doc.text(formatCurrency(receiptData.finalTotal), 150, yPos);
-    
-    yPos += 10;
-    doc.text('Uang Masuk:', 20, yPos);
-    doc.text(formatCurrency(receiptData.amountReceived), 150, yPos);
-    
-    yPos += 10;
+  
+    const formattedTime = receiptData.transactionDate.toLocaleTimeString("id-ID", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  
+    leftRightText("Tanggal:", formattedDate, yPos);
+    yPos += lineHeight;
+    leftRightText("Jam:", formattedTime, yPos);
+    yPos += lineHeight;
+    leftRightText("Kasir:", petugasName, yPos);
+    yPos += lineHeight;
+    leftRightText("Pelanggan:", customerName, yPos);
+    yPos += lineHeight * 1.5;
+  
+    addDashedLine(yPos);
+    yPos += lineHeight;
+  
+    // Detail Pesanan
     doc.setFont('helvetica', 'bold');
-    doc.text('Kembalian:', 20, yPos);
-    doc.text(formatCurrency(receiptData.change), 150, yPos);
-    
+    doc.text("DETAIL PESANAN", margin, yPos);
+    yPos += lineHeight * 1.5;
+  
+    doc.setFont('helvetica', 'normal');
+  
+    receiptData.orderItems.forEach((item) => {
+      doc.text(`${item.nama}`, margin, yPos);
+      yPos += lineHeight;
+  
+      // Tampilkan harga satuan jika tersedia
+      const hargaSatuan = item.hargaSatuan || Math.round(item.subtotal / item.kuantitas);
+  
+      doc.text(`${item.kuantitas} x ${formatCurrency(hargaSatuan)}`, margin + 2, yPos);
+      doc.text(formatCurrency(item.subtotal), pageWidth - margin, yPos, { align: 'right' });
+      yPos += lineHeight * 1.2;
+    });
+  
+    addDashedLine(yPos);
+    yPos += lineHeight * 1.2;
+  
+    // Totals
+    doc.setFont('helvetica', 'normal');
+    leftRightText("Total:", formatCurrency(receiptData.finalTotal), yPos);
+    yPos += lineHeight;
+  
+    leftRightText("Tunai:", formatCurrency(receiptData.amountReceived), yPos);
+    yPos += lineHeight;
+  
+    doc.setFont('helvetica', 'bold');
+    leftRightText("Kembali:", formatCurrency(receiptData.change), yPos);
+    yPos += lineHeight * 2;
+  
+    addDashedLine(yPos);
+    yPos += lineHeight * 1.5;
+  
+    // Footer
+    doc.setFontSize(7);
+    doc.setFont('helvetica', 'normal');
+    centerText("Terima kasih atas kunjungan Anda", yPos);
+    yPos += lineHeight;
+    centerText("Produk yang telah dibeli tidak dapat ditukar/dikembalikan", yPos);
+    yPos += lineHeight;
+    centerText("Kecuali jika terjadi kesalahan dari petugas toko.", yPos);
+    yPos += lineHeight * 2;
+  
     return doc;
   };
+  
 
   const handleDownloadPDF = () => {
     try {
       const doc = generatePDF();
-      doc.save(`receipt-${receiptData.PenjualanId}.pdf`);
+      doc.save(`struk-${receiptData.PenjualanId}.pdf`);
     } catch (error) {
       console.error('Error generating PDF:', error);
-      alert('Failed to generate receipt. Please try again.');
+      alert('Gagal membuat struk. Silakan coba lagi.');
     }
   };
 
@@ -146,6 +254,7 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ receiptData, onClose
           </p>
           <p className="font-medium">Pelanggan: {customerName}</p>
           <p className="text-sm text-gray-600">No. Transaksi: {receiptData.PenjualanId}</p>
+          <p className="text-sm text-gray-600">Kasir: {petugasName}</p>
         </div>
         <div className="border-t-2 border-b-2 border-black py-2 mb-4">
           {receiptData.orderItems.map((item, index) => (
@@ -175,7 +284,7 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ receiptData, onClose
         {/* QR Code Section */}
         {receiptData.PenjualanId && (
           <div className="mt-4 flex flex-col items-center">
-            <p className="text-sm text-gray-600 mb-2">Scan untuk download receipt</p>
+            <p className="text-sm text-gray-600 mb-2">Scan untuk download struk</p>
             <div className="bg-white p-2 rounded-lg shadow-md">
               <QRCodeSVG
                 value={qrData}
@@ -193,7 +302,7 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ receiptData, onClose
             className="w-full bg-green-500 text-white py-2 rounded-lg hover:bg-green-600 transition-colors flex items-center justify-center gap-2"
           >
             <Download className="w-5 h-5" />
-            Download PDF
+            Download Struk
           </button>
           <button
             onClick={onClose}
