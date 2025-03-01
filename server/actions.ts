@@ -2227,45 +2227,7 @@ export async function getCustomerTransactions(): Promise<{
   }
 }
 
-// refund pembelian
-
-export async function processRefund(refundData: { penjualanId: number; userId: number; refundedItems: { produkId: number; kuantitas: number }[]; totalRefund: number }) {
-  try {
-    return await prisma.$transaction(async (tx) => {
-      console.log("Properti dalam tx:", Object.keys(tx));
-
-      console.log("Isi tx:", tx);
-
-      // 1. Buat record refund
-      const refund = await tx.refund.create({
-        data: {
-          penjualanId: refundData.penjualanId,
-          totalRefund: refundData.totalRefund,
-          userId: refundData.userId,
-          detailRefund: {
-            create: refundData.refundedItems.map((item) => ({
-              produkId: item.produkId,
-              kuantitas: item.kuantitas,
-            })),
-          },
-        },
-      });
-
-      // 2. Update stok produk untuk item yang direfund
-      for (const item of refundData.refundedItems) {
-        await tx.produk.update({
-          where: { produkId: item.produkId },
-          data: { stok: { increment: item.kuantitas } },
-        });
-      }
-
-      return refund;
-    });
-  } catch (error) {
-    console.error("Error processing refund:", error);
-    throw new Error("Gagal memproses refund. Silakan coba lagi.");
-  }
-}
+// return pembelian
 
 export async function getTransactionDetails(penjualanId: number) {
   try {
@@ -2288,17 +2250,107 @@ export async function getTransactionDetails(penjualanId: number) {
 export async function processReturn(returnData: {
   penjualanId: number;
   userId: number;
-  returnedItems: { produkId: number; kuantitas: number; harga: number }[];
-  replacementItems: { produkId: number; kuantitas: number; harga: number }[];
+  returnedItems: { produkId: number; kuantitas: number; harga: number; hargaModal?: number }[];
+  replacementItems: { produkId: number; kuantitas: number; harga: number; hargaModal?: number }[];
   totalReturn: number;
   totalReplacement: number;
   additionalPayment: number;
 }) {
   const { penjualanId, userId, returnedItems, replacementItems, totalReturn, totalReplacement, additionalPayment } = returnData;
-
+  
   try {
     return await prisma.$transaction(async (tx) => {
-      // 1. Buat record return (disimpan pada model Refund)
+      // Get the original transaction to access its details
+      const originalTransaction = await tx.penjualan.findUnique({
+        where: { penjualanId },
+        include: {
+          detailPenjualan: {
+            include: { produk: true },
+          },
+        },
+      });
+      
+      if (!originalTransaction) {
+        throw new Error("Transaction not found");
+      }
+      
+      // Calculate total modal for returned items
+      let returnedModalTotal = 0;
+      for (const item of returnedItems) {
+        // Find the original product details from transaction
+        const originalProduct = originalTransaction.detailPenjualan.find(
+          detail => detail.produkId === item.produkId
+        );
+        
+        if (originalProduct) {
+          // Use the product's modal price and quantity to calculate modal value being returned
+          const productModal = originalProduct.produk.hargaModal;
+          returnedModalTotal += productModal * item.kuantitas;
+          
+          // Update the detailPenjualan record to reflect the actual quantity after return
+          const newQuantity = originalProduct.kuantitas - item.kuantitas;
+          const newSubtotal = newQuantity * originalProduct.produk.harga;
+          
+          if (newQuantity <= 0) {
+            // If all items are returned, delete the record
+            await tx.detailPenjualan.delete({
+              where: { detailId: originalProduct.detailId }
+            });
+          } else {
+            // Update the quantity and subtotal in detailPenjualan
+            await tx.detailPenjualan.update({
+              where: { detailId: originalProduct.detailId },
+              data: {
+                kuantitas: newQuantity,
+                subtotal: newSubtotal
+              }
+            });
+          }
+        }
+      }
+      
+      // Calculate total modal for replacement items
+      let replacementModalTotal = 0;
+      for (const item of replacementItems) {
+        const product = await tx.produk.findUnique({
+          where: { produkId: item.produkId },
+        });
+        
+        if (product) {
+          replacementModalTotal += product.hargaModal * item.kuantitas;
+          
+          // Check if product already exists in original transaction
+          const existingDetail = originalTransaction.detailPenjualan.find(
+            detail => detail.produkId === item.produkId
+          );
+          
+          if (existingDetail) {
+            // Update existing product quantity and subtotal
+            const newQuantity = existingDetail.kuantitas + item.kuantitas;
+            const newSubtotal = newQuantity * product.harga;
+            
+            await tx.detailPenjualan.update({
+              where: { detailId: existingDetail.detailId },
+              data: {
+                kuantitas: newQuantity,
+                subtotal: newSubtotal
+              }
+            });
+          } else {
+            // Add new product to the transaction
+            await tx.detailPenjualan.create({
+              data: {
+                penjualanId,
+                produkId: item.produkId,
+                kuantitas: item.kuantitas,
+                subtotal: item.kuantitas * product.harga
+              }
+            });
+          }
+        }
+      }
+      
+      // 1. Create return record (stored in Refund model)
       await tx.refund.create({
         data: {
           penjualanId,
@@ -2312,55 +2364,81 @@ export async function processReturn(returnData: {
           },
         },
       });
-
-      // 2. Update stok untuk produk yang dikembalikan
+      
+      // 2. Update stock for returned products
       for (const item of returnedItems) {
         await tx.produk.update({
           where: { produkId: item.produkId },
           data: { stok: { increment: item.kuantitas } },
         });
       }
-
-      // 3. Update stok untuk produk pengganti
+      
+      // 3. Update stock for replacement products
       for (const item of replacementItems) {
         await tx.produk.update({
           where: { produkId: item.produkId },
           data: { stok: { decrement: item.kuantitas } },
         });
       }
-
-      // 4. Hitung selisih antara total penggantian dan total pengembalian
+      
+      // 4. Calculate difference between replacement total and return total
       const difference = totalReplacement - totalReturn;
-
-      // 5. Update transaksi asli dengan informasi return
+      
+      // 5. Calculate net changes for modal and profit
+      const netModalChange = replacementModalTotal - returnedModalTotal;
+      const netProfitChange = (totalReplacement - replacementModalTotal) - (totalReturn - returnedModalTotal);
+      
+      // Get current values
+      const currentTotalHarga = originalTransaction.total_harga;
+      const currentTotalModal = originalTransaction.total_modal || 0;
+      const currentKeuntungan = originalTransaction.keuntungan || 0;
+      
+      // 6. Update original transaction with return information, including modal and profit adjustments
       await tx.penjualan.update({
         where: { penjualanId },
         data: {
-          total_harga: { increment: difference },
-          uangMasuk: additionalPayment > 0 ? { increment: additionalPayment } : undefined,
+          total_harga: currentTotalHarga + difference,
+          total_modal: currentTotalModal + netModalChange,
+          keuntungan: currentKeuntungan + netProfitChange,
+          uangMasuk: additionalPayment > 0 ? 
+            (originalTransaction.uangMasuk || 0) + additionalPayment : 
+            undefined,
         },
       });
-
-      // 6. Jika ada pembayaran tambahan, buat transaksi baru untuk produk pengganti
-      if (additionalPayment > 0 && replacementItems.length > 0) {
+      
+      // 7. If there's additional payment and separate transaction is needed
+      if (additionalPayment > 0 && replacementItems.length > 0 && difference > 0) {
+        // Calculate modal and profit for the new transaction
+        const newTransactionModal = replacementItems.reduce((total, item) => {
+          const product = originalTransaction.detailPenjualan.find(
+            detail => detail.produkId === item.produkId
+          )?.produk;
+          
+          return total + (product?.hargaModal || 0) * item.kuantitas;
+        }, 0);
+        
+        const newTransactionProfit = additionalPayment - newTransactionModal;
+        
         await tx.penjualan.create({
           data: {
             userId,
             total_harga: additionalPayment,
+            total_modal: newTransactionModal,
+            keuntungan: newTransactionProfit,
             uangMasuk: additionalPayment,
-            pelangganId: null, // Add default values for required fields
-            guestId: null, // Add default values for required fields
+            pelangganId: null,
+            guestId: null,
             detailPenjualan: {
               create: replacementItems.map((item) => ({
                 produkId: item.produkId,
                 kuantitas: item.kuantitas,
-                subtotal: Math.round(item.harga * item.kuantitas), // Ensure integer value
+                subtotal: Math.round(item.harga * item.kuantitas),
               })),
             },
           },
         });
       }
-
+      
       return {
         status: "Success",
         message: "Return processed successfully",
@@ -2368,6 +2446,7 @@ export async function processReturn(returnData: {
       };
     });
   } catch (error) {
+    console.error("Detailed error:", error);
     throw new Error(`Gagal memproses return: ${error}`);
   }
 }
