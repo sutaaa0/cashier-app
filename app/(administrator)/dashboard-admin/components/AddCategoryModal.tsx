@@ -21,8 +21,23 @@ export function AddCategoryModal({ isOpen, onClose, onCategoryAdded }: AddCatego
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
+    // Enhanced validation for category name
     if (!categoryName.trim()) {
-      toast({ title: "Error", description: "Category name is required", variant: "destructive" })
+      toast({ 
+        title: "Validation Error", 
+        description: "Category name cannot be empty", 
+        variant: "destructive" 
+      })
+      return
+    }
+
+    // Added validation for icon file
+    if (!iconFile) {
+      toast({ 
+        title: "Validation Error", 
+        description: "Please upload a category icon", 
+        variant: "destructive" 
+      })
       return
     }
 
@@ -34,8 +49,15 @@ export function AddCategoryModal({ isOpen, onClose, onCategoryAdded }: AddCatego
       if (iconFile) {
         const formData = new FormData()
         formData.append("file", iconFile)
-        const uploadResponse = await fetch("/api/upload", { method: "POST", body: formData })
-        if (!uploadResponse.ok) throw new Error("Failed to upload icon")
+        const uploadResponse = await fetch("/api/upload", { 
+          method: "POST", 
+          body: formData 
+        })
+        
+        if (!uploadResponse.ok) {
+          throw new Error("Failed to upload icon")
+        }
+        
         const uploadResult = await uploadResponse.json()
         iconUrl = uploadResult.secure_url
       }
@@ -43,17 +65,28 @@ export function AddCategoryModal({ isOpen, onClose, onCategoryAdded }: AddCatego
       const result = await addCategory({ nama: categoryName, icon: iconUrl })
 
       if (result.status === "Success") {
-        toast({ title: "Success", description: "Category added successfully" })
+        toast({ 
+          title: "Success", 
+          description: "Category added successfully" 
+        })
         onClose()
         onCategoryAdded()
         setCategoryName("")
         setIconFile(null)
       } else {
-        toast({ title: "Error", description: result.message, variant: "destructive" })
+        toast({ 
+          title: "Error", 
+          description: result.message || "Failed to add category", 
+          variant: "destructive" 
+        })
       }
     } catch (error) {
       console.error(error)
-      toast({ title: "Error", description: "Failed to add category", variant: "destructive" })
+      toast({ 
+        title: "Error", 
+        description: "An error occurred while adding the category", 
+        variant: "destructive" 
+      })
     } finally {
       setIsLoading(false)
     }
@@ -85,13 +118,14 @@ export function AddCategoryModal({ isOpen, onClose, onCategoryAdded }: AddCatego
               value={categoryName}
               onChange={(e) => setCategoryName(e.target.value)}
               className="w-full p-3 text-lg border-4 border-black focus:outline-none focus:ring-4 focus:ring-[#FFD700]"
+              placeholder="Enter category name"
               required
             />
           </div>
 
           <div>
             <label htmlFor="icon" className="block mb-2 text-xl font-bold">
-              Category Icon
+              Category Icon <span className="text-red-500">*</span>
             </label>
             <input
               type="file"
@@ -104,14 +138,18 @@ export function AddCategoryModal({ isOpen, onClose, onCategoryAdded }: AddCatego
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
-              className="w-full px-4 py-3 bg-[#FFD700] text-lg font-bold border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] 
+              className={`w-full px-4 py-3 ${iconFile ? 'bg-green-100' : 'bg-[#FFD700]'} text-lg font-bold border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] 
                          hover:translate-x-[3px] hover:translate-y-[3px] hover:shadow-none transition-all
-                         flex items-center justify-center gap-2"
+                         flex items-center justify-center gap-2`}
             >
               <Upload size={24} />
               {iconFile ? "Change Icon" : "Upload Icon"}
             </button>
-            {iconFile && <p className="mt-2 text-sm font-bold">{iconFile.name}</p>}
+            {iconFile ? (
+              <p className="mt-2 text-sm font-bold text-green-600">✓ {iconFile.name}</p>
+            ) : (
+              <p className="mt-2 text-sm text-red-500">This field is required</p>
+            )}
           </div>
 
           <button
@@ -129,4 +167,3 @@ export function AddCategoryModal({ isOpen, onClose, onCategoryAdded }: AddCatego
     </div>
   )
 }
-
