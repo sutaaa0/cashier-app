@@ -3026,3 +3026,18 @@ export async function getPromotionAnalytics(): Promise<PromotionAnalytics[]> {
     throw new Error("Failed to fetch promotion analytics");
   }
 }
+
+export async function getPetugasById(id: number) {
+  try {
+    const petugas = await prisma.user.findUnique({
+      where: {
+        id: id,
+        level: "PETUGAS"
+      }
+    })
+    return petugas
+  } catch (error) {
+    console.error("Error fetching petugas by id:", error);
+    throw new Error("Failed to fetch petugas by id")
+  }
+}
