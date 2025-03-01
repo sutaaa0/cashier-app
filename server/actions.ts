@@ -486,6 +486,9 @@ export async function fetchCategories(): Promise<{ status: string; data?: Catego
   try {
     const categories = await prisma.kategori.findMany({
       orderBy: { nama: "asc" },
+      where: {
+        isDeleted: false,
+      }
     });
 
     if (!categories.length) {
@@ -554,6 +557,47 @@ export async function addCategory(data: { nama: string; icon?: string; color?: s
     return { status: "Error", message: "Failed to add category" };
   }
 }
+
+interface DeleteCategoryResponse {
+  status: "Success" | "Error";
+  message: string;
+  data?: {
+    nama: string;
+    kategoriId: number;
+    icon: string;
+
+  }
+}
+
+export async function deleteCategory(kategoriId: number): Promise<DeleteCategoryResponse> {
+  // Cari kategori beserta produk-produk yang terkait
+  const category = await prisma.kategori.findUnique({
+    where: { kategoriId },
+    include: { produk: true },
+  });
+
+  if (!category) {
+    return { status: "Error", message: "Kategori tidak ditemukan" };
+  }
+
+  // Cek apakah ada produk yang masih aktif (isDeleted false)
+  const activeProducts = category.produk.filter((produk) => produk.isDeleted === false);
+  if (activeProducts.length > 0) {
+    return {
+      status: "Error",
+      message: "Tidak dapat menghapus kategori yang memiliki produk aktif. Silahkan reassign atau hapus produk terkait terlebih dahulu.",
+    };
+  }
+
+  // Lakukan soft delete pada kategori dengan mengubah flag isDeleted ke true
+  const deletedCategory = await prisma.kategori.update({
+    where: { kategoriId },
+    data: { isDeleted: true },
+  });
+
+  return { status: "Success", message: "Kategori berhasil dihapus (soft delete)", data: deletedCategory };
+}
+
 
 export async function updateProduct(formData: { 
   id: number; 
@@ -1563,6 +1607,9 @@ export async function getCategoryCounts() {
         orderBy: {
           nama: "asc",
         },
+        where: {
+          isDeleted: false,
+        }
       }),
       // Get total count of non-deleted products
       prisma.produk.count({
