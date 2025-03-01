@@ -2234,6 +2234,7 @@ export async function getTransactionDetails(penjualanId: number) {
     const transaction = await prisma.penjualan.findUnique({
       where: { penjualanId },
       include: {
+        pelanggan: true,
         detailPenjualan: {
           include: { produk: true },
         },
