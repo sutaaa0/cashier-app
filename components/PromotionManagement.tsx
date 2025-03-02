@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState, useTransition } from "react";
-import { Plus, Edit, Trash2, Calendar, Tag, Percent, DollarSign } from "lucide-react";
+import { Plus, Edit, Trash2, Calendar, Tag, Percent, DollarSign, RefreshCw } from "lucide-react";
 import { formatRupiah } from "@/lib/formatIdr";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PromotionType } from "@prisma/client";
-import { cleanupExpiredPromotions, createPromotion, deletePromotion, getCategories, getProductsForPromotions, getPromotions } from "@/server/actions";
+import { createPromotion, deletePromotion, getCategories, getProductsForPromotions, getPromotions } from "@/server/actions";
 import { MultiSelect } from "./Multiselect";
 import { DeleteConfirmModal } from "./DeleteConfirmModal";
 import { toast } from "@/hooks/use-toast";
@@ -17,6 +17,19 @@ import { toast } from "@/hooks/use-toast";
 interface Category {
   kategoriId: number;
   nama: string;
+}
+
+interface CreatePromotionInput {
+  title: string;
+  description?: string;
+  type: PromotionType;
+  startDate: Date;
+  endDate: Date;
+  discountPercentage?: number;
+  discountAmount?: number;
+  minQuantity?: number;
+  productIds?: number[];
+  categoryIds?: number[];
 }
 
 interface PromotionFormData {
@@ -77,7 +90,7 @@ export function PromotionManagement() {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [categories, setCategories] = useState<Category[]>([]);
   const [products, setProducts] = useState<ProductsType[]>([]);
-  const [initialPromotions, setInitialPromotions] = useState<Promotion[]>([]);
+  const [promotions, setPromotions] = useState<Promotion[]>([]);
   const [isPending, startTransition] = useTransition();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formData, setFormData] = useState<PromotionFormData>({
@@ -96,48 +109,41 @@ export function PromotionManagement() {
     endTime: "23:59",
   });
 
-  // Fetch categories
-  useEffect(() => {
-    const fetchingCategories = async () => {
-      const res = await getCategories();
-      setCategories(res.data ?? []);
-    };
-    fetchingCategories();
-  }, []);
+  // Function to fetch and update all data
+  const fetchAllData = async () => {
+    startTransition(async () => {
+      // Fetch categories
+      const categoriesRes = await getCategories();
+      if (categoriesRes.data) {
+        setCategories(categoriesRes.data);
+      }
 
-  // Fetch products
-  useEffect(() => {
-    const fetchingProduct = async () => {
-      const res = await getProductsForPromotions();
-      setProducts(res.data ?? []);
-    };
-    fetchingProduct();
-  }, []);
+      // Fetch products
+      const productsRes = await getProductsForPromotions();
+      if (productsRes.data) {
+        setProducts(productsRes.data);
+      }
 
-  // Fetch initial promotions
+      // Fetch promotions
+      const promotionsRes = await getPromotions();
+      if (promotionsRes.data) {
+        const transformedPromotions = promotionsRes.data.map(promo => ({
+          ...promo,
+          products: promo.promotionProducts.map(pp => pp.produk),
+          categories: promo.promotionCategories.map(pc => pc.kategori)
+        }));
+        setPromotions(transformedPromotions);
+      }
+    });
+  };
+
+  // Fetch initial data
   useEffect(() => {
-    const fetchingInitialPromotions = async () => {
-      const res = await getPromotions();
-      setInitialPromotions(res.data ?? []);
-    };
-    fetchingInitialPromotions();
+    fetchAllData();
   }, []);
 
   const handleCleanUpPromotions = async () => {
-    const res = await cleanupExpiredPromotions()
-
-    if(res.success) {
-      toast({
-        title: "Clean Up Success",
-        description: "Clean Up Promotions Success",
-      });
-    } else {
-      toast({
-        title: "Clean Up Failed",
-        description: "Clean Up Promotions Failed",
-      });
-    }
-  }
+  };
 
   // Submit handler for adding a new promotion
   const handleSubmit = (e: React.FormEvent) => {
@@ -147,13 +153,12 @@ export function PromotionManagement() {
       const combinedStartDate = new Date(`${formData.startDate}T${formData.startTime}:00`);
       const combinedEndDate = new Date(`${formData.endDate}T${formData.endTime}:00`);
 
-      const input = {
+      const input: CreatePromotionInput = {
         title: formData.title,
         description: formData.description,
         type: formData.type,
         startDate: combinedStartDate,
         endDate: combinedEndDate,
-
         discountPercentage: formData.discountType === "percentage" ? formData.discountValue : undefined,
         discountAmount: formData.discountType === "amount" ? formData.discountValue : undefined,
         minQuantity: formData.type === PromotionType.QUANTITY_BASED ? formData.minQuantity : undefined,
@@ -165,15 +170,25 @@ export function PromotionManagement() {
       if (result.success) {
         setIsModalOpen(false);
         resetForm();
+        // Refresh promotions list after creating new one
+        fetchAllData();
+        toast({
+          title: "Success",
+          description: "Promotion created successfully",
+        });
       } else {
         // Handle error
-        alert(result.error);
+        toast({
+          title: "Error",
+          description: result.error || "Failed to create promotion",
+          variant: "destructive",
+        });
       }
     });
   };
 
   // When clicking the trash icon: set the selected promotion and open the delete modal
-  const handleEditClick = (promosi: Promotion) => {
+  const handleDeleteClick = (promosi: Promotion) => {
     setSelectedPromosi(promosi);
     setIsDeleteModalOpen(true);
   };
@@ -181,23 +196,34 @@ export function PromotionManagement() {
   // Delete handler called from the modal's "Hapus" button
   const handleDelete = async () => {
     if (selectedPromosi) {
-      try {
-        const deletePromosi = await deletePromotion(selectedPromosi.promotionId);
-        if (deletePromosi) {
+      startTransition(async () => {
+        try {
+          const deleteResult = await deletePromotion(selectedPromosi.promotionId);
+          if (deleteResult.success) {
+            toast({
+              title: "Delete Success",
+              description: "Delete Promosi Success",
+            });
+            // Refresh promotions list after deletion
+            fetchAllData();
+          } else {
+            toast({
+              title: "Delete Failed",
+              description: deleteResult.error || "Delete Promotion Failed",
+              variant: "destructive",
+            });
+          }
+        } catch (error) {
           toast({
-            title: "Delete Success",
-            description: "Delete Promosi Success",
+            title: "Delete Failed",
+            description: "Delete Promotion Failed",
+            variant: "destructive",
           });
+          console.error(error);
         }
-      } catch (error) {
-        toast({
-          title: "Delete Failed",
-          description: "Delete Promotion Failed",
-        });
-        console.log(error);
-      }
-      setIsDeleteModalOpen(false);
-      setSelectedPromosi(null);
+        setIsDeleteModalOpen(false);
+        setSelectedPromosi(null);
+      });
     }
   };
 
@@ -219,9 +245,14 @@ export function PromotionManagement() {
     });
   };
 
-  const handleEdit = (promo: []) => {
-    // Implement your edit functionality here.
+  const handleEdit = (promo: Promotion) => {
+    // Implement your edit functionality here
     console.log("Edit Promotion:", promo);
+    // For now, this is just a placeholder
+    toast({
+      title: "Edit Feature",
+      description: "Edit functionality is not implemented yet",
+    });
   };
 
   return (
@@ -229,26 +260,25 @@ export function PromotionManagement() {
       <div className="flex justify-between items-center">
         <h2 className="text-3xl font-black transform -rotate-2">MANAJEMEN PROMOSI</h2>
         <div className="flex justify-center items-center gap-4">
-        <Button
-          onClick={() => setIsModalOpen(true)}
-          className="px-6 py-3 bg-[#FFD700] font-bold text-lg border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]
+          <Button
+            onClick={() => setIsModalOpen(true)}
+            className="px-6 py-3 bg-[#FFD700] font-bold text-lg border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]
                      hover:translate-x-[3px] hover:translate-y-[3px] hover:shadow-none transition-all flex items-center gap-2"
-          disabled={isPending}
-        >
-          <Plus className="mr-2" />
-          Tambah Promosi
-        </Button>
-        <Button
-          onClick={handleCleanUpPromotions}
-          className="px-6 py-3 bg-[#19f34b] font-bold text-lg border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]
+            disabled={isPending}
+          >
+            <Plus className="mr-2" />
+            Tambah Promosi
+          </Button>
+          <Button
+            onClick={handleCleanUpPromotions}
+            className="px-6 py-3 bg-[#19f34b] font-bold text-lg border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]
                      hover:translate-x-[3px] hover:translate-y-[3px] hover:shadow-none transition-all flex items-center gap-2"
-          disabled={isPending}
-        >
-          <Plus className="mr-2" />
-          Clean Up Promotions
-        </Button>
+            disabled={isPending}
+          >
+            <RefreshCw className="mr-2" />
+            Clean Up Promotions
+          </Button>
         </div>
-
       </div>
 
       {/* Form Modal for adding a new promotion */}
@@ -403,116 +433,123 @@ export function PromotionManagement() {
 
       {/* List of Promotions */}
       <div className="grid gap-4">
-        {initialPromotions.map((promo) => (
-          <div
-            key={promo.promotionId}
-            className="bg-white border-4 border-black p-6 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]
+        {promotions.length === 0 && !isPending ? (
+          <div className="text-center p-8 border-4 border-dashed border-black">
+            <p className="text-xl font-bold">Belum ada promosi</p>
+            <p className="text-gray-600">Klik &quot;Tambah Promosi&quot; untuk membuat promosi baru</p>
+          </div>
+        ) : (
+          promotions.map((promo) => (
+            <div
+              key={promo.promotionId}
+              className="bg-white border-4 border-black p-6 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]
                        transition-all hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]
                        hover:translate-x-[4px] hover:translate-y-[4px]"
-          >
-            <div className="flex justify-between items-start">
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <h3 className="text-xl font-bold transform -rotate-1">{promo.title}</h3>
-                  <span className={`px-2 py-1 text-xs font-black border-2 border-black ${getPromotionStatusColor(promo.startDate, promo.endDate)} transform rotate-2`}>{getPromotionStatus(promo.startDate, promo.endDate)}</span>
-                </div>
-                <p className="text-gray-600">{promo.description}</p>
+            >
+              <div className="flex justify-between items-start">
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-xl font-bold transform -rotate-1">{promo.title}</h3>
+                    <span className={`px-2 py-1 text-xs font-black border-2 border-black ${getPromotionStatusColor(promo.startDate, promo.endDate)} transform rotate-2`}>{getPromotionStatus(promo.startDate, promo.endDate)}</span>
+                  </div>
+                  <p className="text-gray-600">{promo.description}</p>
 
-                <div className="flex flex-wrap gap-4">
-                  <div className="flex items-center gap-1 bg-blue-100 px-3 py-1 border-2 border-black">
-                    {promo.discountPercentage ? (
-                      <>
-                        <Percent size={16} className="text-blue-500" />
-                        <span className="font-bold">{promo.discountPercentage}%</span>
-                      </>
-                    ) : (
-                      <>
-                        <DollarSign size={16} className="text-green-500" />
-                        <span className="font-bold">{formatRupiah(promo.discountAmount || 0)}</span>
-                      </>
+                  <div className="flex flex-wrap gap-4">
+                    <div className="flex items-center gap-1 bg-blue-100 px-3 py-1 border-2 border-black">
+                      {promo.discountPercentage ? (
+                        <>
+                          <Percent size={16} className="text-blue-500" />
+                          <span className="font-bold">{promo.discountPercentage}%</span>
+                        </>
+                      ) : (
+                        <>
+                          <DollarSign size={16} className="text-green-500" />
+                          <span className="font-bold">{formatRupiah(promo.discountAmount || 0)}</span>
+                        </>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-1 bg-purple-100 px-3 py-1 border-2 border-black">
+                      <Calendar size={16} className="text-purple-500" />
+                      <span className="font-bold">
+                        {new Date(promo.startDate).toLocaleDateString()} - {new Date(promo.endDate).toLocaleDateString()}
+                      </span>
+                    </div>
+
+                    {promo.minQuantity && (
+                      <div className="flex items-center gap-1 bg-orange-100 px-3 py-1 border-2 border-black">
+                        <Tag size={16} className="text-orange-500" />
+                        <span className="font-bold">Min. {promo.minQuantity} items</span>
+                      </div>
                     )}
                   </div>
 
-                  <div className="flex items-center gap-1 bg-purple-100 px-3 py-1 border-2 border-black">
-                    <Calendar size={16} className="text-purple-500" />
-                    <span className="font-bold">
-                      {new Date(promo.startDate).toLocaleDateString()} - {new Date(promo.endDate).toLocaleDateString()}
-                    </span>
-                  </div>
+                  {/* Display related products if any */}
+                  {promo.products && promo.products.length > 0 && (
+                    <div className="mt-2">
+                      <p className="text-sm font-bold">Produk:</p>
+                      <div className="flex flex-wrap gap-2">
+                        {promo.products.map((product) => (
+                          <span key={product.produkId} className="px-2 py-1 text-xs bg-gray-100 border-2 border-black font-bold transform -rotate-1">
+                            {product.nama}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
 
-                  {promo.minQuantity && (
-                    <div className="flex items-center gap-1 bg-orange-100 px-3 py-1 border-2 border-black">
-                      <Tag size={16} className="text-orange-500" />
-                      <span className="font-bold">Min. {promo.minQuantity} items</span>
+                  {/* Display related categories if any */}
+                  {promo.categories && promo.categories.length > 0 && (
+                    <div className="mt-2">
+                      <p className="text-sm font-bold">Kategori:</p>
+                      <div className="flex flex-wrap gap-2">
+                        {promo.categories.map((category) => (
+                          <span key={category.kategoriId} className="px-2 py-1 text-xs bg-gray-100 border-2 border-black font-bold transform rotate-1">
+                            {category.nama}
+                          </span>
+                        ))}
+                      </div>
                     </div>
                   )}
                 </div>
 
-                {/* Display related products if any */}
-                {promo.products.length > 0 && (
-                  <div className="mt-2">
-                    <p className="text-sm font-bold">Produk:</p>
-                    <div className="flex flex-wrap gap-2">
-                      {promo.products.map((product) => (
-                        <span key={product.produkId} className="px-2 py-1 text-xs bg-gray-100 border-2 border-black font-bold transform -rotate-1">
-                          {product.nama}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Display related categories if any */}
-                {promo.categories.length > 0 && (
-                  <div className="mt-2">
-                    <p className="text-sm font-bold">Kategori:</p>
-                    <div className="flex flex-wrap gap-2">
-                      {promo.categories.map((category) => (
-                        <span key={category.kategoriId} className="px-2 py-1 text-xs bg-gray-100 border-2 border-black font-bold transform rotate-1">
-                          {category.nama}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <div className="flex gap-2">
-                <Button
-                  variant="neutral"
-                  size="icon"
-                  onClick={() => handleEdit([])}
-                  disabled={isPending}
-                  className="p-2 bg-[#FFD700] border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]
+                <div className="flex gap-2">
+                  <Button
+                    variant="neutral"
+                    size="icon"
+                    onClick={() => handleEdit(promo)}
+                    disabled={isPending}
+                    className="p-2 bg-[#FFD700] border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]
                              hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]
                              active:translate-x-[4px] active:translate-y-[4px] active:shadow-none transition-all transform rotate-2"
-                >
-                  <Edit size={20} />
-                </Button>
-                <Button
-                  variant="neutral"
-                  size="icon"
-                  onClick={() => handleEditClick(promo)}
-                  disabled={isPending}
-                  className="p-2 bg-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]
+                  >
+                    <Edit size={20} />
+                  </Button>
+                  <Button
+                    variant="neutral"
+                    size="icon"
+                    onClick={() => handleDeleteClick(promo)}
+                    disabled={isPending}
+                    className="p-2 bg-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]
                              hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]
                              active:translate-x-[4px] active:translate-y-[4px] active:shadow-none transition-all hover:bg-red-500 hover:text-white transform -rotate-2"
-                >
-                  <Trash2 size={20} />
-                </Button>
+                  >
+                    <Trash2 size={20} />
+                  </Button>
+                </div>
               </div>
             </div>
-          </div>
-        ))}
+          ))
+        )}
       </div>
 
-      {/* Delete Confirmation Modal (rendered once) */}
+      {/* Delete Confirmation Modal */}
       {selectedPromosi && (
         <DeleteConfirmModal
           isOpen={isDeleteModalOpen}
           itemName={selectedPromosi.title || "Promosi"}
           onClose={() => setIsDeleteModalOpen(false)}
-          onConfirm={handleDelete} // Ensure that handleDelete is actually called when confirmed.
+          onConfirm={handleDelete}
           subject="Promosi"
         />
       )}
