@@ -60,6 +60,8 @@ export const NeoOrderSummary = forwardRef<{ resetCustomerData: () => void }, Ord
   const [amountReceived, setAmountReceived] = useState<number>(0);
   const [formattedAmount, setFormattedAmount] = useState<string>("");
 
+  
+
   const formatRupiah = (value: number): string => {
     return new Intl.NumberFormat("id-ID", {
       style: "currency",
