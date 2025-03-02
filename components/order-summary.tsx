@@ -42,7 +42,13 @@ interface OrderSummaryProps {
   isLoading: boolean;
 }
 
+
 export const NeoOrderSummary = forwardRef<{ resetCustomerData: () => void }, OrderSummaryProps>(({ order, onUpdateQuantity, onDeleteItem, onPlaceOrder, isLoading }, ref) => {
+
+console.log("ini loh order nya",order);
+
+
+
   // State untuk data pelanggan
   const [showCustomerInput, setShowCustomerInput] = useState(false);
   const [customerData, setCustomerData] = useState<{
