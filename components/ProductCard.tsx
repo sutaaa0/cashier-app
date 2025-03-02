@@ -22,7 +22,7 @@ interface NeoProductCardProps {
   // Use consistent interface in props
   onClick: (product: Produk & { 
     image: string; 
-    kategori: { nama: string }; 
+    kategori: { nama: string, kategoriId: number }; 
     harga: number;
   }) => void;
 }

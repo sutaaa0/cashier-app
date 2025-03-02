@@ -16,7 +16,7 @@ interface ProductGridProps {
   })[];
   onProductSelect: (product: Produk & {
     image: string;
-    kategori: { nama: string };
+    kategori: { nama: string, kategoriId: number };
     harga: number;
   }) => void;
 }
