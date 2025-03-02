@@ -31,9 +31,6 @@ export function NeoProductCard({ product, onClick }: NeoProductCardProps) {
   // Get all relevant promotions from product and category relationships
   const getAllPromotions = (): Promotion[] => {
     const productPromotions = product.promotionProducts?.map(pp => pp.promotion) || [];
-    
-    // We don't need to filter here since the database query should already
-    // include only relevant category promotions
     return productPromotions;
   };
 
@@ -84,6 +81,18 @@ export function NeoProductCard({ product, onClick }: NeoProductCardProps) {
 
   // Check if product is out of stock
   const isOutOfStock = product.stok <= 0;
+
+  // Fungsi helper untuk memformat informasi diskon
+  const getDiscountInfo = () => {
+    if (totalDiscountPercentage > 0 && totalDiscountAmount > 0) {
+      return `Diskon ${totalDiscountPercentage}% + ${formatRupiah(totalDiscountAmount)}`;
+    } else if (totalDiscountPercentage > 0) {
+      return `Diskon ${totalDiscountPercentage}%`;
+    } else if (totalDiscountAmount > 0) {
+      return `Diskon ${formatRupiah(totalDiscountAmount)}`;
+    }
+    return null;
+  };
 
   return (
     <div
@@ -167,6 +176,15 @@ export function NeoProductCard({ product, onClick }: NeoProductCardProps) {
             </div>
           )}
         </div>
+        
+        {/* Tampilkan informasi diskon */}
+        {activePromotions.length > 0 && !isOutOfStock && getDiscountInfo() && (
+          <div className="mt-2">
+            <span className="px-2 py-1 bg-red-600 text-white font-mono text-sm border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+              {getDiscountInfo()}
+            </span>
+          </div>
+        )}
         
         {/* Discount Labels - Only show non-quantity based in the active section */}
         {activePromotions.length > 0 && !isOutOfStock && (
