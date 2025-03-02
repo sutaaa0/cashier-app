@@ -65,8 +65,9 @@ model Kategori {
   nama       String      @unique
   icon       String
   produk     Produk[]
-  promotions Promotion[] @relation("PromotionCategories")
   isDeleted  Boolean     @default(false)  // Tambahkan field ini
+  // Relasi ke promosi melalui join table
+  promotionCategories PromotionCategory[]
 }
 
 model Produk {
@@ -85,7 +86,8 @@ model Produk {
   detailPenjualan DetailPenjualan[]
   detailRefund    DetailRefund[]
   kategori        Kategori          @relation(fields: [kategoriId], references: [kategoriId])
-  promotions      Promotion[]       @relation("PromotionProducts")
+// Relasi ke promosi melalui join table
+  promotionProducts PromotionProduct[]
 }
 
 model Refund {
@@ -133,9 +135,31 @@ model Promotion {
   minQuantity        Int?
   createdAt          DateTime      @default(now())
   updatedAt          DateTime      @updatedAt
-  categories         Kategori[]    @relation("PromotionCategories")
-  products           Produk[]      @relation("PromotionProducts")
+   // Hubungan ke produk via join table
+  promotionProducts  PromotionProduct[]
+  // Hubungan ke kategori via join table baru
+  promotionCategories PromotionCategory[]
 }
+
+model PromotionProduct {
+  id           Int       @id @default(autoincrement())
+  promotionId  Int
+  produkId     Int
+  // Field opsional untuk override atau validasi tambahan per produk, misalnya jika produk memiliki batas aktifnya sendiri
+  activeUntil  DateTime?
+  promotion    Promotion @relation(fields: [promotionId], references: [promotionId])
+  produk       Produk    @relation(fields: [produkId], references: [produkId])
+}
+
+
+model PromotionCategory {
+  id          Int       @id @default(autoincrement())
+  promotionId Int
+  kategoriId  Int
+  promotion   Promotion @relation(fields: [promotionId], references: [promotionId])
+  kategori    Kategori  @relation(fields: [kategoriId], references: [kategoriId])
+}
+
 
 enum PromotionType {
   FLASH_SALE
