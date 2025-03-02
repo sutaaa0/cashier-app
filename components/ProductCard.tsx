@@ -1,9 +1,10 @@
 "use client";
+import { Produk, Promotion } from "@prisma/client";
 import Image from "next/image";
 import { formatRupiah } from "@/lib/formatIdr";
-import { Produk, Promotion } from "@prisma/client";
 import { isAfter, isBefore } from "date-fns";
 
+// Updated interfaces to match the database schema relationships
 interface NeoProductCardProps {
   product: Produk & { 
     image: string; 
@@ -12,42 +13,55 @@ interface NeoProductCardProps {
       nama: string;
       kategoriId: number;
     }; 
-    promotions?: (Promotion & {
-      categories?: { kategoriId: number }[];
-    })[];
+    // Updated to include both types of promotion relationships
+    promotionProducts?: {
+      promotionId: number;
+      promotion: Promotion;
+    }[];
   };
+  // Use consistent interface in props
   onClick: (product: Produk & { 
     image: string; 
     kategori: { nama: string }; 
-    promotions?: Promotion[]; 
-  } & { harga: number }) => void;
+    harga: number;
+  }) => void;
 }
 
 export function NeoProductCard({ product, onClick }: NeoProductCardProps) {
+  // Get all relevant promotions from product and category relationships
+  const getAllPromotions = (): Promotion[] => {
+    const productPromotions = product.promotionProducts?.map(pp => pp.promotion) || [];
+    
+    // We don't need to filter here since the database query should already
+    // include only relevant category promotions
+    return productPromotions;
+  };
+
   // Fungsi untuk memeriksa apakah promosi aktif
-  const isPromotionActive = (promo: Promotion & { categories?: { kategoriId: number }[] }): boolean => {
+  const isPromotionActive = (promo: Promotion): boolean => {
     const today = new Date();
     const startDate = new Date(promo.startDate);
     const endDate = new Date(promo.endDate);
 
-    // Periksa apakah tanggal saat ini berada dalam rentang promosi
-    if (!isAfter(today, startDate) || !isBefore(today, endDate)) {
-      return false;
-    }
-
-    // Jika promosi berlaku untuk kategori tertentu, periksa apakah kategori produk ini termasuk
-    if (promo.type === "PRODUCT_SPECIFIC" && promo.categories) {
-      return promo.categories.some(category => category.kategoriId === product.kategoriId);
-    }
-
-    // Untuk promosi lainnya (misalnya FLASH_SALE, SPECIAL_DAY), tidak perlu validasi kategori
-    return true;
+    // Check if current date is within the promotion range
+    return isAfter(today, startDate) && isBefore(today, endDate);
   };
 
-  // Filter promosi yang aktif
-  const activePromotions = product.promotions?.filter(isPromotionActive) || [];
+  // Filter promotions that can be applied to a single product view
+  // Quantity-based promotions should not be applied in the card view
+  const isPromotionApplicableToSingleItem = (promo: Promotion): boolean => {
+    // If it's a quantity-based promotion, it should not be applied at the card level
+    // These will be handled at the cart/checkout level
+    return promo.type !== "QUANTITY_BASED";
+  };
 
-  // Hitung total diskon hanya dari promosi yang aktif
+  // Get and filter all active promotions that are applicable to single items
+  const allPromotions = getAllPromotions();
+  const activePromotions = allPromotions.filter(promo => 
+    isPromotionActive(promo) && isPromotionApplicableToSingleItem(promo)
+  );
+
+  // Calculate total discount from active promotions
   const totalDiscountPercentage = activePromotions.reduce(
     (acc, promo) => acc + (promo.discountPercentage || 0),
     0
@@ -57,13 +71,18 @@ export function NeoProductCard({ product, onClick }: NeoProductCardProps) {
     0
   );
 
-  // Harga setelah diskon
+  // Calculate discounted price
   const discountedPrice = Math.max(
     product.harga * ((100 - totalDiscountPercentage) / 100) - totalDiscountAmount,
     0
   );
 
-  // Pengecekan stok
+  // Get quantity-based promotions (for display purposes only)
+  const quantityBasedPromotions = allPromotions.filter(
+    promo => isPromotionActive(promo) && promo.type === "QUANTITY_BASED"
+  );
+
+  // Check if product is out of stock
   const isOutOfStock = product.stok <= 0;
 
   return (
@@ -72,7 +91,7 @@ export function NeoProductCard({ product, onClick }: NeoProductCardProps) {
       className={`group cursor-pointer bg-white border-2 border-black p-4 
                  ${isOutOfStock ? 'relative cursor-not-allowed border-red-600 border-dashed bg-red-50' : 'shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all duration-200 hover:-translate-y-0.5 active:shadow-none active:translate-y-0.5'}`}
     >
-      {/* "SOLD OUT" label yang lebih kreatif */}
+      {/* "SOLD OUT" label */}
       {isOutOfStock && (
         <div className="absolute -top-3 -right-3 rotate-12 z-10">
           <div className="bg-red-600 border-3 border-black text-white font-bold px-4 py-0.5 transform rotate-6 shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]">
@@ -81,7 +100,7 @@ export function NeoProductCard({ product, onClick }: NeoProductCardProps) {
         </div>
       )}
 
-      {/* "X" mark overlay untuk produk habis */}
+      {/* "X" mark overlay for out of stock products */}
       {isOutOfStock && (
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20">
           <div className="relative w-full h-full overflow-hidden">
@@ -93,7 +112,7 @@ export function NeoProductCard({ product, onClick }: NeoProductCardProps) {
         </div>
       )}
 
-      {/* Gambar Produk */}
+      {/* Product Image */}
       <div className={`aspect-square relative mb-4 border-2 ${isOutOfStock ? 'border-red-600' : 'border-black'} overflow-hidden`}>
         <Image
           src={product.image || "/placeholder.svg"}
@@ -104,7 +123,7 @@ export function NeoProductCard({ product, onClick }: NeoProductCardProps) {
           className={`w-full h-full object-cover transition-transform duration-300 ${isOutOfStock ? 'filter grayscale' : 'group-hover:scale-110'}`}
         />
         
-        {/* Neo-brutalism styled stok habis label di dalam gambar */}
+        {/* Out of stock label inside image */}
         {isOutOfStock && (
           <div className="absolute bottom-2 left-0 right-0 mx-auto w-4/5 text-center">
             <div className="bg-white border-2 border-black font-mono py-1 transform -rotate-3 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
@@ -117,7 +136,7 @@ export function NeoProductCard({ product, onClick }: NeoProductCardProps) {
       </div>
 
       <div className="space-y-2 relative">
-        {/* Nama Produk dengan strikethrough jika stok habis */}
+        {/* Product Name with strikethrough if out of stock */}
         <h3 className={`font-bold text-lg font-mono ${isOutOfStock ? 'text-gray-600' : ''}`}>
           {product.nama}
           {isOutOfStock && (
@@ -125,13 +144,13 @@ export function NeoProductCard({ product, onClick }: NeoProductCardProps) {
           )}
         </h3>
         
-        {/* Kategori & Harga */}
+        {/* Category & Price */}
         <div className="flex items-center justify-between">
           <span className={`px-2 py-1 ${isOutOfStock ? 'bg-gray-500' : 'bg-black'} text-white font-mono text-sm border border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]`}>
             {product.kategori.nama}
           </span>
           
-          {/* Tampilan harga */}
+          {/* Price display */}
           {activePromotions.length > 0 && !isOutOfStock ? (
             <div className="text-right">
               <span className="line-through text-gray-500 font-mono text-sm">{formatRupiah(product.harga)}</span>
@@ -149,7 +168,7 @@ export function NeoProductCard({ product, onClick }: NeoProductCardProps) {
           )}
         </div>
         
-        {/* Label Diskon */}
+        {/* Discount Labels - Only show non-quantity based in the active section */}
         {activePromotions.length > 0 && !isOutOfStock && (
           <div className="flex flex-wrap gap-1 mt-2">
             {activePromotions.map((promo) => (
@@ -175,7 +194,25 @@ export function NeoProductCard({ product, onClick }: NeoProductCardProps) {
           </div>
         )}
         
-        {/* Info stok habis yang lebih kreatif */}
+        {/* Display quantity-based promotions separately as info only */}
+        {quantityBasedPromotions.length > 0 && !isOutOfStock && (
+          <div className="mt-2 font-mono text-xs p-2 border border-dashed border-purple-500 bg-purple-50">
+            {quantityBasedPromotions.map((promo) => (
+              <div key={promo.promotionId} className="mb-1 last:mb-0">
+                <span className="font-bold text-purple-700">Beli {promo.minQuantity}+ disc: </span>
+                {promo.discountPercentage ? (
+                  <span>{promo.discountPercentage}%</span>
+                ) : promo.discountAmount ? (
+                  <span>{formatRupiah(promo.discountAmount)}</span>
+                ) : (
+                  <span>Promo</span>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+        
+        {/* Out of stock info */}
         {isOutOfStock && (
           <div className="mt-3 font-mono text-sm">
             <div className="relative flex items-center justify-center py-2 px-3 overflow-hidden">
