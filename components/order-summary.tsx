@@ -2,8 +2,8 @@
 
 import { useState, forwardRef, useImperativeHandle, useCallback, useEffect } from "react";
 import Image from "next/image";
-import { Minus, Plus, Trash2 } from "lucide-react";
-import type { Penjualan, DetailPenjualan } from "@prisma/client";
+import { Minus, Plus, Trash2, Tag } from "lucide-react";
+import type { Penjualan, DetailPenjualan, Promotion } from "@prisma/client";
 import { NeoCustomerInput } from "./CustomerInput";
 import { toast } from "@/hooks/use-toast";
 import { getCurrentUser, getMemberPoints, redeemPoints } from "@/server/actions";
@@ -13,7 +13,7 @@ interface Produk {
   produkId: number;
   nama: string;
   harga: number;
-  hargaModal: number; // Adding hargaModal field
+  hargaModal: number;
   stok: number;
   minimumStok: number;
   statusStok: string;
@@ -23,6 +23,7 @@ interface Produk {
   createdAt: Date;
   updatedAt: Date;
   kategori: { nama: string; kategoriId: number };
+  promotionProducts?: { id: number; promotionId: number; activeUntil: Date; promotion: Promotion }[];
 }
 
 interface OrderSummaryProps {
@@ -42,13 +43,7 @@ interface OrderSummaryProps {
   isLoading: boolean;
 }
 
-
 export const NeoOrderSummary = forwardRef<{ resetCustomerData: () => void }, OrderSummaryProps>(({ order, onUpdateQuantity, onDeleteItem, onPlaceOrder, isLoading }, ref) => {
-
-console.log("ini loh order nya",order);
-
-
-
   // State untuk data pelanggan
   const [showCustomerInput, setShowCustomerInput] = useState(false);
   const [customerData, setCustomerData] = useState<{
@@ -66,7 +61,9 @@ console.log("ini loh order nya",order);
   const [amountReceived, setAmountReceived] = useState<number>(0);
   const [formattedAmount, setFormattedAmount] = useState<string>("");
 
-  
+  // State untuk menyimpan diskon promosi
+  const [promotionDiscounts, setPromotionDiscounts] = useState<{ [produkId: number]: number }>({});
+  const [totalDiscount, setTotalDiscount] = useState(0);
 
   const formatRupiah = (value: number): string => {
     return new Intl.NumberFormat("id-ID", {
@@ -74,12 +71,14 @@ console.log("ini loh order nya",order);
       currency: "IDR",
       minimumFractionDigits: 0,
       maximumFractionDigits: 0,
-    }).format(value).replace(/\s/g, '');
+    })
+      .format(value)
+      .replace(/\s/g, "");
   };
-  
+
   // Parse string Rupiah ke number
   const parseRupiah = (value: string): number => {
-    return Number(value.replace(/[^\d]/g, ''));
+    return Number(value.replace(/[^\d]/g, ""));
   };
 
   // Handle perubahan input uang masuk
@@ -87,7 +86,7 @@ console.log("ini loh order nya",order);
     const inputValue = e.target.value;
     // Hapus semua karakter non-digit
     const numericValue = parseRupiah(inputValue);
-    
+
     // Update nilai actual dan format
     setAmountReceived(numericValue);
     setFormattedAmount(formatRupiah(numericValue));
@@ -103,6 +102,109 @@ console.log("ini loh order nya",order);
     fetchUser();
   }, []);
 
+  // Replace the existing useEffect with this updated version to handle all promotion types
+  useEffect(() => {
+    const calculateAllPromotionDiscounts = () => {
+      const newPromotionDiscounts: { [produkId: number]: number } = {};
+      let newTotalDiscount = 0;
+
+      // Get current date for promotion validation
+      const now = new Date();
+      const currentDay = now.getDay(); // 0-6, where 0 is Sunday
+      const isWeekend = currentDay === 0 || currentDay === 6; // Check if it's weekend (Saturday or Sunday)
+
+      order.detailPenjualan.forEach((item) => {
+        const produk = item.produk;
+
+        // Check if product has promotions
+        if (produk.promotionProducts && produk.promotionProducts.length > 0) {
+          // Filter active promotions (regardless of type)
+          const activePromotions = produk.promotionProducts.filter((pp) => {
+            const promo = pp.promotion;
+
+            return now >= new Date(promo.startDate) && now <= new Date(promo.endDate) && (pp.activeUntil ? now <= new Date(pp.activeUntil) : true);
+          });
+
+          // Process each active promotion
+          let highestDiscount = 0;
+
+          activePromotions.forEach((pp) => {
+            const promo = pp.promotion;
+            let discountAmount = 0;
+
+            // Calculate discount based on promotion type
+            switch (promo.type) {
+              case "QUANTITY_BASED":
+                // Apply only if quantity meets the minimum requirement
+                if (promo.minQuantity && item.kuantitas >= promo.minQuantity) {
+                  if (promo.discountPercentage) {
+                    discountAmount = (item.subtotal * promo.discountPercentage) / 100;
+                  } else if (promo.discountAmount) {
+                    discountAmount = promo.discountAmount;
+                  }
+                }
+                break;
+
+              case "FLASH_SALE":
+                // Flash sale typically applies to all purchases of this product
+                if (promo.discountPercentage) {
+                  discountAmount = (item.subtotal * promo.discountPercentage) / 100;
+                } else if (promo.discountAmount) {
+                  discountAmount = promo.discountAmount;
+                }
+                break;
+
+              case "SPECIAL_DAY":
+                // Special day promotions apply on specific dates
+                if (promo.discountPercentage) {
+                  discountAmount = (item.subtotal * promo.discountPercentage) / 100;
+                } else if (promo.discountAmount) {
+                  discountAmount = promo.discountAmount;
+                }
+                break;
+
+              case "WEEKEND":
+                // Weekend promotions apply only on weekends
+                if (isWeekend) {
+                  if (promo.discountPercentage) {
+                    discountAmount = (item.subtotal * promo.discountPercentage) / 100;
+                  } else if (promo.discountAmount) {
+                    discountAmount = promo.discountAmount;
+                  }
+                }
+                break;
+
+              case "PRODUCT_SPECIFIC":
+                // Product specific promotions always apply to the specific product
+                if (promo.discountPercentage) {
+                  discountAmount = (item.subtotal * promo.discountPercentage) / 100;
+                } else if (promo.discountAmount) {
+                  discountAmount = promo.discountAmount;
+                }
+                break;
+            }
+
+            // Keep track of the highest discount for this product
+            if (discountAmount > highestDiscount) {
+              highestDiscount = discountAmount;
+            }
+          });
+
+          // Apply the highest discount found for this product
+          if (highestDiscount > 0) {
+            newPromotionDiscounts[item.produkId] = highestDiscount;
+            newTotalDiscount += highestDiscount;
+          }
+        }
+      });
+
+      setPromotionDiscounts(newPromotionDiscounts);
+      setTotalDiscount(newTotalDiscount);
+    };
+
+    calculateAllPromotionDiscounts();
+  }, [order.detailPenjualan]);
+
   useImperativeHandle(ref, () => ({
     resetCustomerData: () => {
       setCustomerData(null);
@@ -111,6 +213,8 @@ console.log("ini loh order nya",order);
       setRedeemedPoints(0);
       setAmountReceived(0);
       setFormattedAmount("");
+      setPromotionDiscounts({});
+      setTotalDiscount(0);
     },
   }));
 
@@ -144,8 +248,9 @@ console.log("ini loh order nya",order);
       return;
     }
 
-    // Hitung total setelah diskon poin
-    const finalTotal = Math.max(order.total_harga - redeemedPoints, 0);
+    // Hitung total setelah diskon promosi dan diskon poin
+    const totalAfterPromotions = order.total_harga - totalDiscount;
+    const finalTotal = Math.max(totalAfterPromotions - redeemedPoints, 0);
 
     // Validasi uang masuk
     if (amountReceived < finalTotal) {
@@ -160,11 +265,8 @@ console.log("ini loh order nya",order);
     // Hitung kembalian
     const change = amountReceived - finalTotal;
 
-    // Calculate adjusted profit after points redemption
-    const adjustedKeuntungan = order.keuntungan ? (order.keuntungan - redeemedPoints) : 0;
-
-    console.log("uang masuk :", amountReceived);
-    console.log("uang kembalian :", change);
+    // Calculate adjusted profit after promotions and points redemption
+    const adjustedKeuntungan = order.keuntungan ? order.keuntungan - totalDiscount - redeemedPoints : 0;
 
     // Panggil fungsi onPlaceOrder dengan mengirim data order lengkap
     onPlaceOrder({
@@ -172,7 +274,7 @@ console.log("ini loh order nya",order);
       total_harga: finalTotal,
       // Keep the original total_modal
       total_modal: order.total_modal,
-      // Adjust keuntungan according to points redeemed
+      // Adjust keuntungan according to points redeemed and promotions
       keuntungan: adjustedKeuntungan,
       pelangganId: customerData?.pelangganId ?? null,
       guestId: customerData?.guestId ?? null,
@@ -180,7 +282,7 @@ console.log("ini loh order nya",order);
       userId: user.id,
       uangMasuk: amountReceived,
       kembalian: change,
-      customerName: customerData?.nama || 'Guest'
+      customerName: customerData?.nama || "Guest",
     });
   };
 
@@ -189,7 +291,7 @@ console.log("ini loh order nya",order);
       try {
         const points = await getMemberPoints(customerData.pelangganId);
         if (points > 0 && points >= 5000) {
-          const redeemed = await redeemPoints(customerData.pelangganId, points, order.total_harga);
+          const redeemed = await redeemPoints(customerData.pelangganId, points, order.total_harga - totalDiscount);
           setRedeemedPoints(redeemed);
           setMemberPoints(points - redeemed);
           console.log("Poin berhasil diredeem:", redeemed);
@@ -209,7 +311,7 @@ console.log("ini loh order nya",order);
         });
       }
     }
-  }, [customerData, order.total_harga]);
+  }, [customerData, order.total_harga, totalDiscount]);
 
   const handleCancelRedeemPoints = useCallback(() => {
     setRedeemedPoints(0);
@@ -222,8 +324,150 @@ console.log("ini loh order nya",order);
 
   // Calculate profit margins for display
   const calculateProfitPercentage = () => {
-    if (!order.total_harga || !order.total_modal || order.total_harga === 0) return 0;
-    return ((order.keuntungan || 0) / order.total_harga * 100).toFixed(1);
+    const totalAfterDiscount = order.total_harga - totalDiscount;
+    if (!totalAfterDiscount || !order.total_modal || totalAfterDiscount === 0) return 0;
+    const adjustedProfit = (order.keuntungan || 0) - totalDiscount;
+    return ((adjustedProfit / totalAfterDiscount) * 100).toFixed(1);
+  };
+
+  // Replace the existing hasQuantityPromotion function with this more general function
+  const hasActivePromotion = (item: DetailPenjualan & { produk: Produk }) => {
+    if (!item.produk.promotionProducts || item.produk.promotionProducts.length === 0) {
+      return false;
+    }
+
+    const now = new Date();
+    const currentDay = now.getDay();
+    const isWeekend = currentDay === 0 || currentDay === 6;
+
+    return item.produk.promotionProducts.some((pp) => {
+      const promo = pp.promotion;
+
+      // Check if promotion is active based on dates
+      const isActive = now >= new Date(promo.startDate) && now <= new Date(promo.endDate) && (pp.activeUntil ? now <= new Date(pp.activeUntil) : true);
+
+      if (!isActive) return false;
+
+      // Check based on promotion type
+      switch (promo.type) {
+        case "QUANTITY_BASED":
+          return promo.minQuantity && item.kuantitas >= promo.minQuantity;
+        case "WEEKEND":
+          return isWeekend;
+        case "FLASH_SALE":
+        case "SPECIAL_DAY":
+        case "PRODUCT_SPECIFIC":
+          return true; // These are always active if date conditions are met
+        default:
+          return false;
+      }
+    });
+  };
+
+  // Replace the existing getPromotionDetails function with this enhanced version
+  const getPromotionDetails = (item: DetailPenjualan & { produk: Produk }) => {
+    if (!item.produk.promotionProducts || item.produk.promotionProducts.length === 0) {
+      return null;
+    }
+
+    const now = new Date();
+    const currentDay = now.getDay();
+    const isWeekend = currentDay === 0 || currentDay === 6;
+
+    // Find the active promotion with the highest discount
+      let highestDiscount = 0;
+      let bestPromo = null as Promotion | null;
+
+    item.produk.promotionProducts.forEach((pp) => {
+      const promo = pp.promotion;
+
+      // Check if promotion is active based on dates
+      const isActive = now >= new Date(promo.startDate) && now <= new Date(promo.endDate) && (pp.activeUntil ? now <= new Date(pp.activeUntil) : true);
+
+      if (!isActive) return;
+
+      // Check if promotion applies based on type
+      let applies = false;
+
+      switch (promo.type) {
+        case "QUANTITY_BASED":
+          applies = typeof promo.minQuantity === "number" && item.kuantitas >= promo.minQuantity;
+          break;
+        case "WEEKEND":
+          applies = isWeekend;
+          break;
+        case "FLASH_SALE":
+        case "SPECIAL_DAY":
+        case "PRODUCT_SPECIFIC":
+          applies = true; // These are always active if date conditions are met
+          break;
+        default:
+          applies = false;
+      }
+
+      if (!applies) return;
+
+      // Calculate discount amount
+      let discountAmount = 0;
+      if (promo.discountPercentage) {
+        discountAmount = (item.subtotal * promo.discountPercentage) / 100;
+      } else if (promo.discountAmount) {
+        discountAmount = promo.discountAmount;
+      }
+
+      // Update best promotion if this one gives a higher discount
+      if (discountAmount > highestDiscount) {
+        highestDiscount = discountAmount;
+        bestPromo = promo;
+      }
+    });
+
+    if (!bestPromo) return null;
+
+    // Format the promotion details based on type
+    switch (bestPromo.type) {
+      case "QUANTITY_BASED":
+        if (bestPromo.discountPercentage) {
+          return `${bestPromo.discountPercentage}% off min. ${bestPromo.minQuantity} pcs`;
+        } else if (bestPromo.discountAmount) {
+          return `${formatTotal(bestPromo.discountAmount)} off min. ${bestPromo.minQuantity} pcs`;
+        }
+        break;
+
+      case "WEEKEND":
+        if (bestPromo.discountPercentage) {
+          return `Weekend: ${bestPromo.discountPercentage}% off`;
+        } else if (bestPromo.discountAmount) {
+          return `Weekend: ${formatTotal(bestPromo.discountAmount)} off`;
+        }
+        break;
+
+      case "FLASH_SALE":
+        if (bestPromo.discountPercentage) {
+          return `Flash Sale: ${bestPromo.discountPercentage}% off`;
+        } else if (bestPromo.discountAmount) {
+          return `Flash Sale: ${formatTotal(bestPromo.discountAmount)} off`;
+        }
+        break;
+
+      case "SPECIAL_DAY":
+        if (bestPromo.discountPercentage) {
+          return `Special Offer: ${bestPromo.discountPercentage}% off`;
+        } else if (bestPromo.discountAmount) {
+          return `Special Offer: ${formatTotal(bestPromo.discountAmount)} off`;
+        }
+        break;
+
+      case "PRODUCT_SPECIFIC":
+        if (bestPromo.discountPercentage) {
+          return `${bestPromo.title}: ${bestPromo.discountPercentage}% off`;
+        } else if (bestPromo.discountAmount) {
+          return `${bestPromo.title}: ${formatTotal(bestPromo.discountAmount)} off`;
+        }
+        break;
+    }
+
+    return bestPromo.title || "Discount";
   };
 
   return (
@@ -238,7 +482,16 @@ console.log("ini loh order nya",order);
             </div>
             <div className="ml-4">
               <p className="text-lg font-medium">{item.produk.nama}</p>
-              <p className="text-sm text-gray-500">{formatTotal(item.subtotal)}</p>
+              <p className="text-sm text-gray-500">
+                {formatTotal(item.subtotal)}
+                {promotionDiscounts[item.produkId] && <span className="text-red-500 ml-2">(-{formatTotal(promotionDiscounts[item.produkId])})</span>}
+              </p>
+              {hasActivePromotion(item) && (
+                <div className="flex items-center mt-1">
+                  <Tag className="h-3 w-3 text-red-500 mr-1" />
+                  <p className="text-xs text-red-500">{getPromotionDetails(item)}</p>
+                </div>
+              )}
             </div>
           </div>
           <div className="flex items-center gap-x-2">
@@ -261,31 +514,40 @@ console.log("ini loh order nya",order);
           <span>Subtotal</span>
           <span>{formatTotal(order.total_harga)}</span>
         </div>
-        
+
+        {totalDiscount > 0 && (
+          <div className="flex justify-between text-red-600 font-bold">
+            <span>Diskon Promosi</span>
+            <span>-{formatTotal(totalDiscount)}</span>
+          </div>
+        )}
+
         {order.total_modal !== null && order.total_modal > 0 && (
           <div className="flex justify-between text-black">
             <span>Modal</span>
             <span>{formatTotal(order.total_modal)}</span>
           </div>
         )}
-        
+
         {order.keuntungan !== null && order.keuntungan > 0 && (
           <div className="flex justify-between text-green-600">
             <span>Keuntungan</span>
-            <span>{formatTotal(order.keuntungan)} ({calculateProfitPercentage()}%)</span>
+            <span>
+              {formatTotal(order.keuntungan - totalDiscount)} ({calculateProfitPercentage()}%)
+            </span>
           </div>
         )}
-        
+
         {redeemedPoints > 0 && (
           <div className="flex justify-between text-green-600 font-bold">
             <span>Potongan Poin</span>
             <span>-{formatTotal(redeemedPoints)}</span>
           </div>
         )}
-        
+
         <div className="flex justify-between font-bold text-xl">
           <span>TOTAL</span>
-          <span>{formatTotal(order.total_harga - redeemedPoints)}</span>
+          <span>{formatTotal(order.total_harga - totalDiscount - redeemedPoints)}</span>
         </div>
 
         {/* Input untuk Uang Masuk */}
