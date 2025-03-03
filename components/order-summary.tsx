@@ -23,7 +23,7 @@ interface Produk {
   createdAt: Date;
   updatedAt: Date;
   kategori: { nama: string; kategoriId: number };
-  promotionProducts?: { id: number; promotionId: number; activeUntil: Date | null ; promotion: Promotion }[];
+  promotionProducts?: { id: number; promotionId: number; activeUntil: Date | null; promotion: Promotion }[];
 }
 
 interface OrderSummaryProps {
@@ -38,6 +38,11 @@ interface OrderSummaryProps {
       kembalian?: number;
       customerName?: string;
       detailPenjualan: (DetailPenjualan & { produk: Produk })[];
+      promotionDiscounts: {
+        [produkId: number]: number;
+      };
+      totalBeforePromotionDiscount: number;
+      totalAfterPromotionDiscount: number;
     }
   ) => Promise<void>;
   isLoading: boolean;
@@ -46,6 +51,7 @@ interface OrderSummaryProps {
 export const NeoOrderSummary = forwardRef<{ resetCustomerData: () => void }, OrderSummaryProps>(({ order, onUpdateQuantity, onDeleteItem, onPlaceOrder, isLoading }, ref) => {
   // State untuk data pelanggan
   const [showCustomerInput, setShowCustomerInput] = useState(false);
+  const [pointsToRedeem, setPointsToRedeem] = useState<number>(0);
   const [customerData, setCustomerData] = useState<{
     pelangganId?: number;
     guestId?: number;
@@ -283,6 +289,10 @@ export const NeoOrderSummary = forwardRef<{ resetCustomerData: () => void }, Ord
       uangMasuk: amountReceived,
       kembalian: change,
       customerName: customerData?.nama || "Guest",
+      // Tambahkan informasi diskon promosi
+      promotionDiscounts: promotionDiscounts,
+      totalBeforePromotionDiscount: order.total_harga, // Harga sebelum diskon promosi
+      totalAfterPromotionDiscount: totalAfterPromotions, // Harga setelah diskon promosi, sebelum poin
     });
   };
 
@@ -290,15 +300,34 @@ export const NeoOrderSummary = forwardRef<{ resetCustomerData: () => void }, Ord
     if (customerData?.pelangganId) {
       try {
         const points = await getMemberPoints(customerData.pelangganId);
-        if (points > 0 && points >= 5000) {
-          const redeemed = await redeemPoints(customerData.pelangganId, points, order.total_harga - totalDiscount);
+        if (points > 0) {
+          // Gunakan poin yang dimasukkan pengguna atau semua poin jika pointsToRedeem = 0
+          const pointsToUse = pointsToRedeem > 0 ? pointsToRedeem : points;
+
+          // Pastikan tidak melebihi total transaksi
+          const maxRedeemable = Math.min(pointsToUse, order.total_harga - totalDiscount);
+
+          if (maxRedeemable < 1000) {
+            toast({
+              title: "Error",
+              description: "Minimal redeem poin adalah 1000 poin",
+              variant: "destructive",
+            });
+            return;
+          }
+
+          const redeemed = await redeemPoints(customerData.pelangganId, maxRedeemable, order.total_harga - totalDiscount);
           setRedeemedPoints(redeemed);
           setMemberPoints(points - redeemed);
-          console.log("Poin berhasil diredeem:", redeemed);
+          setPointsToRedeem(0); // Reset input setelah redeem
+          toast({
+            title: "Berhasil",
+            description: `${redeemed} poin berhasil ditukarkan`,
+          });
         } else {
           toast({
             title: "Error",
-            description: "Poin tidak mencukupi, minimum 5000 points",
+            description: "Poin tidak mencukupi",
             variant: "destructive",
           });
         }
@@ -311,7 +340,7 @@ export const NeoOrderSummary = forwardRef<{ resetCustomerData: () => void }, Ord
         });
       }
     }
-  }, [customerData, order.total_harga, totalDiscount]);
+  }, [customerData, order.total_harga, totalDiscount, pointsToRedeem]);
 
   const handleCancelRedeemPoints = useCallback(() => {
     setRedeemedPoints(0);
@@ -375,8 +404,8 @@ export const NeoOrderSummary = forwardRef<{ resetCustomerData: () => void }, Ord
     const isWeekend = currentDay === 0 || currentDay === 6;
 
     // Find the active promotion with the highest discount
-      let highestDiscount = 0;
-      let bestPromo = null as Promotion | null;
+    let highestDiscount = 0;
+    let bestPromo = null as Promotion | null;
 
     item.produk.promotionProducts.forEach((pp) => {
       const promo = pp.promotion;
@@ -582,20 +611,45 @@ export const NeoOrderSummary = forwardRef<{ resetCustomerData: () => void }, Ord
           </div>
         )}
         {customerData?.pelangganId && (
-          <div className="flex justify-between items-center">
-            <span className="font-bold">Poin Member: {memberPoints}</span>
+          <div className="bg-white border-2 border-black p-2 mt-2">
+            <div className="flex justify-between items-center">
+              <span className="font-bold">Poin Member: {memberPoints}</span>
+              <span className="text-sm text-gray-500">1 poin = Rp 1</span>
+            </div>
+
             {redeemedPoints > 0 ? (
-              <button onClick={handleCancelRedeemPoints} className="px-4 py-2 bg-red-500 text-white font-bold border-2 border-black hover:bg-white hover:text-red-500 transition-colors">
-                Batal Tukar Poin
-              </button>
+              <div className="mt-2">
+                <div className="flex justify-between items-center mb-2">
+                  <span>Poin Ditukarkan:</span>
+                  <span className="font-bold text-green-600">{redeemedPoints} poin</span>
+                </div>
+                <button onClick={handleCancelRedeemPoints} className="w-full px-4 py-2 bg-red-500 text-white font-bold border-2 border-black hover:bg-white hover:text-red-500 transition-colors">
+                  Batal Tukar Poin
+                </button>
+              </div>
             ) : (
-              <button
-                onClick={handleRedeemPoints}
-                disabled={memberPoints === 0}
-                className="px-4 py-2 bg-black text-white font-bold border-2 border-black hover:bg-white hover:text-black transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Tukar Poin
-              </button>
+              <div className="mt-2">
+                <div className="flex items-center gap-2 mb-2">
+                  <input
+                    type="number"
+                    value={pointsToRedeem || ""}
+                    onChange={(e) => setPointsToRedeem(Math.max(0, parseInt(e.target.value) || 0))}
+                    placeholder="Jumlah poin untuk ditukar"
+                    className="p-2 border-2 border-black rounded w-full"
+                  />
+                  <button onClick={() => setPointsToRedeem(memberPoints)} className="whitespace-nowrap px-2 py-2 bg-gray-200 text-black font-bold border-2 border-black hover:bg-white transition-colors">
+                    Max
+                  </button>
+                </div>
+                <button
+                  onClick={handleRedeemPoints}
+                  disabled={memberPoints < 1000}
+                  className="w-full px-4 py-2 bg-black text-white font-bold border-2 border-black hover:bg-white hover:text-black transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Tukar Poin
+                </button>
+                <p className="text-xs text-gray-500 mt-1">Minimal 1000 poin untuk penukaran</p>
+              </div>
             )}
           </div>
         )}
