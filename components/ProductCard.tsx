@@ -28,6 +28,7 @@ interface NeoProductCardProps {
 }
 
 export function NeoProductCard({ product, onClick }: NeoProductCardProps) {
+  console.log("product yang di click", product);
   // Get all relevant promotions from product and category relationships
   const getAllPromotions = (): Promotion[] => {
     const productPromotions = product.promotionProducts?.map(pp => pp.promotion) || [];
@@ -96,7 +97,7 @@ export function NeoProductCard({ product, onClick }: NeoProductCardProps) {
 
   return (
     <div
-      onClick={() => !isOutOfStock && onClick({ ...product, harga: discountedPrice })}
+      onClick={() => !isOutOfStock && onClick({ ...product })}
       className={`group cursor-pointer bg-white border-2 border-black p-4 
                  ${isOutOfStock ? 'relative cursor-not-allowed border-red-600 border-dashed bg-red-50' : 'shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all duration-200 hover:-translate-y-0.5 active:shadow-none active:translate-y-0.5'}`}
     >
