@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { CheckCircle2, Download, ShoppingBag, Clock, Calendar, User, CreditCard } from "lucide-react";
+import { CheckCircle2, Download, ShoppingBag, Clock, Calendar, User, CreditCard, Coins } from "lucide-react";
 import { getCustomerById, getPetugasById } from "@/server/actions";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
@@ -13,6 +13,7 @@ interface ReceiptModalProps {
     change: number;
     petugasId: number;
     customerId: number | null;
+    customerName?: string;
     orderItems: Array<{
       nama: string;
       kuantitas: number;
@@ -21,15 +22,21 @@ interface ReceiptModalProps {
       hargaNormal?: number;
       hargaSetelahDiskon?: number;
       discountAmount?: number;
+      discountPercentage?: number;
       promotionDetails?: string;
     }>;
     transactionDate: Date;
+    // Field untuk redeem poin
+    redeemedPoints?: number;
+    totalBeforePointsDiscount?: number;
+    // Field untuk diskon promosi
+    totalPromotionDiscount?: number;
   };
   onClose: () => void;
 }
 
 export const ReceiptModal: React.FC<ReceiptModalProps> = ({ receiptData, onClose }) => {
-  const [customerName, setCustomerName] = useState<string>("Guest");
+  const [customerName, setCustomerName] = useState<string>(receiptData.customerName || "Guest");
   const [petugasName, setPetugasName] = useState<string>("");
   const [storeName] = useState<string>("Toko Cita Rasa");
   const [storeAddress] = useState<string>("Jl. Manunggal No. IV, Sukatali");
@@ -49,8 +56,8 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ receiptData, onClose
     const fetchData = async () => {
       setIsLoading(true);
       try {
-        // Fetch customer data
-        if (receiptData.customerId) {
+        // Fetch customer data if not already provided
+        if (receiptData.customerId && !receiptData.customerName) {
           try {
             const customer = await getCustomerById(receiptData.customerId);
             setCustomerName(customer?.nama || "Guest");
@@ -59,7 +66,7 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ receiptData, onClose
             setCustomerName("Guest");
           }
         }
-        
+
         // Fetch petugas data
         if (receiptData.petugasId) {
           try {
@@ -83,10 +90,20 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ receiptData, onClose
   };
 
   const calculateTotalSavings = () => {
+    // Gunakan totalPromotionDiscount jika ada, jika tidak, hitung dari orderItems
+    if (receiptData.totalPromotionDiscount && receiptData.totalPromotionDiscount > 0) {
+      return receiptData.totalPromotionDiscount;
+    }
+
     return receiptData.orderItems.reduce((total, item) => {
       const discount = item.discountAmount || 0;
       return total + discount;
     }, 0);
+  };
+
+  // Hitung poin yang didapat dari transaksi ini (1 poin per 200 rupiah)
+  const calculateEarnedPoints = () => {
+    return Math.floor(receiptData.finalTotal / 200);
   };
 
   const generatePDF = () => {
@@ -223,18 +240,38 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ receiptData, onClose
 
     // Totals
     doc.setFont("helvetica", "normal");
-    
+
     // Tampilkan total penghematan jika ada diskon
     const totalSavings = calculateTotalSavings();
     if (totalSavings > 0) {
-      doc.setFont("helvetica", "italic");
-      leftRightText("Total Hemat:", formatCurrency(totalSavings), yPos);
+      doc.setTextColor(255, 0, 0); // Warna merah untuk diskon promosi
+      leftRightText("Total Hemat Promosi:", formatCurrency(totalSavings), yPos);
+      yPos += lineHeight;
+      doc.setTextColor(0, 0, 0); // Reset warna teks
+    }
+
+    // Tampilkan subtotal setelah diskon promosi
+    leftRightText("Subtotal setelah promosi:", formatCurrency(receiptData.totalBeforePointsDiscount || receiptData.finalTotal), yPos);
+    yPos += lineHeight;
+
+    // Tampilkan subtotal sebelum potongan poin jika ada poin yang ditukarkan
+    // Tampilkan potongan poin jika ada
+    if (receiptData.redeemedPoints && receiptData.redeemedPoints > 0) {
+      doc.setTextColor(0, 128, 0); // Warna hijau untuk potongan poin
+      leftRightText("Potongan Poin:", `-${formatCurrency(receiptData.redeemedPoints)}`, yPos);
+      yPos += lineHeight;
+      doc.setTextColor(0, 0, 0); // Reset warna teks
+
+      doc.setFont("helvetica", "bold");
+      leftRightText("Total Pembayaran:", formatCurrency(receiptData.finalTotal), yPos);
+      yPos += lineHeight;
+      doc.setFont("helvetica", "normal");
+    } else {
+      doc.setFont("helvetica", "bold");
+      leftRightText("Total Pembayaran:", formatCurrency(receiptData.finalTotal), yPos);
       yPos += lineHeight;
       doc.setFont("helvetica", "normal");
     }
-    
-    leftRightText("Subtotal:", formatCurrency(receiptData.finalTotal), yPos);
-    yPos += lineHeight;
 
     leftRightText("Tunai:", formatCurrency(receiptData.amountReceived), yPos);
     yPos += lineHeight;
@@ -242,6 +279,17 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ receiptData, onClose
     doc.setFont("helvetica", "bold");
     leftRightText("Kembali:", formatCurrency(receiptData.change), yPos);
     yPos += lineHeight * 2;
+
+    // Informasi poin member
+    if (receiptData.customerId) {
+      leftRightText("Poin Didapat:", `${calculateEarnedPoints()} poin`, yPos);
+      yPos += lineHeight;
+
+      if (receiptData.redeemedPoints && receiptData.redeemedPoints > 0) {
+        leftRightText("Poin Ditukarkan:", `${receiptData.redeemedPoints} poin`, yPos);
+        yPos += lineHeight;
+      }
+    }
 
     addDashedLine(yPos);
     yPos += lineHeight * 1.5;
@@ -255,12 +303,7 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ receiptData, onClose
     yPos += lineHeight;
     centerText("Kecuali jika terjadi kesalahan dari petugas toko.", yPos);
     yPos += lineHeight * 1.5;
-    
-    // QR Code placeholder (you can implement actual QR code generation)
-    doc.setFontSize(6);
-    centerText("Scan untuk program loyalitas pelanggan", yPos);
-    yPos += lineHeight * 4; // Space for QR code
-    
+
     // Add store website or social media
     centerText("www.tokocitarasa.com | @tokocitarasa", yPos);
     yPos += lineHeight * 2;
@@ -279,17 +322,8 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ receiptData, onClose
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60 backdrop-blur-sm p-4"
-    >
-      <motion.div
-        initial={{ scale: 0.7, y: 50 }}
-        animate={{ scale: 1, y: 0 }}
-        className="bg-white w-full max-w-md p-6 rounded-xl shadow-2xl border-2 border-green-500"
-      >
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60 backdrop-blur-sm p-4">
+      <motion.div initial={{ scale: 0.7, y: 50 }} animate={{ scale: 1, y: 0 }} className="bg-white w-full max-w-md p-6 rounded-xl shadow-2xl border-2 border-green-500">
         {isLoading ? (
           <div className="flex flex-col items-center justify-center h-64">
             <div className="w-12 h-12 border-4 border-green-500 border-t-transparent rounded-full animate-spin"></div>
@@ -298,18 +332,13 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ receiptData, onClose
         ) : (
           <>
             <div className="flex flex-col items-center mb-6">
-              <motion.div 
-                initial={{ scale: 0 }} 
-                animate={{ scale: 1 }} 
-                transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
-                className="bg-green-100 p-4 rounded-full"
-              >
+              <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: 0.2, type: "spring", stiffness: 200 }} className="bg-green-100 p-4 rounded-full">
                 <CheckCircle2 className="text-green-500 w-16 h-16" />
               </motion.div>
               <h2 className="text-2xl font-bold mt-4 text-center text-green-700">Transaksi Berhasil!</h2>
               <p className="text-sm text-gray-500 mt-1">No. Transaksi: #{receiptData.PenjualanId}</p>
             </div>
-            
+
             <div className="bg-green-50 rounded-lg p-4 mb-4">
               <h3 className="font-semibold text-green-800 mb-2">Informasi Transaksi</h3>
               <div className="grid grid-cols-2 gap-2">
@@ -319,7 +348,7 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ receiptData, onClose
                     {receiptData.transactionDate.toLocaleDateString("id-ID", {
                       day: "numeric",
                       month: "long",
-                      year: "numeric"
+                      year: "numeric",
                     })}
                   </span>
                 </div>
@@ -328,7 +357,7 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ receiptData, onClose
                   <span>
                     {receiptData.transactionDate.toLocaleTimeString("id-ID", {
                       hour: "2-digit",
-                      minute: "2-digit"
+                      minute: "2-digit",
                     })}
                   </span>
                 </div>
@@ -344,9 +373,17 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ receiptData, onClose
                   <ShoppingBag className="w-4 h-4 mr-2 text-green-600" />
                   <span>Total Item: {calculateTotalItems()} item</span>
                 </div>
+
+                {/* Tambahkan informasi poin jika customer adalah member */}
+                {receiptData.customerId && (
+                  <div className="flex items-center text-sm text-green-700 col-span-2">
+                    <Coins className="w-4 h-4 mr-2 text-green-600" />
+                    <span>Poin Didapat: {calculateEarnedPoints()} poin</span>
+                  </div>
+                )}
               </div>
             </div>
-            
+
             <div className="mb-4">
               <h3 className="font-semibold text-gray-800 mb-2 flex items-center">
                 <ShoppingBag className="w-4 h-4 mr-2 text-green-600" />
@@ -376,14 +413,10 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ receiptData, onClose
                                 {item.hargaNormal && item.hargaSetelahDiskon && (
                                   <div className="flex justify-between text-gray-600">
                                     <span>Harga Normal: {formatCurrency(item.hargaNormal)}</span>
-                                    <span className="text-red-600 font-medium">
-                                      Hemat: {formatCurrency(item.discountAmount || 0)}
-                                    </span>
+                                    <span className="text-red-600 font-medium">Hemat: {formatCurrency(item.discountAmount || 0)}</span>
                                   </div>
                                 )}
-                                {item.promotionDetails && (
-                                  <div className="text-red-600 font-medium mt-1">{item.promotionDetails}</div>
-                                )}
+                                {item.promotionDetails && <div className="text-red-600 font-medium mt-1">{item.promotionDetails}</div>}
                               </td>
                             </tr>
                           ) : null}
@@ -394,49 +427,88 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ receiptData, onClose
                 </table>
               </div>
             </div>
-            
+
             <div className="bg-gray-50 rounded-lg p-4 mb-6">
-              <div className="flex justify-between mb-2">
-                <span className="text-gray-600">Total:</span>
-                <span className="font-medium">{formatCurrency(receiptData.finalTotal)}</span>
-              </div>
-              
+              {/* Tampilkan total hemat dari diskon promosi */}
               {calculateTotalSavings() > 0 && (
-                <div className="flex justify-between mb-2 text-red-600 text-sm">
-                  <span>Total Hemat:</span>
+                <div className="flex justify-between mb-2 text-red-600">
+                  <span>Total Hemat dari Promosi:</span>
                   <span className="font-medium">{formatCurrency(calculateTotalSavings())}</span>
                 </div>
               )}
-              
+
+              <div className="flex justify-between mb-2">
+                <span className="text-gray-600">Subtotal setelah promosi:</span>
+                <span className="font-medium">{formatCurrency(receiptData.totalBeforePointsDiscount || receiptData.finalTotal)}</span>
+              </div>
+
+              {/* Informasi redeem poin jika ada */}
+              {receiptData.redeemedPoints && receiptData.redeemedPoints > 0 && receiptData.totalBeforePointsDiscount ? (
+                <>
+                  <div className="flex justify-between mb-2">
+                    <span className="text-gray-600">Subtotal:</span>
+                    <span className="font-medium">{formatCurrency(receiptData.totalBeforePointsDiscount)}</span>
+                  </div>
+
+                  <div className="flex justify-between mb-2 text-green-600">
+                    <span>Potongan Poin Member:</span>
+                    <span className="font-medium">-{formatCurrency(receiptData.redeemedPoints)}</span>
+                  </div>
+
+                  <div className="flex justify-between mb-2 font-medium border-t border-dashed pt-2">
+                    <span className="text-gray-800">Total Setelah Poin:</span>
+                    <span>{formatCurrency(receiptData.finalTotal)}</span>
+                  </div>
+                </>
+              ) : (
+                <div className="flex justify-between mb-2">
+                  <span className="text-gray-600">Total:</span>
+                  <span className="font-medium">{formatCurrency(receiptData.finalTotal)}</span>
+                </div>
+              )}
+
               <div className="flex justify-between mb-2">
                 <span className="text-gray-600">Tunai:</span>
                 <span>{formatCurrency(receiptData.amountReceived)}</span>
               </div>
-              
+
               <div className="flex justify-between font-bold text-lg border-t pt-2 mt-2">
                 <span className="text-gray-800">Kembali:</span>
                 <span className="text-green-700">{formatCurrency(receiptData.change)}</span>
               </div>
+
+              {/* Tambahkan informasi poin jika customer adalah member */}
+              {receiptData.customerId && (
+                <div className="mt-3 pt-3 border-t border-dashed">
+                  <div className="flex justify-between text-sm text-green-700">
+                    <span>Poin yang didapat:</span>
+                    <span className="font-medium">{calculateEarnedPoints()} poin</span>
+                  </div>
+
+                  {receiptData.redeemedPoints && receiptData.redeemedPoints > 0 && (
+                    <div className="flex justify-between text-sm text-gray-600 mt-1">
+                      <span>Poin yang ditukarkan:</span>
+                      <span className="font-medium">{receiptData.redeemedPoints} poin</span>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             <div className="grid grid-cols-2 gap-3">
-              <button
-                onClick={handleDownloadPDF}
-                className="bg-green-500 text-white py-3 rounded-lg hover:bg-green-600 transition-colors flex items-center justify-center gap-2 font-medium"
-              >
+              <button onClick={handleDownloadPDF} className="bg-green-500 text-white py-3 rounded-lg hover:bg-green-600 transition-colors flex items-center justify-center gap-2 font-medium">
                 <Download className="w-5 h-5" />
                 Download Struk
               </button>
-              <button
-                onClick={onClose}
-                className="bg-gray-800 text-white py-3 rounded-lg hover:bg-black transition-colors font-medium"
-              >
+              <button onClick={onClose} className="bg-gray-800 text-white py-3 rounded-lg hover:bg-black transition-colors font-medium">
                 Tutup
               </button>
             </div>
-            
+
             <div className="mt-4 text-center text-xs text-gray-500">
-              <p>{storeName} | {storeAddress}</p>
+              <p>
+                {storeName} | {storeAddress}
+              </p>
               <p className="mt-1">Terima kasih atas kunjungan Anda</p>
             </div>
           </>
