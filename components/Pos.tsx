@@ -93,6 +93,95 @@ const Pos = () => {
     }
   };
 
+
+  // Tambahkan fungsi helper di dalam komponen Pos
+const getPromotionDetails = (
+  item: DetailPenjualan & { produk: Produk }
+): string | null => {
+  if (!item.produk.promotionProducts || item.produk.promotionProducts.length === 0) return null;
+  
+  const now = new Date();
+  const currentDay = now.getDay();
+  const isWeekend = currentDay === 0 || currentDay === 6;
+  let highestDiscount = 0;
+  let bestPromo: Promotion | null = null;
+
+  console.log("item.produk.promotionProducts", item.produk.promotionProducts)
+
+  item.produk.promotionProducts.forEach((pp) => {
+    const promo = pp.promotion;
+    const isActive =
+      now >= new Date(promo.startDate) &&
+      now <= new Date(promo.endDate) &&
+      (!pp.activeUntil || now <= new Date(pp.activeUntil));
+    if (!isActive) return;
+    let applies = false;
+    switch (promo.type) {
+      case "QUANTITY_BASED":
+        applies = promo.minQuantity && item.kuantitas >= promo.minQuantity;
+        break;
+      case "WEEKEND":
+        applies = isWeekend;
+        break;
+      case "FLASH_SALE":
+      case "SPECIAL_DAY":
+      case "PRODUCT_SPECIFIC":
+        applies = true;
+        break;
+      default:
+        applies = false;
+    }
+    if (!applies) return;
+    let discountAmount = 0;
+    if (promo.discountPercentage) {
+      discountAmount = (item.subtotal * promo.discountPercentage) / 100;
+    } else if (promo.discountAmount) {
+      discountAmount = promo.discountAmount;
+    }
+    if (discountAmount > highestDiscount) {
+      highestDiscount = discountAmount;
+      bestPromo = promo;
+    }
+  });
+
+  if (!bestPromo) return null;
+
+  // Format detail promosi berdasarkan tipe
+  if (bestPromo.type === "QUANTITY_BASED") {
+    if (bestPromo.discountPercentage) {
+      return `${bestPromo.discountPercentage}% off min. ${bestPromo.minQuantity} pcs`;
+    } else if (bestPromo.discountAmount) {
+      return `Rp${bestPromo.discountAmount} off min. ${bestPromo.minQuantity} pcs`;
+    }
+  } else if (bestPromo.type === "WEEKEND") {
+    if (bestPromo.discountPercentage) {
+      return `Weekend: ${bestPromo.discountPercentage}% off`;
+    } else if (bestPromo.discountAmount) {
+      return `Weekend: Rp${bestPromo.discountAmount} off`;
+    }
+  } else if (bestPromo.type === "FLASH_SALE") {
+    if (bestPromo.discountPercentage) {
+      return `Flash Sale: ${bestPromo.discountPercentage}% off`;
+    } else if (bestPromo.discountAmount) {
+      return `Flash Sale: Rp${bestPromo.discountAmount} off`;
+    }
+  } else if (bestPromo.type === "SPECIAL_DAY") {
+    if (bestPromo.discountPercentage) {
+      return `Special Offer: ${bestPromo.discountPercentage}% off`;
+    } else if (bestPromo.discountAmount) {
+      return `Special Offer: Rp${bestPromo.discountAmount} off`;
+    }
+  } else if (bestPromo.type === "PRODUCT_SPECIFIC") {
+    if (bestPromo.discountPercentage) {
+      return `${bestPromo.title || "Promo"}: ${bestPromo.discountPercentage}% off`;
+    } else if (bestPromo.discountAmount) {
+      return `${bestPromo.title || "Promo"}: Rp${bestPromo.discountAmount} off`;
+    }
+  }
+  return null;
+};
+
+
   const addToOrder = (product: Produk) => {
     console.log("produk yang di tambahkan ke order :", product)
     setOrder((prev) => {
@@ -224,16 +313,63 @@ const Pos = () => {
           amountReceived: orderData.uangMasuk || 0,
           change: orderData.kembalian || 0,
           customerId: orderData.pelangganId,
-          PenjualanId: penjualan.PenjualanId,
+          PenjualanId: penjualan.penjualanId,
           petugasId: orderData.userId,
-          customerName: orderData.customerName || 'Guest',
-          orderItems: orderData.detailPenjualan.map(item => ({
-            nama: item.produk.nama,
-            kuantitas: item.kuantitas,
-            subtotal: item.subtotal
-          })),
-          transactionDate: new Date()
+          customerName: orderData.customerName || "Guest",
+          orderItems: orderData.detailPenjualan.map((item) => {
+            const hargaNormal = item.produk.harga;
+            let discountPerUnit = 0;
+            
+            // Jika produk memiliki promosi aktif, periksa apakah ada discountPercentage atau discountAmount
+            if (item.produk.promotionProducts && item.produk.promotionProducts.length > 0) {
+              const now = new Date();
+              // Filter promosi yang aktif berdasarkan tanggal
+              const activePromos = item.produk.promotionProducts.filter((pp) => {
+                const promo = pp.promotion;
+                return now >= new Date(promo.startDate) && now <= new Date(promo.endDate);
+              });
+              if (activePromos.length > 0) {
+                // Misalnya, ambil promosi dengan diskon tertinggi (atau bisa disesuaikan logikanya)
+                let bestPromo = activePromos[0].promotion;
+                activePromos.forEach((pp) => {
+                  const promo = pp.promotion;
+                  let promoDiscount = 0;
+                  if (promo.discountPercentage) {
+                    promoDiscount = hargaNormal * (promo.discountPercentage / 100);
+                  } else if (promo.discountAmount) {
+                    promoDiscount = promo.discountAmount;
+                  }
+                  if (promoDiscount > discountPerUnit) {
+                    discountPerUnit = promoDiscount;
+                    bestPromo = promo;
+                  }
+                });
+              }
+            }
+            
+            // Total diskon untuk item (berdasarkan kuantitas)
+            const discountAmount = discountPerUnit * item.kuantitas;
+            // Harga per unit setelah diskon
+            const hargaSetelahDiskon = hargaNormal - discountPerUnit;
+            
+            return {
+              nama: item.produk.nama,
+              kuantitas: item.kuantitas,
+              subtotal: item.subtotal,
+              hargaNormal,
+              hargaSetelahDiskon,
+              discountAmount,
+              // Optional: sertakan persentase diskon jika ada
+              discountPercentage: discountPerUnit > 0 ? (discountPerUnit / hargaNormal) * 100 : 0,
+              // Misalnya, ambil detail promosi sebagai teks (bisa menggunakan helper getPromotionDetails)
+              promotionDetails: getPromotionDetails(item),
+            };
+          }),
+          transactionDate: new Date(),
         };
+        
+        
+        
 
         console.log("data di kirim ke modal :", receiptModalData)
         setReceiptModalData(receiptModalData);
