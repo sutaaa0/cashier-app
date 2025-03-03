@@ -6,7 +6,7 @@ import { CategoryNav } from "@/components/category-nav";
 import { ProductGrid } from "@/components/product-grid";
 import { toast } from "@/hooks/use-toast";
 import { createOrder, getProducts } from "@/server/actions";
-import { Produk as PrismaProduk, Penjualan, DetailPenjualan, Promotion } from "@prisma/client";
+import { Produk as PrismaProduk, Penjualan, DetailPenjualan, Promotion, PromotionProduct, PromotionType } from "@prisma/client";
 import { NeoSearchInput } from "./InputSearch";
 import { NeoOrderSummary } from "./order-summary";
 import { NeoProgressIndicator } from "./NeoProgresIndicator";
@@ -18,42 +18,74 @@ import { useRouter } from "next/navigation";
 interface Produk extends PrismaProduk {
   kategori: { nama: string; kategoriId: number };
   image: string;
-  promotions?: (Promotion & { categories?: { kategoriId?: number }[] })[];
-
+  promotionProducts: (PromotionProduct & {
+    promotion: Promotion;
+  })[];
 }
 
-const Pos = () => {
-  const [showRefundModal, setShowRefundModal] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState("All Menu");
-  const [isLoading, setIsLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [products, setProducts] = useState<Produk[]>([]);
-  const [showReceiptModal, setShowReceiptModal] = useState(false);
-  const router = useRouter();
-  interface ReceiptModalData {
-    PenjualanId: number | undefined;
-    finalTotal: number;
-    amountReceived: number;
-    change: number;
-    customerId: number | null;
-    petugasId: number;
-    customerName: string;
-    orderItems: { nama: string; kuantitas: number; subtotal: number }[];
-    transactionDate: Date;
-  }
+interface DetailPenjualanWithProduk extends DetailPenjualan {
+  produk: Produk;
+}
 
+interface PenjualanWithDetails extends Penjualan {
+  detailPenjualan: DetailPenjualanWithProduk[];
+}
+
+interface ReceiptModalData {
+  PenjualanId: number | undefined;
+  finalTotal: number;
+  amountReceived: number;
+  change: number;
+  customerId: number | null;
+  petugasId: number;
+  customerName: string;
+  orderItems: {
+    nama: string;
+    kuantitas: number;
+    subtotal: number;
+    hargaNormal?: number;
+    hargaSetelahDiskon?: number;
+    discountAmount?: number;
+    discountPercentage?: number;
+    promotionDetails?: string | null;
+  }[];
+  transactionDate: Date;
+}
+
+interface OrderPayload extends Penjualan {
+  pelangganId: number | null;
+  guestId: number | null;
+  redeemedPoints?: number;
+  uangMasuk: number | null;
+  kembalian: number | null;
+  customerName?: string;
+  detailPenjualan: {
+    produkId: number;
+    kuantitas: number;
+    subtotal: number;
+  }[];
+}
+
+interface OrderSummaryRef {
+  resetCustomerData: () => void;
+}
+
+const Pos = (): JSX.Element => {
+  const [showRefundModal, setShowRefundModal] = useState<boolean>(false);
+  const [selectedCategory, setSelectedCategory] = useState<string>("All Menu");
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [searchQuery, setSearchQuery] = useState<string>("");
+  const [products, setProducts] = useState<Produk[]>([]);
+  const [showReceiptModal, setShowReceiptModal] = useState<boolean>(false);
+  const router = useRouter();
   const [receiptModalData, setReceiptModalData] = useState<ReceiptModalData | null>(null);
 
-  const handleRefundComplete = () => {
+  const handleRefundComplete = (): void => {
     setShowRefundModal(false);
     // Refresh halaman atau reset data jika diperlukan
   };
 
-  const [order, setOrder] = useState<
-    Penjualan & {
-      detailPenjualan: (DetailPenjualan & { produk: Produk })[];
-    }
-  >({
+  const initialOrder: PenjualanWithDetails = {
     penjualanId: 0,
     tanggalPenjualan: new Date(),
     total_harga: 0,
@@ -65,21 +97,23 @@ const Pos = () => {
     detailPenjualan: [],
     keuntungan: 0,
     total_modal: 0,
-  });
+  };
 
-  console.log("order :", order)
+  const [order, setOrder] = useState<PenjualanWithDetails>(initialOrder);
 
-  const orderSummaryRef = useRef<{ resetCustomerData: () => void } | null>(null);
+  console.log("order :", order);
+
+  const orderSummaryRef = useRef<OrderSummaryRef | null>(null);
 
   useEffect(() => {
     fetchProducts();
   }, [selectedCategory]);
 
-  const fetchProducts = async () => {
+  const fetchProducts = async (): Promise<void> => {
     try {
       setIsLoading(true);
       const data = await getProducts(selectedCategory);
-      console.log("ini produk dari pos :", data)
+      console.log("ini produk dari pos :", data);
       setProducts(data || []);
     } catch (error) {
       console.error("Error fetching products:", error);
@@ -93,108 +127,107 @@ const Pos = () => {
     }
   };
 
+  const getPromotionDetails = (
+    item: DetailPenjualanWithProduk
+  ): string | null => {
+    if (!item.produk.promotionProducts || item.produk.promotionProducts.length === 0) return null;
 
-  // Tambahkan fungsi helper di dalam komponen Pos
-const getPromotionDetails = (
-  item: DetailPenjualan & { produk: Produk }
-): string | null => {
-  if (!item.produk.promotionProducts || item.produk.promotionProducts.length === 0) return null;
-  
-  const now = new Date();
-  const currentDay = now.getDay();
-  const isWeekend = currentDay === 0 || currentDay === 6;
-  let highestDiscount = 0;
-  let bestPromo: Promotion | null = null;
+    const now = new Date();
+    const currentDay = now.getDay();
+    const isWeekend = currentDay === 0 || currentDay === 6;
+    let highestDiscount = 0;
+    let bestPromo: Promotion | null = null;
 
-  console.log("item.produk.promotionProducts", item.produk.promotionProducts)
+    console.log("item.produk.promotionProducts", item.produk.promotionProducts);
 
-  item.produk.promotionProducts.forEach((pp) => {
-    const promo = pp.promotion;
-    const isActive =
-      now >= new Date(promo.startDate) &&
-      now <= new Date(promo.endDate) &&
-      (!pp.activeUntil || now <= new Date(pp.activeUntil));
-    if (!isActive) return;
-    let applies = false;
-    switch (promo.type) {
-      case "QUANTITY_BASED":
-        applies = promo.minQuantity && item.kuantitas >= promo.minQuantity;
-        break;
-      case "WEEKEND":
-        applies = isWeekend;
-        break;
-      case "FLASH_SALE":
-      case "SPECIAL_DAY":
-      case "PRODUCT_SPECIFIC":
-        applies = true;
-        break;
-      default:
-        applies = false;
-    }
-    if (!applies) return;
-    let discountAmount = 0;
-    if (promo.discountPercentage) {
-      discountAmount = (item.subtotal * promo.discountPercentage) / 100;
-    } else if (promo.discountAmount) {
-      discountAmount = promo.discountAmount;
-    }
-    if (discountAmount > highestDiscount) {
-      highestDiscount = discountAmount;
-      bestPromo = promo;
-    }
-  });
+    item.produk.promotionProducts.forEach((pp: PromotionProduct & { promotion: Promotion }) => {
+      const promo = pp.promotion;
+      console.log("ini promo :", promo);
+      const isActive =
+        now >= new Date(promo.startDate) &&
+        now <= new Date(promo.endDate) &&
+        (!pp.activeUntil || now <= new Date(pp.activeUntil));
+      if (!isActive) return;
+      let applies = false;
+      switch (promo.type) {
+        case "QUANTITY_BASED":
+          applies = promo.minQuantity ? item.kuantitas >= promo.minQuantity : false;
+          break;
+        case "WEEKEND":
+          applies = isWeekend;
+          break;
+        case "FLASH_SALE":
+        case "SPECIAL_DAY":
+        case "PRODUCT_SPECIFIC":
+          applies = true;
+          break;
+        default:
+          applies = false;
+      }
+      if (!applies) return;
+      let discountAmount = 0;
+      if (promo.discountPercentage) {
+        discountAmount = (item.subtotal * promo.discountPercentage) / 100;
+      } else if (promo.discountAmount) {
+        discountAmount = promo.discountAmount;
+      }
+      if (discountAmount > highestDiscount) {
+        highestDiscount = discountAmount;
+        bestPromo = promo;
+      }
+    });
 
-  if (!bestPromo) return null;
+    if (!bestPromo) return null;
+    const finalPromo: Promotion = bestPromo;
 
-  // Format detail promosi berdasarkan tipe
-  if (bestPromo.type === "QUANTITY_BASED") {
-    if (bestPromo.discountPercentage) {
-      return `${bestPromo.discountPercentage}% off min. ${bestPromo.minQuantity} pcs`;
-    } else if (bestPromo.discountAmount) {
-      return `Rp${bestPromo.discountAmount} off min. ${bestPromo.minQuantity} pcs`;
+    // Format detail promosi berdasarkan tipe
+    if (finalPromo.type === "QUANTITY_BASED") {
+      if (finalPromo.discountPercentage) {
+        return `${finalPromo.discountPercentage}% off min. ${finalPromo.minQuantity} pcs`;
+      } else if (finalPromo.discountAmount) {
+        return `Rp${finalPromo.discountAmount} off min. ${finalPromo.minQuantity} pcs`;
+      }
+    } else if (finalPromo.type === "WEEKEND") {
+      if (finalPromo.discountPercentage) {
+        return `Weekend: ${finalPromo.discountPercentage}% off`;
+      } else if (finalPromo.discountAmount) {
+        return `Weekend: Rp${finalPromo.discountAmount} off`;
+      }
+    } else if (finalPromo.type === "FLASH_SALE") {
+      if (finalPromo.discountPercentage) {
+        return `Flash Sale: ${finalPromo.discountPercentage}% off`;
+      } else if (finalPromo.discountAmount) {
+        return `Flash Sale: Rp${finalPromo.discountAmount} off`;
+      }
+    } else if (finalPromo.type === "SPECIAL_DAY") {
+      if (finalPromo.discountPercentage) {
+        return `Special Offer: ${finalPromo.discountPercentage}% off`;
+      } else if (finalPromo.discountAmount) {
+        return `Special Offer: Rp${finalPromo.discountAmount} off`;
+      }
+    } else if (finalPromo.type === "PRODUCT_SPECIFIC") {
+      if (finalPromo.discountPercentage) {
+        return `${finalPromo.title || "Promo"}: ${finalPromo.discountPercentage}% off`;
+      } else if (finalPromo.discountAmount) {
+        return `${finalPromo.title || "Promo"}: Rp${finalPromo.discountAmount} off`;
+      }
     }
-  } else if (bestPromo.type === "WEEKEND") {
-    if (bestPromo.discountPercentage) {
-      return `Weekend: ${bestPromo.discountPercentage}% off`;
-    } else if (bestPromo.discountAmount) {
-      return `Weekend: Rp${bestPromo.discountAmount} off`;
-    }
-  } else if (bestPromo.type === "FLASH_SALE") {
-    if (bestPromo.discountPercentage) {
-      return `Flash Sale: ${bestPromo.discountPercentage}% off`;
-    } else if (bestPromo.discountAmount) {
-      return `Flash Sale: Rp${bestPromo.discountAmount} off`;
-    }
-  } else if (bestPromo.type === "SPECIAL_DAY") {
-    if (bestPromo.discountPercentage) {
-      return `Special Offer: ${bestPromo.discountPercentage}% off`;
-    } else if (bestPromo.discountAmount) {
-      return `Special Offer: Rp${bestPromo.discountAmount} off`;
-    }
-  } else if (bestPromo.type === "PRODUCT_SPECIFIC") {
-    if (bestPromo.discountPercentage) {
-      return `${bestPromo.title || "Promo"}: ${bestPromo.discountPercentage}% off`;
-    } else if (bestPromo.discountAmount) {
-      return `${bestPromo.title || "Promo"}: Rp${bestPromo.discountAmount} off`;
-    }
-  }
-  return null;
-};
+    return null;
+  };
 
-
-  const addToOrder = (product: Produk) => {
-    console.log("produk yang di tambahkan ke order :", product)
+  const addToOrder = (product: Produk): void => {
+    console.log("produk yang di tambahkan ke order :", product);
     setOrder((prev) => {
       const existingItem = prev.detailPenjualan.find((item) => item.produkId === product.produkId);
-  
-      let newDetailPenjualan: (DetailPenjualan & { produk: Produk })[];
+
+      let newDetailPenjualan: DetailPenjualanWithProduk[];
       if (existingItem) {
         newDetailPenjualan = prev.detailPenjualan.map((item) =>
           item.produkId === product.produkId
             ? {
                 ...item,
                 kuantitas: item.kuantitas + 1,
-                subtotal: (item.kuantitas + 1) * product.harga, 
+                subtotal: (item.kuantitas + 1) * product.harga,
               }
             : item
         );
@@ -206,17 +239,17 @@ const getPromotionDetails = (
             penjualanId: prev.penjualanId,
             produkId: product.produkId,
             kuantitas: 1,
-            subtotal: product.harga, 
+            subtotal: product.harga,
             produk: product,
           },
         ];
       }
-  
+
       // Calculate total_harga and total_modal
       const total_harga = newDetailPenjualan.reduce((sum, item) => sum + item.subtotal, 0);
       const total_modal = newDetailPenjualan.reduce((sum, item) => sum + (item.produk.hargaModal * item.kuantitas), 0);
       const keuntungan = total_harga - total_modal;
-  
+
       return {
         ...prev,
         detailPenjualan: newDetailPenjualan,
@@ -227,7 +260,7 @@ const getPromotionDetails = (
     });
   };
 
-  const handleUpdateQuantity = (produkId: number, newQuantity: number) => {
+  const handleUpdateQuantity = (produkId: number, newQuantity: number): void => {
     setOrder((prevOrder) => {
       const updatedDetailPenjualan = prevOrder.detailPenjualan.map((item) => {
         if (item.produkId === produkId) {
@@ -239,12 +272,12 @@ const getPromotionDetails = (
         }
         return item;
       });
-  
+
       // Recalculate totals
       const total_harga = updatedDetailPenjualan.reduce((sum, item) => sum + item.subtotal, 0);
       const total_modal = updatedDetailPenjualan.reduce((sum, item) => sum + (item.produk.hargaModal * item.kuantitas), 0);
       const keuntungan = total_harga - total_modal;
-  
+
       return {
         ...prevOrder,
         detailPenjualan: updatedDetailPenjualan,
@@ -255,7 +288,7 @@ const getPromotionDetails = (
     });
   };
 
-  const handleDeleteItem = (produkId: number) => {
+  const handleDeleteItem = (produkId: number): void => {
     setOrder((prevOrder) => {
       const updatedDetailPenjualan = prevOrder.detailPenjualan.filter((item) => item.produkId !== produkId);
 
@@ -274,7 +307,12 @@ const getPromotionDetails = (
     });
   };
 
-  const handlePlaceOrder = async (orderData: Penjualan & { redeemedPoints?: number; uangMasuk?: number; kembalian?: number; customerName?: string; detailPenjualan: (DetailPenjualan & { produk: Produk })[]; }) => {
+  const handlePlaceOrder = async (orderData: PenjualanWithDetails & { 
+    redeemedPoints?: number; 
+    uangMasuk?: number; 
+    kembalian?: number; 
+    customerName?: string; 
+  }): Promise<void> => {
     if (orderData.detailPenjualan.length === 0) {
       toast({
         title: "Error",
@@ -283,15 +321,15 @@ const getPromotionDetails = (
       });
       return;
     }
-  
+
     try {
       setIsLoading(true);
-      
+
       // Make sure to include the total_modal and keuntungan in the order payload
-      const orderPayload = {
+      const orderPayload: OrderPayload = {
         ...orderData,
-        pelangganId: orderData.pelangganId ?? undefined,
-        guestId: orderData.guestId ?? undefined,
+        pelangganId: orderData.pelangganId ?? null,
+        guestId: orderData.guestId ?? null,
         total_harga: orderData.total_harga,
         total_modal: orderData.total_modal,
         keuntungan: orderData.keuntungan,
@@ -303,12 +341,12 @@ const getPromotionDetails = (
           subtotal: item.subtotal,
         })),
       };
-      
+
       const penjualan = await createOrder(orderPayload);
-      console.log("penjualan :", penjualan)
-  
+      console.log("penjualan :", penjualan);
+
       if (penjualan && 'total_harga' in penjualan) {
-        const receiptModalData = {
+        const modalData: ReceiptModalData = {
           finalTotal: penjualan.total_harga,
           amountReceived: orderData.uangMasuk || 0,
           change: orderData.kembalian || 0,
@@ -319,7 +357,7 @@ const getPromotionDetails = (
           orderItems: orderData.detailPenjualan.map((item) => {
             const hargaNormal = item.produk.harga;
             let discountPerUnit = 0;
-            
+
             // Jika produk memiliki promosi aktif, periksa apakah ada discountPercentage atau discountAmount
             if (item.produk.promotionProducts && item.produk.promotionProducts.length > 0) {
               const now = new Date();
@@ -328,9 +366,9 @@ const getPromotionDetails = (
                 const promo = pp.promotion;
                 return now >= new Date(promo.startDate) && now <= new Date(promo.endDate);
               });
+              
               if (activePromos.length > 0) {
                 // Misalnya, ambil promosi dengan diskon tertinggi (atau bisa disesuaikan logikanya)
-                let bestPromo = activePromos[0].promotion;
                 activePromos.forEach((pp) => {
                   const promo = pp.promotion;
                   let promoDiscount = 0;
@@ -341,17 +379,16 @@ const getPromotionDetails = (
                   }
                   if (promoDiscount > discountPerUnit) {
                     discountPerUnit = promoDiscount;
-                    bestPromo = promo;
                   }
                 });
               }
             }
-            
+
             // Total diskon untuk item (berdasarkan kuantitas)
             const discountAmount = discountPerUnit * item.kuantitas;
             // Harga per unit setelah diskon
             const hargaSetelahDiskon = hargaNormal - discountPerUnit;
-            
+
             return {
               nama: item.produk.nama,
               kuantitas: item.kuantitas,
@@ -367,14 +404,11 @@ const getPromotionDetails = (
           }),
           transactionDate: new Date(),
         };
-        
-        
-        
 
-        console.log("data di kirim ke modal :", receiptModalData)
-        setReceiptModalData(receiptModalData);
+        console.log("data di kirim ke modal :", modalData);
+        setReceiptModalData(modalData);
         setShowReceiptModal(true);
-        
+
         setOrder({
           penjualanId: 0,
           tanggalPenjualan: new Date(),
@@ -403,7 +437,7 @@ const getPromotionDetails = (
     }
   };
 
-  const handleSearch = (query: string) => {
+  const handleSearch = (query: string): void => {
     setSearchQuery(query);
   };
 
