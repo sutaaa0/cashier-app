@@ -282,13 +282,32 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ receiptData, onClose
 
     // Informasi poin member
     if (receiptData.customerId) {
-      leftRightText("Poin Didapat:", `${calculateEarnedPoints()} poin`, yPos);
-      yPos += lineHeight;
-
+      const earnedPoints = calculateEarnedPoints();
+      
+      // Hanya tampilkan poin yang didapat jika lebih dari 0
+      if (earnedPoints > 0) {
+        leftRightText("Poin Didapat:", `${earnedPoints} poin`, yPos);
+        yPos += lineHeight;
+      }
+      
       if (receiptData.redeemedPoints && receiptData.redeemedPoints > 0) {
         leftRightText("Poin Ditukarkan:", `${receiptData.redeemedPoints} poin`, yPos);
         yPos += lineHeight;
       }
+      
+      // Tambahkan informasi aturan poin member
+      doc.setFontSize(7);
+      doc.setFont("helvetica", "italic");
+      centerText("Informasi Poin Member:", yPos);
+      yPos += lineHeight;
+      centerText("Setiap transaksi Rp200 = 1 poin", yPos);
+      yPos += lineHeight;
+      centerText("1 poin = Rp1 untuk penukaran", yPos);
+      yPos += lineHeight;
+      centerText("Minimal penukaran 1.000 poin", yPos);
+      yPos += lineHeight;
+      doc.setFontSize(8);
+      doc.setFont("helvetica", "normal");
     }
 
     addDashedLine(yPos);
@@ -322,23 +341,42 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ receiptData, onClose
   };
 
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60 backdrop-blur-sm p-4">
-      <motion.div initial={{ scale: 0.7, y: 50 }} animate={{ scale: 1, y: 0 }} className="bg-white w-full max-w-md p-6 rounded-xl shadow-2xl border-2 border-green-500">
-        {isLoading ? (
-          <div className="flex flex-col items-center justify-center h-64">
-            <div className="w-12 h-12 border-4 border-green-500 border-t-transparent rounded-full animate-spin"></div>
-            <p className="mt-4 text-gray-600">Memuat data struk...</p>
-          </div>
-        ) : (
-          <>
-            <div className="flex flex-col items-center mb-6">
-              <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: 0.2, type: "spring", stiffness: 200 }} className="bg-green-100 p-4 rounded-full">
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60 backdrop-blur-sm p-4"
+    >
+      {isLoading ? (
+        <div className="bg-white p-8 rounded-xl flex flex-col items-center justify-center">
+          <div className="w-12 h-12 border-4 border-green-500 border-t-transparent rounded-full animate-spin"></div>
+          <p className="mt-4 text-gray-600">Memuat data struk...</p>
+        </div>
+      ) : (
+        <motion.div
+          initial={{ scale: 0.7, y: 50 }}
+          animate={{ scale: 1, y: 0 }}
+          className="bg-white w-full max-w-md rounded-xl shadow-2xl border-2 border-green-500 flex flex-col max-h-[90vh]"
+        >
+          {/* Header tetap */}
+          <div className="px-6 pt-6 pb-2">
+            <div className="flex flex-col items-center mb-4">
+              <motion.div
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
+                className="bg-green-100 p-4 rounded-full"
+              >
                 <CheckCircle2 className="text-green-500 w-16 h-16" />
               </motion.div>
               <h2 className="text-2xl font-bold mt-4 text-center text-green-700">Transaksi Berhasil!</h2>
               <p className="text-sm text-gray-500 mt-1">No. Transaksi: #{receiptData.PenjualanId}</p>
             </div>
+          </div>
 
+          {/* Area scrollable untuk konten utama */}
+          <div className="flex-grow overflow-y-auto px-6 pb-2 custom-scrollbar">
+            {/* Informasi Transaksi */}
             <div className="bg-green-50 rounded-lg p-4 mb-4">
               <h3 className="font-semibold text-green-800 mb-2">Informasi Transaksi</h3>
               <div className="grid grid-cols-2 gap-2">
@@ -375,7 +413,7 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ receiptData, onClose
                 </div>
 
                 {/* Tambahkan informasi poin jika customer adalah member */}
-                {receiptData.customerId && (
+                {receiptData.customerId && calculateEarnedPoints() > 0 && (
                   <div className="flex items-center text-sm text-green-700 col-span-2">
                     <Coins className="w-4 h-4 mr-2 text-green-600" />
                     <span>Poin Didapat: {calculateEarnedPoints()} poin</span>
@@ -384,14 +422,15 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ receiptData, onClose
               </div>
             </div>
 
+            {/* Detail Pesanan */}
             <div className="mb-4">
-              <h3 className="font-semibold text-gray-800 mb-2 flex items-center">
+              <h3 className="font-semibold text-gray-800 mb-2 flex items-center sticky top-0 bg-white py-2">
                 <ShoppingBag className="w-4 h-4 mr-2 text-green-600" />
                 Detail Pesanan
               </h3>
               <div className="border rounded-lg overflow-hidden">
                 <table className="w-full">
-                  <thead className="bg-gray-50">
+                  <thead className="bg-gray-50 sticky top-10">
                     <tr>
                       <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Item</th>
                       <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">Jumlah</th>
@@ -428,7 +467,8 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ receiptData, onClose
               </div>
             </div>
 
-            <div className="bg-gray-50 rounded-lg p-4 mb-6">
+            {/* Ringkasan Pembayaran */}
+            <div className="bg-gray-50 rounded-lg p-4 mb-4">
               {/* Tampilkan total hemat dari diskon promosi */}
               {calculateTotalSavings() > 0 && (
                 <div className="flex justify-between mb-2 text-red-600">
@@ -443,29 +483,17 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ receiptData, onClose
               </div>
 
               {/* Informasi redeem poin jika ada */}
-              {receiptData.redeemedPoints && receiptData.redeemedPoints > 0 && receiptData.totalBeforePointsDiscount ? (
-                <>
-                  <div className="flex justify-between mb-2">
-                    <span className="text-gray-600">Subtotal:</span>
-                    <span className="font-medium">{formatCurrency(receiptData.totalBeforePointsDiscount)}</span>
-                  </div>
-
-                  <div className="flex justify-between mb-2 text-green-600">
-                    <span>Potongan Poin Member:</span>
-                    <span className="font-medium">-{formatCurrency(receiptData.redeemedPoints)}</span>
-                  </div>
-
-                  <div className="flex justify-between mb-2 font-medium border-t border-dashed pt-2">
-                    <span className="text-gray-800">Total Setelah Poin:</span>
-                    <span>{formatCurrency(receiptData.finalTotal)}</span>
-                  </div>
-                </>
-              ) : (
-                <div className="flex justify-between mb-2">
-                  <span className="text-gray-600">Total:</span>
-                  <span className="font-medium">{formatCurrency(receiptData.finalTotal)}</span>
+              {receiptData.redeemedPoints && receiptData.redeemedPoints > 0 && (
+                <div className="flex justify-between mb-2 text-green-600">
+                  <span>Potongan Poin Member:</span>
+                  <span className="font-medium">-{formatCurrency(receiptData.redeemedPoints)}</span>
                 </div>
               )}
+
+              <div className="flex justify-between mb-2 font-medium border-t border-dashed pt-2">
+                <span className="text-gray-800">Total Pembayaran:</span>
+                <span>{formatCurrency(receiptData.finalTotal)}</span>
+              </div>
 
               <div className="flex justify-between mb-2">
                 <span className="text-gray-600">Tunai:</span>
@@ -480,10 +508,12 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ receiptData, onClose
               {/* Tambahkan informasi poin jika customer adalah member */}
               {receiptData.customerId && (
                 <div className="mt-3 pt-3 border-t border-dashed">
-                  <div className="flex justify-between text-sm text-green-700">
-                    <span>Poin yang didapat:</span>
-                    <span className="font-medium">{calculateEarnedPoints()} poin</span>
-                  </div>
+                  {calculateEarnedPoints() > 0 && (
+                    <div className="flex justify-between text-sm text-green-700">
+                      <span>Poin yang didapat:</span>
+                      <span className="font-medium">{calculateEarnedPoints()} poin</span>
+                    </div>
+                  )}
 
                   {receiptData.redeemedPoints && receiptData.redeemedPoints > 0 && (
                     <div className="flex justify-between text-sm text-gray-600 mt-1">
@@ -491,12 +521,28 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ receiptData, onClose
                       <span className="font-medium">{receiptData.redeemedPoints} poin</span>
                     </div>
                   )}
+
+                  {/* Tambahkan informasi aturan poin member */}
+                  <div className="mt-2 text-xs text-gray-500 border-t border-dashed pt-2">
+                    <p className="font-medium">Informasi Poin Member:</p>
+                    <ul className="mt-1 list-disc pl-4 space-y-0.5">
+                      <li>Setiap transaksi Rp200 = 1 poin</li>
+                      <li>1 poin = Rp1 untuk penukaran</li>
+                      <li>Minimal penukaran 1.000 poin</li>
+                    </ul>
+                  </div>
                 </div>
               )}
             </div>
+          </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <button onClick={handleDownloadPDF} className="bg-green-500 text-white py-3 rounded-lg hover:bg-green-600 transition-colors flex items-center justify-center gap-2 font-medium">
+          {/* Footer tetap */}
+          <div className="px-6 pb-6 pt-2 border-t border-gray-200">
+            <div className="grid grid-cols-2 gap-3 mb-3">
+              <button
+                onClick={handleDownloadPDF}
+                className="bg-green-500 text-white py-3 rounded-lg hover:bg-green-600 transition-colors flex items-center justify-center gap-2 font-medium"
+              >
                 <Download className="w-5 h-5" />
                 Download Struk
               </button>
@@ -505,15 +551,16 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ receiptData, onClose
               </button>
             </div>
 
-            <div className="mt-4 text-center text-xs text-gray-500">
+            <div className="text-center text-xs text-gray-500">
               <p>
                 {storeName} | {storeAddress}
               </p>
               <p className="mt-1">Terima kasih atas kunjungan Anda</p>
             </div>
-          </>
-        )}
-      </motion.div>
+          </div>
+        </motion.div>
+      )}
     </motion.div>
   );
 };
+
