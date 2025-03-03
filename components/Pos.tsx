@@ -40,7 +40,12 @@ interface DetailPenjualanWithProduk extends DetailPenjualan {
 
 interface PenjualanWithDetails extends Penjualan {
   detailPenjualan: DetailPenjualanWithProduk[];
+  // Tambahkan properti untuk diskon
+  promotionDiscounts?: { [produkId: number]: number };
+  totalBeforePromotionDiscount?: number;
+  totalAfterPromotionDiscount?: number;
 }
+
 
 interface ReceiptModalData {
   PenjualanId: number | undefined;
@@ -61,7 +66,11 @@ interface ReceiptModalData {
     promotionDetails?: string;
   }[];
   transactionDate: Date;
+  redeemedPoints?: number;
+  totalBeforePointsDiscount?: number;
+  totalPromotionDiscount?: number; // Total diskon dari promosi
 }
+
 
 interface OrderPayload extends Penjualan {
   pelangganId: number | null;
@@ -70,12 +79,17 @@ interface OrderPayload extends Penjualan {
   uangMasuk: number | null;
   kembalian: number | null;
   customerName?: string;
+  // Tambahkan properti untuk diskon
+  promotionDiscounts?: { [produkId: number]: number };
+  totalBeforePromotionDiscount?: number;
+  totalAfterPromotionDiscount?: number;
   detailPenjualan: {
     produkId: number;
     kuantitas: number;
     subtotal: number;
   }[];
 }
+
 
 interface OrderSummaryRef {
   resetCustomerData: () => void;
@@ -313,7 +327,10 @@ const Pos = (): JSX.Element => {
     redeemedPoints?: number; 
     uangMasuk?: number; 
     kembalian?: number; 
-    customerName?: string; 
+    customerName?: string;
+    promotionDiscounts?: { [produkId: number]: number };
+    totalBeforePromotionDiscount?: number;
+    totalAfterPromotionDiscount?: number;
   }): Promise<void> => {
     if (orderData.detailPenjualan.length === 0) {
       toast({
@@ -323,7 +340,7 @@ const Pos = (): JSX.Element => {
       });
       return;
     }
-
+  
     try {
       // Make sure to include the total_modal and keuntungan in the order payload
       const orderPayload: OrderPayload = {
@@ -341,10 +358,14 @@ const Pos = (): JSX.Element => {
           subtotal: item.subtotal,
         })),
       };
-
+  
       const penjualan = await createOrder(orderPayload);
-
+  
       if (penjualan && 'total_harga' in penjualan) {
+        // Hitung total diskon promosi
+        const totalPromotionDiscount = orderData.promotionDiscounts ? 
+          Object.values(orderData.promotionDiscounts).reduce((sum, discount) => sum + discount, 0) : 0;
+  
         const modalData: ReceiptModalData = {
           finalTotal: penjualan.total_harga,
           amountReceived: orderData.uangMasuk || 0,
@@ -355,58 +376,38 @@ const Pos = (): JSX.Element => {
           customerName: orderData.customerName || "Guest",
           orderItems: orderData.detailPenjualan.map((item) => {
             const hargaNormal = item.produk.harga;
-            let discountPerUnit = 0;
-
-            // Jika produk memiliki promosi aktif, periksa apakah ada discountPercentage atau discountAmount
-            if (item.produk.promotionProducts && item.produk.promotionProducts.length > 0) {
-              const now = new Date();
-              // Filter promosi yang aktif berdasarkan tanggal
-              const activePromos = item.produk.promotionProducts.filter((pp) => {
-                const promo = pp.promotion;
-                return now >= new Date(promo.startDate) && now <= new Date(promo.endDate);
-              });
-              
-              if (activePromos.length > 0) {
-                // Misalnya, ambil promosi dengan diskon tertinggi (atau bisa disesuaikan logikanya)
-                activePromos.forEach((pp) => {
-                  const promo = pp.promotion;
-                  let promoDiscount = 0;
-                  if (promo.discountPercentage) {
-                    promoDiscount = hargaNormal * (promo.discountPercentage / 100);
-                  } else if (promo.discountAmount) {
-                    promoDiscount = promo.discountAmount;
-                  }
-                  if (promoDiscount > discountPerUnit) {
-                    discountPerUnit = promoDiscount;
-                  }
-                });
-              }
-            }
-
-            // Total diskon untuk item (berdasarkan kuantitas)
-            const discountAmount = discountPerUnit * item.kuantitas;
-            // Harga per unit setelah diskon
-            const hargaSetelahDiskon = hargaNormal - discountPerUnit;
-
+            
+            // Gunakan diskon dari promotionDiscounts jika ada
+            const discountAmount = orderData.promotionDiscounts?.[item.produkId] || 0;
+            
+            // Hitung harga per unit setelah diskon
+            const hargaSetelahDiskon = discountAmount > 0 ? 
+              hargaNormal - (discountAmount / item.kuantitas) : hargaNormal;
+  
+            // Hitung persentase diskon jika ada
+            const discountPercentage = discountAmount > 0 ? 
+              (discountAmount / (hargaNormal * item.kuantitas)) * 100 : 0;
+  
             return {
               nama: item.produk.nama,
               kuantitas: item.kuantitas,
               subtotal: item.subtotal,
-              hargaNormal,
-              hargaSetelahDiskon,
-              discountAmount,
-              // Optional: sertakan persentase diskon jika ada
-              discountPercentage: discountPerUnit > 0 ? (discountPerUnit / hargaNormal) * 100 : 0,
-              // Misalnya, ambil detail promosi sebagai teks (bisa menggunakan helper getPromotionDetails)
+              hargaNormal: hargaNormal,
+              hargaSetelahDiskon: hargaSetelahDiskon,
+              discountAmount: discountAmount,
+              discountPercentage: discountPercentage,
               promotionDetails: getPromotionDetails(item) || undefined,
             };
           }),
           transactionDate: new Date(),
+          redeemedPoints: orderData.redeemedPoints || 0,
+          totalBeforePointsDiscount: orderData.totalAfterPromotionDiscount || orderData.total_harga,
+          totalPromotionDiscount: totalPromotionDiscount
         };
-
+  
         setReceiptModalData(modalData);
         setShowReceiptModal(true);
-
+  
         setOrder({
           penjualanId: 0,
           tanggalPenjualan: new Date(),
