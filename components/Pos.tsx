@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, JSX } from "react";
 import { Header } from "@/components/header";
 import { CategoryNav } from "@/components/category-nav";
 import { ProductGrid } from "@/components/product-grid";
 import { toast } from "@/hooks/use-toast";
 import { createOrder, getProducts } from "@/server/actions";
-import { Produk as PrismaProduk, Penjualan, DetailPenjualan, Promotion, PromotionProduct, PromotionType } from "@prisma/client";
+import { Produk as PrismaProduk, Penjualan, DetailPenjualan, Promotion,  } from "@prisma/client";
 import { NeoSearchInput } from "./InputSearch";
 import { NeoOrderSummary } from "./order-summary";
 import { NeoProgressIndicator } from "./NeoProgresIndicator";
@@ -18,9 +18,13 @@ import { useRouter } from "next/navigation";
 interface Produk extends PrismaProduk {
   kategori: { nama: string; kategoriId: number };
   image: string;
-  promotionProducts: (PromotionProduct & {
+  promotionProducts?: {
+    id: number;
+    produkId?: number;
+    promotionId: number;
+    activeUntil: Date | null;
     promotion: Promotion;
-  })[];
+  }[];
 }
 
 interface DetailPenjualanWithProduk extends DetailPenjualan {
@@ -47,10 +51,12 @@ interface ReceiptModalData {
     hargaSetelahDiskon?: number;
     discountAmount?: number;
     discountPercentage?: number;
-    promotionDetails?: string | null;
+    promotionDetails?: string;
   }[];
   transactionDate: Date;
 }
+
+
 
 interface OrderPayload extends Penjualan {
   pelangganId: number | null;
@@ -140,9 +146,8 @@ const Pos = (): JSX.Element => {
 
     console.log("item.produk.promotionProducts", item.produk.promotionProducts);
 
-    item.produk.promotionProducts.forEach((pp: PromotionProduct & { promotion: Promotion }) => {
+    item.produk.promotionProducts.forEach((pp) => {
       const promo = pp.promotion;
-      console.log("ini promo :", promo);
       const isActive =
         now >= new Date(promo.startDate) &&
         now <= new Date(promo.endDate) &&
@@ -351,7 +356,7 @@ const Pos = (): JSX.Element => {
           amountReceived: orderData.uangMasuk || 0,
           change: orderData.kembalian || 0,
           customerId: orderData.pelangganId,
-          PenjualanId: penjualan.penjualanId,
+          PenjualanId: penjualan.PenjualanId,
           petugasId: orderData.userId,
           customerName: orderData.customerName || "Guest",
           orderItems: orderData.detailPenjualan.map((item) => {
@@ -399,7 +404,7 @@ const Pos = (): JSX.Element => {
               // Optional: sertakan persentase diskon jika ada
               discountPercentage: discountPerUnit > 0 ? (discountPerUnit / hargaNormal) * 100 : 0,
               // Misalnya, ambil detail promosi sebagai teks (bisa menggunakan helper getPromotionDetails)
-              promotionDetails: getPromotionDetails(item),
+              promotionDetails: getPromotionDetails(item) || undefined,
             };
           }),
           transactionDate: new Date(),
