@@ -2594,6 +2594,143 @@ export async function createPromotion(input: CreatePromotionInput) {
 }
 
 
+// 1. First, the edit promotion function
+export async function updatePromotion(promotionId: number, input: CreatePromotionInput) {
+  try {
+    const {
+      title,
+      description,
+      type,
+      startDate,
+      endDate,
+      discountPercentage,
+      discountAmount,
+      minQuantity,
+      productIds,
+      categoryIds
+    } = input;
+    
+    // Validation checks
+    if (!title || !type || !startDate || !endDate) {
+      throw new Error("Missing required fields");
+    }
+    
+    if (!discountPercentage && !discountAmount) {
+      throw new Error("Either discount percentage or amount must be provided");
+    }
+    
+    // Validate discount type
+    if (discountPercentage && discountAmount) {
+      throw new Error("Cannot provide both discount percentage and amount");
+    }
+    
+    // Validate dates
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    if (end < start) {
+      throw new Error("End date must be after start date");
+    }
+    
+    // Validate products or categories
+    if ((!productIds || productIds.length === 0) && (!categoryIds || categoryIds.length === 0)) {
+      throw new Error("Either products or categories must be specified for the promotion");
+    }
+    
+    // Use transaction to ensure data integrity
+    const updatedPromotion = await prisma.$transaction(async (prismaClient) => {
+      // 1. Update the main promotion entry
+      const promotion = await prismaClient.promotion.update({
+        where: { promotionId },
+        data: {
+          title,
+          description,
+          type,
+          startDate: start,
+          endDate: end,
+          discountPercentage,
+          discountAmount,
+          minQuantity,
+        },
+      });
+      
+      // 2. Delete existing product relations
+      await prismaClient.promotionProduct.deleteMany({
+        where: { promotionId },
+      });
+      
+      // 3. Delete existing category relations
+      await prismaClient.promotionCategory.deleteMany({
+        where: { promotionId },
+      });
+      
+      // 4. If productIds provided, create new product relations
+      if (productIds && productIds.length > 0) {
+        await prismaClient.promotionProduct.createMany({
+          data: productIds.map(produkId => ({
+            promotionId,
+            produkId,
+            activeUntil: end
+          })),
+        });
+      }
+      
+      // 5. If categoryIds provided, create new category relations
+      if (categoryIds && categoryIds.length > 0) {
+        await prismaClient.promotionCategory.createMany({
+          data: categoryIds.map(kategoriId => ({
+            promotionId,
+            kategoriId,
+          })),
+        });
+      }
+      
+      return promotion;
+    });
+    
+    revalidatePath("/admin/promotions");
+    return { success: true, data: updatedPromotion };
+  } catch (error) {
+    console.error("Error updating promotion:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to update promotion"
+    };
+  }
+}
+
+// 2. The delete promotion function
+export async function deletePromotion(promotionId: number) {
+  try {
+    // Use transaction to ensure all related data is deleted properly
+    await prisma.$transaction(async (prismaClient) => {
+      // 1. First delete all product relations
+      await prismaClient.promotionProduct.deleteMany({
+        where: { promotionId },
+      });
+      
+      // 2. Next delete all category relations
+      await prismaClient.promotionCategory.deleteMany({
+        where: { promotionId },
+      });
+      
+      // 3. Finally delete the promotion itself
+      await prismaClient.promotion.delete({
+        where: { promotionId },
+      });
+    });
+    
+    revalidatePath("/admin/promotions");
+    return { success: true };
+  } catch (error) {
+    console.error("Error deleting promotion:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to delete promotion"
+    };
+  }
+}
+
+
 
 
 export async function getPromotions() {
@@ -2639,63 +2776,6 @@ export async function getPromotions() {
   }
 }
 
-
-export async function updatePromotion(id: number, input: Partial<CreatePromotionInput>) {
-  try {
-    const promotion = await prisma.promotion.update({
-      where: { promotionId: id },
-      data: {
-        title: input.title,
-        description: input.description,
-        type: input.type,
-        startDate: input.startDate,
-        endDate: input.endDate,
-        discountPercentage: input.discountPercentage,
-        discountAmount: input.discountAmount,
-        minQuantity: input.minQuantity,
-        // Update relasi produk melalui join table promotionProducts
-        promotionProducts: input.productIds
-          ? {
-              deleteMany: {}, // Hapus semua relasi produk yang ada untuk promosi ini
-              create: input.productIds.map(productId => ({
-                produk: { connect: { produkId: productId } }
-              })),
-            }
-          : undefined,
-        // Update relasi kategori melalui join table promotionCategories
-        promotionCategories: input.categoryIds
-          ? {
-              deleteMany: {}, // Hapus semua relasi kategori yang ada untuk promosi ini
-              create: input.categoryIds.map(categoryId => ({
-                kategori: { connect: { kategoriId: categoryId } }
-              })),
-            }
-          : undefined,
-      },
-    });
-
-    revalidatePath("/admin/promotions");
-    return { success: true, data: promotion };
-  } catch (error) {
-    console.error("Error updating promotion:", error);
-    return { success: false, error: "Failed to update promotion" };
-  }
-}
-
-
-export async function deletePromotion(id: number) {
-  try {
-    await prisma.promotion.delete({
-      where: { promotionId: id },
-    });
-
-    revalidatePath("/admin/promotions");
-    return { success: true };
-  } catch (error) {
-    console.error("Error deleting promotion:", error);
-    return { success: false, error: "Failed to delete promotion" };
-  }
-}
 
 // Fungsi helper untuk mendapatkan daftar produk
 export async function getProductsForPromotions() {
