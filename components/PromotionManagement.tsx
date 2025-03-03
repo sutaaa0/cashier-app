@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PromotionType } from "@prisma/client";
-import { createPromotion, deletePromotion, getCategories, getProductsForPromotions, getPromotions } from "@/server/actions";
+import { createPromotion, deletePromotion, getCategories, getProductsForPromotions, getPromotions, updatePromotion } from "@/server/actions";
 import { MultiSelect } from "./Multiselect";
 import { DeleteConfirmModal } from "./DeleteConfirmModal";
 import { toast } from "@/hooks/use-toast";
@@ -93,6 +93,10 @@ export function PromotionManagement() {
   const [promotions, setPromotions] = useState<Promotion[]>([]);
   const [isPending, startTransition] = useTransition();
   const [isModalOpen, setIsModalOpen] = useState(false);
+  // Add this to your existing state
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [editingPromotionId, setEditingPromotionId] = useState<number | null>(null);
+
   const [formData, setFormData] = useState<PromotionFormData>({
     title: "",
     description: "",
@@ -127,10 +131,10 @@ export function PromotionManagement() {
       // Fetch promotions
       const promotionsRes = await getPromotions();
       if (promotionsRes.data) {
-        const transformedPromotions = promotionsRes.data.map(promo => ({
+        const transformedPromotions = promotionsRes.data.map((promo) => ({
           ...promo,
-          products: promo.promotionProducts.map(pp => pp.produk),
-          categories: promo.promotionCategories.map(pc => pc.kategori)
+          products: promo.promotionProducts.map((pp) => pp.produk),
+          categories: promo.promotionCategories.map((pc) => pc.kategori),
         }));
         setPromotions(transformedPromotions);
       }
@@ -142,8 +146,7 @@ export function PromotionManagement() {
     fetchAllData();
   }, []);
 
-  const handleCleanUpPromotions = async () => {
-  };
+  const handleCleanUpPromotions = async () => {};
 
   // Submit handler for adding a new promotion
   const handleSubmit = (e: React.FormEvent) => {
@@ -166,21 +169,30 @@ export function PromotionManagement() {
         categoryIds: formData.applicableType === "categories" ? formData.selectedCategoryIds : undefined,
       };
 
-      const result = await createPromotion(input);
+      let result;
+
+      if (isEditMode && editingPromotionId) {
+        // Update existing promotion
+        result = await updatePromotion(editingPromotionId, input);
+      } else {
+        // Create new promotion
+        result = await createPromotion(input);
+      }
+
       if (result.success) {
         setIsModalOpen(false);
         resetForm();
-        // Refresh promotions list after creating new one
+        // Refresh promotions list after creating/updating
         fetchAllData();
         toast({
           title: "Success",
-          description: "Promotion created successfully",
+          description: isEditMode ? "Promotion updated successfully" : "Promotion created successfully",
         });
       } else {
         // Handle error
         toast({
           title: "Error",
-          description: result.error || "Failed to create promotion",
+          description: result.error || (isEditMode ? "Failed to update promotion" : "Failed to create promotion"),
           variant: "destructive",
         });
       }
@@ -227,6 +239,7 @@ export function PromotionManagement() {
     }
   };
 
+  // Modify the resetForm function to handle edit mode
   const resetForm = () => {
     setFormData({
       title: "",
@@ -243,16 +256,58 @@ export function PromotionManagement() {
       startTime: "00:00",
       endTime: "23:59",
     });
+    setIsEditMode(false);
+    setEditingPromotionId(null);
   };
 
-  const handleEdit = (promo: Promotion) => {
-    // Implement your edit functionality here
-    console.log("Edit Promotion:", promo);
-    // For now, this is just a placeholder
-    toast({
-      title: "Edit Feature",
-      description: "Edit functionality is not implemented yet",
+  // Add a function to populate the form with existing promotion data
+  const populateFormWithPromotion = (promo: Promotion) => {
+    const startDate = new Date(promo.startDate);
+    const endDate = new Date(promo.endDate);
+
+    // Format dates for input fields
+    const formattedStartDate = startDate.toISOString().split("T")[0];
+    const formattedEndDate = endDate.toISOString().split("T")[0];
+
+    // Format times for input fields
+    const startHours = String(startDate.getHours()).padStart(2, "0");
+    const startMinutes = String(startDate.getMinutes()).padStart(2, "0");
+    const endHours = String(endDate.getHours()).padStart(2, "0");
+    const endMinutes = String(endDate.getMinutes()).padStart(2, "0");
+
+    // Determine discount type and value
+    const discountType = promo.discountPercentage !== null ? "percentage" : "amount";
+    const discountValue = promo.discountPercentage !== null ? promo.discountPercentage : promo.discountAmount || 0;
+
+    // Determine if promotion applies to products or categories
+    const hasProducts = promo.products && promo.products.length > 0;
+    const hasCategories = promo.categories && promo.categories.length > 0;
+    const applicableType = hasProducts ? "products" : "categories";
+
+    setFormData({
+      title: promo.title,
+      description: promo.description || "",
+      type: promo.type as PromotionType,
+      startDate: formattedStartDate,
+      endDate: formattedEndDate,
+      discountType,
+      discountValue,
+      minQuantity: promo.minQuantity || 0,
+      applicableType,
+      selectedProductIds: hasProducts ? promo.products.map((p) => p.produkId) : [],
+      selectedCategoryIds: hasCategories ? promo.categories.map((c) => c.kategoriId) : [],
+      startTime: `${startHours}:${startMinutes}`,
+      endTime: `${endHours}:${endMinutes}`,
     });
+
+    setIsEditMode(true);
+    setEditingPromotionId(promo.promotionId);
+  };
+
+  // Replace your existing handleEdit function with this one
+  const handleEdit = (promo: Promotion) => {
+    populateFormWithPromotion(promo);
+    setIsModalOpen(true);
   };
 
   return (
@@ -286,7 +341,7 @@ export function PromotionManagement() {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white border-4 border-black p-6 max-w-2xl w-full mx-4 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]">
             <h3 className="text-2xl font-bold mb-4 transform -rotate-2 inline-block relative">
-              Tambah Promosi Baru
+              {isEditMode ? "Edit Promosi" : "Tambah Promosi Baru"}
               <div className="absolute -bottom-1 left-0 w-full h-2 bg-[#FFD700] transform -rotate-2 -z-10"></div>
             </h3>
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -423,7 +478,7 @@ export function PromotionManagement() {
                   Batal
                 </Button>
                 <Button type="submit" disabled={isPending} className="bg-[#FFD700] text-black hover:bg-black hover:text-[#FFD700] border-2 border-black font-bold">
-                  {isPending ? "Menyimpan..." : "Simpan Promosi"}
+                  {isPending ? "Menyimpan..." : isEditMode ? "Update Promosi" : "Simpan Promosi"}
                 </Button>
               </div>
             </form>
@@ -544,15 +599,7 @@ export function PromotionManagement() {
       </div>
 
       {/* Delete Confirmation Modal */}
-      {selectedPromosi && (
-        <DeleteConfirmModal
-          isOpen={isDeleteModalOpen}
-          itemName={selectedPromosi.title || "Promosi"}
-          onClose={() => setIsDeleteModalOpen(false)}
-          onConfirm={handleDelete}
-          subject="Promosi"
-        />
-      )}
+      {selectedPromosi && <DeleteConfirmModal isOpen={isDeleteModalOpen} itemName={selectedPromosi.title || "Promosi"} onClose={() => setIsDeleteModalOpen(false)} onConfirm={handleDelete} subject="Promosi" />}
     </div>
   );
 }
