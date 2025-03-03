@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useEffect, useRef, JSX } from "react";
+import { useState, useRef, JSX } from "react";
+import useSWR from "swr";
 import { Header } from "@/components/header";
 import { CategoryNav } from "@/components/category-nav";
 import { ProductGrid } from "@/components/product-grid";
 import { toast } from "@/hooks/use-toast";
 import { createOrder, getProducts } from "@/server/actions";
-import { Produk as PrismaProduk, Penjualan, DetailPenjualan, Promotion,  } from "@prisma/client";
+import { Produk as PrismaProduk, Penjualan, DetailPenjualan, Promotion } from "@prisma/client";
 import { NeoSearchInput } from "./InputSearch";
 import { NeoOrderSummary } from "./order-summary";
 import { NeoProgressIndicator } from "./NeoProgresIndicator";
@@ -14,6 +15,12 @@ import { ReceiptModal } from "./ReceiptModal";
 import { NeoRefundInput } from "./NeoRefundInput";
 import { Button } from "./ui/button";
 import { useRouter } from "next/navigation";
+
+// Define fetcher function for SWR
+const fetcher = async (key) => {
+  const [_, category] = key.split('/');
+  return getProducts(category);
+};
 
 interface Produk extends PrismaProduk {
   kategori: { nama: string; kategoriId: number };
@@ -56,8 +63,6 @@ interface ReceiptModalData {
   transactionDate: Date;
 }
 
-
-
 interface OrderPayload extends Penjualan {
   pelangganId: number | null;
   guestId: number | null;
@@ -79,12 +84,32 @@ interface OrderSummaryRef {
 const Pos = (): JSX.Element => {
   const [showRefundModal, setShowRefundModal] = useState<boolean>(false);
   const [selectedCategory, setSelectedCategory] = useState<string>("All Menu");
-  const [isLoading, setIsLoading] = useState<boolean>(true);
   const [searchQuery, setSearchQuery] = useState<string>("");
-  const [products, setProducts] = useState<Produk[]>([]);
   const [showReceiptModal, setShowReceiptModal] = useState<boolean>(false);
   const router = useRouter();
   const [receiptModalData, setReceiptModalData] = useState<ReceiptModalData | null>(null);
+
+  // Use SWR for fetching products with automatic revalidation
+  const { data: products = [], error, isLoading } = useSWR(
+    `products/${selectedCategory}`, 
+    fetcher, 
+    {
+      refreshInterval: 10000, // Refresh every 10 seconds
+      revalidateOnFocus: true,
+      dedupingInterval: 2000,
+      shouldRetryOnError: true,
+      errorRetryCount: 3
+    }
+  );
+
+  // Show error toast if SWR fetch fails
+  if (error) {
+    toast({
+      title: "Error",
+      description: "Gagal mengambil data produk",
+      variant: "destructive",
+    });
+  }
 
   const handleRefundComplete = (): void => {
     setShowRefundModal(false);
@@ -106,32 +131,7 @@ const Pos = (): JSX.Element => {
   };
 
   const [order, setOrder] = useState<PenjualanWithDetails>(initialOrder);
-
-  console.log("order :", order);
-
   const orderSummaryRef = useRef<OrderSummaryRef | null>(null);
-
-  useEffect(() => {
-    fetchProducts();
-  }, [selectedCategory]);
-
-  const fetchProducts = async (): Promise<void> => {
-    try {
-      setIsLoading(true);
-      const data = await getProducts(selectedCategory);
-      console.log("ini produk dari pos :", data);
-      setProducts(data || []);
-    } catch (error) {
-      console.error("Error fetching products:", error);
-      toast({
-        title: "Error",
-        description: "Gagal mengambil data produk",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   const getPromotionDetails = (
     item: DetailPenjualanWithProduk
@@ -143,8 +143,6 @@ const Pos = (): JSX.Element => {
     const isWeekend = currentDay === 0 || currentDay === 6;
     let highestDiscount = 0;
     let bestPromo: Promotion | null = null;
-
-    console.log("item.produk.promotionProducts", item.produk.promotionProducts);
 
     item.produk.promotionProducts.forEach((pp) => {
       const promo = pp.promotion;
@@ -221,7 +219,6 @@ const Pos = (): JSX.Element => {
   };
 
   const addToOrder = (product: Produk): void => {
-    console.log("produk yang di tambahkan ke order :", product);
     setOrder((prev) => {
       const existingItem = prev.detailPenjualan.find((item) => item.produkId === product.produkId);
 
@@ -328,8 +325,6 @@ const Pos = (): JSX.Element => {
     }
 
     try {
-      setIsLoading(true);
-
       // Make sure to include the total_modal and keuntungan in the order payload
       const orderPayload: OrderPayload = {
         ...orderData,
@@ -348,7 +343,6 @@ const Pos = (): JSX.Element => {
       };
 
       const penjualan = await createOrder(orderPayload);
-      console.log("penjualan :", penjualan);
 
       if (penjualan && 'total_harga' in penjualan) {
         const modalData: ReceiptModalData = {
@@ -410,7 +404,6 @@ const Pos = (): JSX.Element => {
           transactionDate: new Date(),
         };
 
-        console.log("data di kirim ke modal :", modalData);
         setReceiptModalData(modalData);
         setShowReceiptModal(true);
 
@@ -437,8 +430,6 @@ const Pos = (): JSX.Element => {
         description: "Gagal membuat pesanan. Silakan coba lagi.",
         variant: "destructive",
       });
-    } finally {
-      setIsLoading(false);
     }
   };
 
