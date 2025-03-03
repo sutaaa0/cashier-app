@@ -12,8 +12,8 @@ import { fromZonedTime, toZonedTime, formatInTimeZone } from "date-fns-tz";
 
 export type Penjualan = {
   PenjualanId?: number;
-  pelangganId?: number;
-  guestId?: number;
+  pelangganId: number | null;
+  guestId: number | null;
   userId: number;
   total_harga: number;
   uangMasuk: number | null;
@@ -286,10 +286,6 @@ export async function createOrder(orderData: Penjualan & { redeemedPoints?: numb
         orderData.guestId = guest.guestId;
       }
 
-      // Ensure pelangganId is undefined if null
-      if (orderData.pelangganId === null) {
-        orderData.pelangganId = undefined;
-      }
 
       if (orderData.pelangganId) {
         const poinAfterDiscount = orderData.total_harga / 200;
