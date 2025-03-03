@@ -28,7 +28,6 @@ interface NeoProductCardProps {
 }
 
 export function NeoProductCard({ product, onClick }: NeoProductCardProps) {
-  console.log("product yang di click", product);
   // Get all relevant promotions from product and category relationships
   const getAllPromotions = (): Promotion[] => {
     const productPromotions = product.promotionProducts?.map(pp => pp.promotion) || [];
