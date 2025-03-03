@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState, useTransition } from "react";
-import { Plus, Edit, Trash2, Calendar, Tag, Percent, DollarSign, RefreshCw } from "lucide-react";
+import { Plus, Edit, Trash2, Calendar, Tag, Percent, DollarSign } from "lucide-react";
 import { formatRupiah } from "@/lib/formatIdr";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -145,8 +145,6 @@ export function PromotionManagement() {
   useEffect(() => {
     fetchAllData();
   }, []);
-
-  const handleCleanUpPromotions = async () => {};
 
   // Submit handler for adding a new promotion
   const handleSubmit = (e: React.FormEvent) => {
@@ -314,7 +312,6 @@ export function PromotionManagement() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h2 className="text-3xl font-black transform -rotate-2">MANAJEMEN PROMOSI</h2>
-        <div className="flex justify-center items-center gap-4">
           <Button
             onClick={() => setIsModalOpen(true)}
             className="px-6 py-3 bg-[#FFD700] font-bold text-lg border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]
@@ -324,16 +321,6 @@ export function PromotionManagement() {
             <Plus className="mr-2" />
             Tambah Promosi
           </Button>
-          <Button
-            onClick={handleCleanUpPromotions}
-            className="px-6 py-3 bg-[#19f34b] font-bold text-lg border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]
-                     hover:translate-x-[3px] hover:translate-y-[3px] hover:shadow-none transition-all flex items-center gap-2"
-            disabled={isPending}
-          >
-            <RefreshCw className="mr-2" />
-            Clean Up Promotions
-          </Button>
-        </div>
       </div>
 
       {/* Form Modal for adding a new promotion */}
