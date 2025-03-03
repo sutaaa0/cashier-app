@@ -23,7 +23,7 @@ interface Produk {
   createdAt: Date;
   updatedAt: Date;
   kategori: { nama: string; kategoriId: number };
-  promotionProducts?: { id: number; promotionId: number; activeUntil: Date; promotion: Promotion }[];
+  promotionProducts?: { id: number; promotionId: number; activeUntil: Date | null ; promotion: Promotion }[];
 }
 
 interface OrderSummaryProps {
