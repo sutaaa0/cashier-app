@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useRef, JSX } from "react";
-import useSWR from "swr";
 import { Header } from "@/components/header";
 import { CategoryNav } from "@/components/category-nav";
 import { ProductGrid } from "@/components/product-grid";
@@ -15,12 +14,10 @@ import { ReceiptModal } from "./ReceiptModal";
 import { NeoRefundInput } from "./NeoRefundInput";
 import { Button } from "./ui/button";
 import { useRouter } from "next/navigation";
+import { 
+  useQuery 
+} from '@tanstack/react-query';
 
-// Define fetcher function for SWR
-const fetcher = async (key) => {
-  const [_, category] = key.split('/');
-  return getProducts(category);
-};
 
 interface Produk extends PrismaProduk {
   kategori: { nama: string; kategoriId: number };
@@ -103,20 +100,17 @@ const Pos = (): JSX.Element => {
   const router = useRouter();
   const [receiptModalData, setReceiptModalData] = useState<ReceiptModalData | null>(null);
 
-  // Use SWR for fetching products with automatic revalidation
-  const { data: products = [], error, isLoading } = useSWR(
-    `products/${selectedCategory}`, 
-    fetcher, 
-    {
-      refreshInterval: 10000, // Refresh every 10 seconds
-      revalidateOnFocus: true,
-      dedupingInterval: 2000,
-      shouldRetryOnError: true,
-      errorRetryCount: 3
-    }
-  );
+  // Use TanStack Query for fetching products
+  const { data: products = [], error, isLoading } = useQuery({
+    queryKey: ['products', selectedCategory],
+    queryFn: () => getProducts(selectedCategory),
+    // These options are already set at the QueryClient level
+    // refetchInterval: 10000,
+    // staleTime: 10000, 
+    // retry: 3,
+  });
 
-  // Show error toast if SWR fetch fails
+  // Show error toast if query fails
   if (error) {
     toast({
       title: "Error",
@@ -454,7 +448,7 @@ const Pos = (): JSX.Element => {
           <CategoryNav selected={selectedCategory} onSelect={setSelectedCategory} />
           <NeoSearchInput onSearch={handleSearch} />
           <div className="flex-1 overflow-auto">
-            {isLoading ? <NeoProgressIndicator isLoading={isLoading} /> : <ProductGrid products={filteredProducts} onProductSelect={addToOrder} />}
+            {isLoading ? <NeoProgressIndicator isLoading={isLoading} /> : <ProductGrid isLoading={isLoading} products={filteredProducts} onProductSelect={addToOrder} />}
           </div>
         </div>
         <NeoOrderSummary 
