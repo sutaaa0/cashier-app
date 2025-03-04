@@ -12,7 +12,6 @@ import { AdminSidebar } from "@/components/AdminSidebar";
 import { ProductManagement } from "@/components/ProductManagement";
 import AdminDashboard from "@/components/AdminDashboard";
 import { CategoryManagement } from "@/components/CategoryManagement";
-// import {PromotionManagement} from "@/components/PromotionManagement";
 import PromotionPage from "@/components/PromotionPage";
 
 export default function AdminPage() {
