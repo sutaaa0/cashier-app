@@ -1,9 +1,9 @@
-import Pos from '@/components/Pos'
+import PosWithProvider from '@/components/PosWithProvider'
 import React from 'react'
 
 const page = () => {
   return (
-    <Pos/>
+   <PosWithProvider/>
   )
 }
 
