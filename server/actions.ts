@@ -164,15 +164,7 @@ export async function getProducts(category: string) {
         kategori: true,
         promotionProducts: {
           include: {
-            promotion: {
-              include: {
-                promotionCategories: {
-                  include: {
-                    kategori: true,
-                  },
-                },
-              },
-            },
+            promotion: true,
           },
         },
       },
@@ -191,15 +183,7 @@ export async function getProducts(category: string) {
         kategori: true,
         promotionProducts: {
           include: {
-            promotion: {
-              include: {
-                promotionCategories: {
-                  include: {
-                    kategori: true,
-                  },
-                },
-              },
-            },
+            promotion: true,
           },
         },
       },
