@@ -1,617 +1,182 @@
 "use client";
 
-import React, { useEffect, useState, useTransition } from "react";
-import { Plus, Edit, Trash2, Calendar, Tag, Percent, DollarSign } from "lucide-react";
-import { formatRupiah } from "@/lib/formatIdr";
+import React, { useState, useTransition, useCallback } from "react";
+import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { PromotionType } from "@prisma/client";
-import { createPromotion, deletePromotion, getCategories, getProductsForPromotions, getPromotions, updatePromotion } from "@/server/actions";
-import { MultiSelect } from "./Multiselect";
+import { getProductsForPromotions, getPromotions } from "@/server/actions";
 import { DeleteConfirmModal } from "./DeleteConfirmModal";
 import { toast } from "@/hooks/use-toast";
+import { AddPromotionModal } from "./AddPromotionModal";
+import { EditPromotionModal } from "./EditPromotionModal";
+import { PromotionCard } from "./PromotionCard";
+import { useQuery } from "@tanstack/react-query";
+import { Promotion, Product, ServerResponse } from "@/types/promotion";
 
-interface Category {
-  kategoriId: number;
-  nama: string;
-}
-
-interface CreatePromotionInput {
-  title: string;
-  description?: string;
-  type: PromotionType;
-  startDate: Date;
-  endDate: Date;
-  discountPercentage?: number;
-  discountAmount?: number;
-  minQuantity?: number;
-  productIds?: number[];
-  categoryIds?: number[];
-}
-
-interface PromotionFormData {
-  title: string;
-  description: string;
-  type: PromotionType;
-  startDate: string;
-  endDate: string;
-  discountType: "percentage" | "amount";
-  discountValue: number;
-  minQuantity?: number;
-  applicableType: "products" | "categories";
-  selectedProductIds: number[];
-  selectedCategoryIds: number[];
-  startTime: string;
-  endTime: string;
-}
-
-interface ProductsType {
-  kategori: {
-    nama: string;
-  };
-  nama: string;
-  produkId: number;
-  harga: number;
-}
-
-interface Promotion {
-  promotionId: number;
-  title: string;
-  description: string | null;
-  type: "FLASH_SALE" | "SPECIAL_DAY" | "WEEKEND" | "PRODUCT_SPECIFIC" | "QUANTITY_BASED";
-  startDate: Date;
-  endDate: Date;
-  discountPercentage: number | null;
-  discountAmount: number | null;
-  minQuantity: number | null;
-  createdAt: Date;
-  updatedAt: Date;
-  products: {
-    produkId: number;
-    nama: string;
-    harga: number;
-    kategori: {
-      nama: string;
-    };
-  }[];
-  categories: {
-    kategoriId: number;
-    nama: string;
-  }[];
-}
-
-export function PromotionManagement() {
-  // State for the selected promotion (for deletion)
-  const [selectedPromosi, setSelectedPromosi] = useState<Promotion | null>(null);
-  // Control whether the delete modal is open
-  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [products, setProducts] = useState<ProductsType[]>([]);
-  const [promotions, setPromotions] = useState<Promotion[]>([]);
+export function PromotionManagement(): React.ReactElement {
+  // State for modals with proper types
+  const [selectedPromotion, setSelectedPromotion] = useState<Promotion | null>(null);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState<boolean>(false);
+  const [isAddModalOpen, setIsAddModalOpen] = useState<boolean>(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState<boolean>(false);
   const [isPending, startTransition] = useTransition();
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  // Add this to your existing state
-  const [isEditMode, setIsEditMode] = useState(false);
-  const [editingPromotionId, setEditingPromotionId] = useState<number | null>(null);
 
-  const [formData, setFormData] = useState<PromotionFormData>({
-    title: "",
-    description: "",
-    type: PromotionType.PRODUCT_SPECIFIC,
-    startDate: "",
-    endDate: "",
-    discountType: "percentage",
-    discountValue: 0,
-    minQuantity: 0,
-    applicableType: "products",
-    selectedProductIds: [],
-    selectedCategoryIds: [],
-    startTime: "00:00",
-    endTime: "23:59",
+  // Query for products with types
+  const { 
+    data: products = [] as Product[], 
+    isLoading: isProductsLoading 
+  } = useQuery<Product[], Error, Product[]>({
+    queryKey: ['products'],
+    queryFn: async () => {
+      const res = await getProductsForPromotions() as ServerResponse<Product[]>;
+      return (res.data || []) as Product[];
+    }
   });
 
-  // Function to fetch and update all data
-  const fetchAllData = async () => {
-    startTransition(async () => {
-      // Fetch categories
-      const categoriesRes = await getCategories();
-      if (categoriesRes.data) {
-        setCategories(categoriesRes.data);
-      }
-
-      // Fetch products
-      const productsRes = await getProductsForPromotions();
-      if (productsRes.data) {
-        setProducts(productsRes.data);
-      }
-
-      // Fetch promotions
-      const promotionsRes = await getPromotions();
-      if (promotionsRes.data) {
-        const transformedPromotions = promotionsRes.data.map((promo) => ({
+  // Query for promotions with types
+  const { 
+    data: promotionsData = [] as Promotion[], 
+    isLoading: isPromotionsLoading,
+    refetch: refetchPromotions
+  } = useQuery<Promotion[], Error, Promotion[]>({
+    queryKey: ['promotions'],
+    queryFn: async () => {
+      const res = await getPromotions() as ServerResponse<Promotion[]>;
+      if (res.data) {
+        return res.data.map((promo) => ({
           ...promo,
-          products: promo.promotionProducts.map((pp) => pp.produk),
-          categories: promo.promotionCategories.map((pc) => pc.kategori),
-        }));
-        setPromotions(transformedPromotions);
+          products: promo.promotionProducts.map((pp: {produk: Product}) => pp.produk),
+        })) as Promotion[];
       }
-    });
+      return [] as Promotion[];
+    },
+    staleTime: 30 * 1000, // 30 seconds
+    refetchInterval: 60 * 1000 // polling every minute
+  });
+
+  const isLoading = isProductsLoading || isPromotionsLoading;
+
+  // Handle opening add modal
+  const handleAddPromotion = (): void => {
+    setIsAddModalOpen(true);
   };
 
-  // Fetch initial data
-  useEffect(() => {
-    fetchAllData();
+  // Handle opening edit modal
+  const handleEditPromotion = useCallback((promotion: Promotion): void => {
+    setSelectedPromotion(promotion);
+    setIsEditModalOpen(true);
   }, []);
 
-  // Submit handler for adding a new promotion
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-
-    startTransition(async () => {
-      const combinedStartDate = new Date(`${formData.startDate}T${formData.startTime}:00`);
-      const combinedEndDate = new Date(`${formData.endDate}T${formData.endTime}:00`);
-
-      const input: CreatePromotionInput = {
-        title: formData.title,
-        description: formData.description,
-        type: formData.type,
-        startDate: combinedStartDate,
-        endDate: combinedEndDate,
-        discountPercentage: formData.discountType === "percentage" ? formData.discountValue : undefined,
-        discountAmount: formData.discountType === "amount" ? formData.discountValue : undefined,
-        minQuantity: formData.type === PromotionType.QUANTITY_BASED ? formData.minQuantity : undefined,
-        productIds: formData.applicableType === "products" ? formData.selectedProductIds : undefined,
-        categoryIds: formData.applicableType === "categories" ? formData.selectedCategoryIds : undefined,
-      };
-
-      let result;
-
-      if (isEditMode && editingPromotionId) {
-        // Update existing promotion
-        result = await updatePromotion(editingPromotionId, input);
-      } else {
-        // Create new promotion
-        result = await createPromotion(input);
-      }
-
-      if (result.success) {
-        setIsModalOpen(false);
-        resetForm();
-        // Refresh promotions list after creating/updating
-        fetchAllData();
-        toast({
-          title: "Success",
-          description: isEditMode ? "Promotion updated successfully" : "Promotion created successfully",
-        });
-      } else {
-        // Handle error
-        toast({
-          title: "Error",
-          description: result.error || (isEditMode ? "Failed to update promotion" : "Failed to create promotion"),
-          variant: "destructive",
-        });
-      }
-    });
-  };
-
-  // When clicking the trash icon: set the selected promotion and open the delete modal
-  const handleDeleteClick = (promosi: Promotion) => {
-    setSelectedPromosi(promosi);
+  // Handle delete click
+  const handleDeleteClick = useCallback((promotion: Promotion): void => {
+    setSelectedPromotion(promotion);
     setIsDeleteModalOpen(true);
-  };
+  }, []);
 
-  // Delete handler called from the modal's "Hapus" button
-  const handleDelete = async () => {
-    if (selectedPromosi) {
-      startTransition(async () => {
-        try {
-          const deleteResult = await deletePromotion(selectedPromosi.promotionId);
-          if (deleteResult.success) {
-            toast({
-              title: "Delete Success",
-              description: "Delete Promosi Success",
-            });
-            // Refresh promotions list after deletion
-            fetchAllData();
-          } else {
-            toast({
-              title: "Delete Failed",
-              description: deleteResult.error || "Delete Promotion Failed",
-              variant: "destructive",
-            });
-          }
-        } catch (error) {
+  // Handle successful actions
+  const handleSuccess = useCallback((): void => {
+    refetchPromotions();
+  }, [refetchPromotions]);
+
+  // Handle delete confirmation
+  const handleDeleteConfirm = useCallback(async (): Promise<void> => {
+    if (!selectedPromotion) return;
+    
+    startTransition(async () => {
+      const { deletePromotion } = await import('@/server/actions');
+      try {
+        const deleteResult = await deletePromotion(selectedPromotion.promotionId) as ServerResponse<unknown>;
+        if (deleteResult.success) {
+          toast({
+            title: "Delete Success",
+            description: "Promotion deleted successfully",
+          });
+          refetchPromotions();
+        } else {
           toast({
             title: "Delete Failed",
-            description: "Delete Promotion Failed",
+            description: deleteResult.error || "Failed to delete promotion",
             variant: "destructive",
           });
-          console.error(error);
         }
-        setIsDeleteModalOpen(false);
-        setSelectedPromosi(null);
-      });
-    }
-  };
-
-  // Modify the resetForm function to handle edit mode
-  const resetForm = () => {
-    setFormData({
-      title: "",
-      description: "",
-      type: PromotionType.PRODUCT_SPECIFIC,
-      startDate: "",
-      endDate: "",
-      discountType: "percentage",
-      discountValue: 0,
-      minQuantity: 0,
-      applicableType: "products",
-      selectedProductIds: [],
-      selectedCategoryIds: [],
-      startTime: "00:00",
-      endTime: "23:59",
+      } catch (error) {
+        toast({
+          title: "Delete Failed",
+          description: "An error occurred while deleting the promotion",
+          variant: "destructive",
+        });
+        console.error(error);
+      }
+      setIsDeleteModalOpen(false);
+      setSelectedPromotion(null);
     });
-    setIsEditMode(false);
-    setEditingPromotionId(null);
-  };
-
-  // Add a function to populate the form with existing promotion data
-  const populateFormWithPromotion = (promo: Promotion) => {
-    const startDate = new Date(promo.startDate);
-    const endDate = new Date(promo.endDate);
-
-    // Format dates for input fields
-    const formattedStartDate = startDate.toISOString().split("T")[0];
-    const formattedEndDate = endDate.toISOString().split("T")[0];
-
-    // Format times for input fields
-    const startHours = String(startDate.getHours()).padStart(2, "0");
-    const startMinutes = String(startDate.getMinutes()).padStart(2, "0");
-    const endHours = String(endDate.getHours()).padStart(2, "0");
-    const endMinutes = String(endDate.getMinutes()).padStart(2, "0");
-
-    // Determine discount type and value
-    const discountType = promo.discountPercentage !== null ? "percentage" : "amount";
-    const discountValue = promo.discountPercentage !== null ? promo.discountPercentage : promo.discountAmount || 0;
-
-    // Determine if promotion applies to products or categories
-    const hasProducts = promo.products && promo.products.length > 0;
-    const hasCategories = promo.categories && promo.categories.length > 0;
-    const applicableType = hasProducts ? "products" : "categories";
-
-    setFormData({
-      title: promo.title,
-      description: promo.description || "",
-      type: promo.type as PromotionType,
-      startDate: formattedStartDate,
-      endDate: formattedEndDate,
-      discountType,
-      discountValue,
-      minQuantity: promo.minQuantity || 0,
-      applicableType,
-      selectedProductIds: hasProducts ? promo.products.map((p) => p.produkId) : [],
-      selectedCategoryIds: hasCategories ? promo.categories.map((c) => c.kategoriId) : [],
-      startTime: `${startHours}:${startMinutes}`,
-      endTime: `${endHours}:${endMinutes}`,
-    });
-
-    setIsEditMode(true);
-    setEditingPromotionId(promo.promotionId);
-  };
-
-  // Replace your existing handleEdit function with this one
-  const handleEdit = (promo: Promotion) => {
-    populateFormWithPromotion(promo);
-    setIsModalOpen(true);
-  };
+  }, [selectedPromotion, refetchPromotions]);
 
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h2 className="text-3xl font-black transform -rotate-2">MANAJEMEN PROMOSI</h2>
-          <Button
-            onClick={() => setIsModalOpen(true)}
-            className="px-6 py-3 bg-[#FFD700] font-bold text-lg border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]
-                     hover:translate-x-[3px] hover:translate-y-[3px] hover:shadow-none transition-all flex items-center gap-2"
-            disabled={isPending}
-          >
-            <Plus className="mr-2" />
-            Tambah Promosi
-          </Button>
+        <Button
+          onClick={handleAddPromotion}
+          className="px-6 py-3 bg-[#FFD700] font-bold text-lg border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]
+                   hover:translate-x-[3px] hover:translate-y-[3px] hover:shadow-none transition-all flex items-center gap-2"
+          disabled={isPending || isLoading}
+        >
+          <Plus className="mr-2" />
+          Tambah Promosi
+        </Button>
       </div>
-
-      {/* Form Modal for adding a new promotion */}
-      {isModalOpen && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white border-4 border-black p-6 max-w-2xl w-full mx-4 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]">
-            <h3 className="text-2xl font-bold mb-4 transform -rotate-2 inline-block relative">
-              {isEditMode ? "Edit Promosi" : "Tambah Promosi Baru"}
-              <div className="absolute -bottom-1 left-0 w-full h-2 bg-[#FFD700] transform -rotate-2 -z-10"></div>
-            </h3>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <Label className="font-bold">Judul Promosi</Label>
-                <Input value={formData.title} onChange={(e) => setFormData({ ...formData, title: e.target.value })} required className="border-2 border-black" />
-              </div>
-
-              <div>
-                <Label className="font-bold">Deskripsi</Label>
-                <Textarea value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} className="border-2 border-black" />
-              </div>
-
-              <div>
-                <Label className="font-bold">Tipe Promosi</Label>
-                <Select value={formData.type} onValueChange={(value) => setFormData({ ...formData, type: value as PromotionType })}>
-                  <SelectTrigger className="border-2 border-black">
-                    <SelectValue placeholder="Pilih tipe promosi" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-[#fff] border-[3px] border-black p-4 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transform hover:-rotate-1 transition-transform">
-                    <SelectItem value={PromotionType.FLASH_SALE}>Flash Sale</SelectItem>
-                    <SelectItem value={PromotionType.SPECIAL_DAY}>Special Day</SelectItem>
-                    <SelectItem value={PromotionType.WEEKEND}>Weekend</SelectItem>
-                    <SelectItem value={PromotionType.PRODUCT_SPECIFIC}>Product Specific</SelectItem>
-                    <SelectItem value={PromotionType.QUANTITY_BASED}>Quantity Based</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label className="font-bold">Tanggal Mulai</Label>
-                  <div className="grid grid-cols-2 gap-2">
-                    <Input type="date" value={formData.startDate} onChange={(e) => setFormData({ ...formData, startDate: e.target.value })} required className="border-2 border-black" />
-                    <Input type="time" value={formData.startTime} onChange={(e) => setFormData({ ...formData, startTime: e.target.value })} required className="border-2 border-black" placeholder="00:00" />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label className="font-bold">Tanggal Berakhir</Label>
-                  <div className="grid grid-cols-2 gap-2">
-                    <Input type="date" value={formData.endDate} onChange={(e) => setFormData({ ...formData, endDate: e.target.value })} required className="border-2 border-black" />
-                    <Input type="time" value={formData.endTime} onChange={(e) => setFormData({ ...formData, endTime: e.target.value })} required className="border-2 border-black" placeholder="23:59" />
-                  </div>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label className="font-bold">Tipe Diskon</Label>
-                  <Select
-                    value={formData.discountType}
-                    onValueChange={(value) =>
-                      setFormData({
-                        ...formData,
-                        discountType: value as "percentage" | "amount",
-                      })
-                    }
-                  >
-                    <SelectTrigger className="border-2 border-black">
-                      <SelectValue placeholder="Pilih tipe diskon" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-[#fff] border-[3px] border-black p-4 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transform hover:-rotate-1 transition-transform">
-                      <SelectItem value="percentage">Persentase</SelectItem>
-                      <SelectItem value="amount">Nominal</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label className="font-bold">Nilai Diskon</Label>
-                  <Input type="number" value={formData.discountValue} onChange={(e) => setFormData({ ...formData, discountValue: Number(e.target.value) })} required min="0" className="border-2 border-black" />
-                </div>
-              </div>
-
-              {formData.type === PromotionType.QUANTITY_BASED && (
-                <div>
-                  <Label className="font-bold">Minimal Kuantitas</Label>
-                  <Input type="number" value={formData.minQuantity} onChange={(e) => setFormData({ ...formData, minQuantity: Number(e.target.value) })} required min="1" className="border-2 border-black" />
-                </div>
-              )}
-
-              <div>
-                <Label className="font-bold">Berlaku Untuk</Label>
-                <Select value={formData.applicableType} onValueChange={(value) => setFormData({ ...formData, applicableType: value as "products" | "categories" })}>
-                  <SelectTrigger className="border-2 border-black">
-                    <SelectValue placeholder="Pilih tipe aplikasi" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-[#fff] border-[3px] border-black p-4 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transform hover:-rotate-1 transition-transform">
-                    <SelectItem value="products">Produk Tertentu</SelectItem>
-                    <SelectItem value="categories">Kategori Tertentu</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {formData.applicableType === "products" && (
-                <div>
-                  <Label className="font-bold">Pilih Produk</Label>
-                  <MultiSelect
-                    options={products.map((product) => ({
-                      value: product.produkId.toString(),
-                      label: `${product.nama} - ${formatRupiah(product.harga)} (${product.kategori.nama})`,
-                    }))}
-                    value={formData.selectedProductIds.map(String)}
-                    onChange={(values) => setFormData({ ...formData, selectedProductIds: values.map(Number) })}
-                    placeholder="Pilih produk yang akan mendapat promosi"
-                  />
-                </div>
-              )}
-
-              {formData.applicableType === "categories" && (
-                <div>
-                  <Label className="font-bold">Pilih Kategori</Label>
-                  <MultiSelect
-                    options={categories.map((category) => ({
-                      value: category.kategoriId.toString(),
-                      label: category.nama,
-                    }))}
-                    value={formData.selectedCategoryIds.map(String)}
-                    onChange={(values) => setFormData({ ...formData, selectedCategoryIds: values.map(Number) })}
-                    placeholder="Pilih kategori yang akan mendapat promosi"
-                  />
-                </div>
-              )}
-
-              <div className="flex justify-end gap-2">
-                <Button
-                  type="button"
-                  variant="default"
-                  onClick={() => {
-                    setIsModalOpen(false);
-                    resetForm();
-                  }}
-                  disabled={isPending}
-                  className="border-2 bg-white border-black hover:bg-red-500 hover:text-white"
-                >
-                  Batal
-                </Button>
-                <Button type="submit" disabled={isPending} className="bg-[#FFD700] text-black hover:bg-black hover:text-[#FFD700] border-2 border-black font-bold">
-                  {isPending ? "Menyimpan..." : isEditMode ? "Update Promosi" : "Simpan Promosi"}
-                </Button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
 
       {/* List of Promotions */}
       <div className="grid gap-4">
-        {promotions.length === 0 && !isPending ? (
+        {promotionsData.length === 0 && !isLoading ? (
           <div className="text-center p-8 border-4 border-dashed border-black">
             <p className="text-xl font-bold">Belum ada promosi</p>
             <p className="text-gray-600">Klik &quot;Tambah Promosi&quot; untuk membuat promosi baru</p>
           </div>
         ) : (
-          promotions.map((promo) => (
-            <div
-              key={promo.promotionId}
-              className="bg-white border-4 border-black p-6 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]
-                       transition-all hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]
-                       hover:translate-x-[4px] hover:translate-y-[4px]"
-            >
-              <div className="flex justify-between items-start">
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <h3 className="text-xl font-bold transform -rotate-1">{promo.title}</h3>
-                    <span className={`px-2 py-1 text-xs font-black border-2 border-black ${getPromotionStatusColor(promo.startDate, promo.endDate)} transform rotate-2`}>{getPromotionStatus(promo.startDate, promo.endDate)}</span>
-                  </div>
-                  <p className="text-gray-600">{promo.description}</p>
-
-                  <div className="flex flex-wrap gap-4">
-                    <div className="flex items-center gap-1 bg-blue-100 px-3 py-1 border-2 border-black">
-                      {promo.discountPercentage ? (
-                        <>
-                          <Percent size={16} className="text-blue-500" />
-                          <span className="font-bold">{promo.discountPercentage}%</span>
-                        </>
-                      ) : (
-                        <>
-                          <DollarSign size={16} className="text-green-500" />
-                          <span className="font-bold">{formatRupiah(promo.discountAmount || 0)}</span>
-                        </>
-                      )}
-                    </div>
-
-                    <div className="flex items-center gap-1 bg-purple-100 px-3 py-1 border-2 border-black">
-                      <Calendar size={16} className="text-purple-500" />
-                      <span className="font-bold">
-                        {new Date(promo.startDate).toLocaleDateString()} - {new Date(promo.endDate).toLocaleDateString()}
-                      </span>
-                    </div>
-
-                    {promo.minQuantity && (
-                      <div className="flex items-center gap-1 bg-orange-100 px-3 py-1 border-2 border-black">
-                        <Tag size={16} className="text-orange-500" />
-                        <span className="font-bold">Min. {promo.minQuantity} items</span>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Display related products if any */}
-                  {promo.products && promo.products.length > 0 && (
-                    <div className="mt-2">
-                      <p className="text-sm font-bold">Produk:</p>
-                      <div className="flex flex-wrap gap-2">
-                        {promo.products.map((product) => (
-                          <span key={product.produkId} className="px-2 py-1 text-xs bg-gray-100 border-2 border-black font-bold transform -rotate-1">
-                            {product.nama}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Display related categories if any */}
-                  {promo.categories && promo.categories.length > 0 && (
-                    <div className="mt-2">
-                      <p className="text-sm font-bold">Kategori:</p>
-                      <div className="flex flex-wrap gap-2">
-                        {promo.categories.map((category) => (
-                          <span key={category.kategoriId} className="px-2 py-1 text-xs bg-gray-100 border-2 border-black font-bold transform rotate-1">
-                            {category.nama}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                <div className="flex gap-2">
-                  <Button
-                    variant="neutral"
-                    size="icon"
-                    onClick={() => handleEdit(promo)}
-                    disabled={isPending}
-                    className="p-2 bg-[#FFD700] border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]
-                             hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]
-                             active:translate-x-[4px] active:translate-y-[4px] active:shadow-none transition-all transform rotate-2"
-                  >
-                    <Edit size={20} />
-                  </Button>
-                  <Button
-                    variant="neutral"
-                    size="icon"
-                    onClick={() => handleDeleteClick(promo)}
-                    disabled={isPending}
-                    className="p-2 bg-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]
-                             hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]
-                             active:translate-x-[4px] active:translate-y-[4px] active:shadow-none transition-all hover:bg-red-500 hover:text-white transform -rotate-2"
-                  >
-                    <Trash2 size={20} />
-                  </Button>
-                </div>
-              </div>
-            </div>
+          promotionsData.map((promotion) => (
+            <PromotionCard
+              key={promotion.promotionId}
+              promotion={promotion}
+              onEdit={handleEditPromotion}
+              onDelete={handleDeleteClick}
+              disabled={isPending}
+            />
           ))
         )}
       </div>
 
+      {/* Modals */}
+      {isAddModalOpen && (
+        <AddPromotionModal
+          products={products}
+          onClose={() => setIsAddModalOpen(false)}
+          onSuccess={handleSuccess}
+        />
+      )}
+
+      {isEditModalOpen && selectedPromotion && (
+        <EditPromotionModal
+          promotion={selectedPromotion}
+          products={products}
+          onClose={() => {
+            setIsEditModalOpen(false);
+            setSelectedPromotion(null);
+          }}
+          onSuccess={handleSuccess}
+        />
+      )}
+
       {/* Delete Confirmation Modal */}
-      {selectedPromosi && <DeleteConfirmModal isOpen={isDeleteModalOpen} itemName={selectedPromosi.title || "Promosi"} onClose={() => setIsDeleteModalOpen(false)} onConfirm={handleDelete} subject="Promosi" />}
+      {selectedPromotion && (
+        <DeleteConfirmModal
+          isOpen={isDeleteModalOpen}
+          itemName={selectedPromotion.title || "Promosi"}
+          onClose={() => setIsDeleteModalOpen(false)}
+          onConfirm={handleDeleteConfirm}
+          subject="Promosi"
+        />
+      )}
     </div>
   );
-}
-
-// Helper functions
-function getPromotionStatus(startDate: string | Date, endDate: string | Date) {
-  const now = new Date();
-  const start = new Date(startDate);
-  const end = new Date(endDate);
-
-  if (now < start) return "AKAN DATANG";
-  if (now > end) return "BERAKHIR";
-  return "AKTIF";
-}
-
-function getPromotionStatusColor(startDate: string | Date, endDate: string | Date) {
-  const status = getPromotionStatus(startDate, endDate);
-  switch (status) {
-    case "AKTIF":
-      return "bg-[#4ECDC4] text-black";
-    case "AKAN DATANG":
-      return "bg-[#FFD93D] text-black";
-    case "BERAKHIR":
-      return "bg-gray-200 text-black";
-    default:
-      return "bg-gray-200 text-black";
-  }
 }
