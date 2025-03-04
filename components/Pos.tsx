@@ -324,115 +324,115 @@ const Pos = (): JSX.Element => {
   };
 
   const handlePlaceOrder = async (orderData: PenjualanWithDetails & { 
-    redeemedPoints?: number; 
-    uangMasuk?: number; 
-    kembalian?: number; 
-    customerName?: string;
-    promotionDiscounts?: { [produkId: number]: number };
-    totalBeforePromotionDiscount?: number;
-    totalAfterPromotionDiscount?: number;
-  }): Promise<void> => {
-    if (orderData.detailPenjualan.length === 0) {
-      toast({
-        title: "Error",
-        description: "Silahkan tambahkan produk terlebih dahulu",
-        variant: "destructive",
-      });
-      return;
-    }
-  
-    try {
-      // Make sure to include the total_modal and keuntungan in the order payload
-      const orderPayload: OrderPayload = {
-        ...orderData,
-        pelangganId: orderData.pelangganId ?? null,
-        guestId: orderData.guestId ?? null,
-        total_harga: orderData.total_harga,
-        total_modal: orderData.total_modal,
-        keuntungan: orderData.keuntungan,
+  redeemedPoints?: number; 
+  uangMasuk?: number; 
+  kembalian?: number; 
+  customerName?: string;
+  promotionDiscounts?: { [produkId: number]: number };
+  totalBeforePromotionDiscount?: number;
+  totalAfterPromotionDiscount?: number;
+}): Promise<void> => {
+  if (orderData.detailPenjualan.length === 0) {
+    toast({
+      title: "Error",
+      description: "Silahkan tambahkan produk terlebih dahulu",
+      variant: "destructive",
+    });
+    return;
+  }
+
+  try {
+    // Make sure to include the total_modal and keuntungan in the order payload
+    const orderPayload: OrderPayload = {
+      ...orderData,
+      pelangganId: orderData.pelangganId ?? null,
+      guestId: orderData.guestId ?? null,
+      total_harga: orderData.total_harga,
+      total_modal: orderData.total_modal,
+      keuntungan: orderData.keuntungan,
+      redeemedPoints: orderData.redeemedPoints || 0,
+      userId: orderData.userId,
+      detailPenjualan: orderData.detailPenjualan.map((item) => ({
+        produkId: item.produkId,
+        kuantitas: item.kuantitas,
+        subtotal: item.subtotal,
+      })),
+    };
+
+    const penjualan = await createOrder(orderPayload);
+
+    if (penjualan && 'total_harga' in penjualan) {
+      // Hitung total diskon promosi
+      const totalPromotionDiscount = orderData.promotionDiscounts ? 
+        Object.values(orderData.promotionDiscounts).reduce((sum, discount) => sum + discount, 0) : 0;
+
+      const modalData: ReceiptModalData = {
+        finalTotal: penjualan.total_harga,
+        amountReceived: orderData.uangMasuk || 0,
+        change: orderData.kembalian || 0,
+        customerId: orderData.pelangganId,
+        PenjualanId: penjualan.PenjualanId,
+        petugasId: orderData.userId,
+        customerName: orderData.customerName || "Guest",
+        orderItems: orderData.detailPenjualan.map((item) => {
+          const hargaNormal = item.produk.harga;
+          
+          // Gunakan diskon dari promotionDiscounts jika ada
+          const discountAmount = orderData.promotionDiscounts?.[item.produkId] || 0;
+          
+          // Hitung harga per unit setelah diskon
+          const hargaSetelahDiskon = discountAmount > 0 ? 
+            hargaNormal - (discountAmount / item.kuantitas) : hargaNormal;
+
+          // Hitung persentase diskon jika ada
+          const discountPercentage = discountAmount > 0 ? 
+            (discountAmount / (hargaNormal * item.kuantitas)) * 100 : 0;
+
+          return {
+            nama: item.produk.nama,
+            kuantitas: item.kuantitas,
+            subtotal: item.subtotal,
+            hargaNormal: hargaNormal,
+            hargaSetelahDiskon: hargaSetelahDiskon,
+            discountAmount: discountAmount,
+            discountPercentage: discountPercentage,
+            promotionDetails: getPromotionDetails(item) || undefined,
+          };
+        }),
+        transactionDate: new Date(),
         redeemedPoints: orderData.redeemedPoints || 0,
-        userId: orderData.userId,
-        detailPenjualan: orderData.detailPenjualan.map((item) => ({
-          produkId: item.produkId,
-          kuantitas: item.kuantitas,
-          subtotal: item.subtotal,
-        })),
+        totalBeforePointsDiscount: orderData.totalAfterPromotionDiscount || orderData.total_harga,
+        totalPromotionDiscount: totalPromotionDiscount
       };
-  
-      const penjualan = await createOrder(orderPayload);
-  
-      if (penjualan && 'total_harga' in penjualan) {
-        // Hitung total diskon promosi
-        const totalPromotionDiscount = orderData.promotionDiscounts ? 
-          Object.values(orderData.promotionDiscounts).reduce((sum, discount) => sum + discount, 0) : 0;
-  
-        const modalData: ReceiptModalData = {
-          finalTotal: penjualan.total_harga,
-          amountReceived: orderData.uangMasuk || 0,
-          change: orderData.kembalian || 0,
-          customerId: orderData.pelangganId,
-          PenjualanId: penjualan.PenjualanId,
-          petugasId: orderData.userId,
-          customerName: orderData.customerName || "Guest",
-          orderItems: orderData.detailPenjualan.map((item) => {
-            const hargaNormal = item.produk.harga;
-            
-            // Gunakan diskon dari promotionDiscounts jika ada
-            const discountAmount = orderData.promotionDiscounts?.[item.produkId] || 0;
-            
-            // Hitung harga per unit setelah diskon
-            const hargaSetelahDiskon = discountAmount > 0 ? 
-              hargaNormal - (discountAmount / item.kuantitas) : hargaNormal;
-  
-            // Hitung persentase diskon jika ada
-            const discountPercentage = discountAmount > 0 ? 
-              (discountAmount / (hargaNormal * item.kuantitas)) * 100 : 0;
-  
-            return {
-              nama: item.produk.nama,
-              kuantitas: item.kuantitas,
-              subtotal: item.subtotal,
-              hargaNormal: hargaNormal,
-              hargaSetelahDiskon: hargaSetelahDiskon,
-              discountAmount: discountAmount,
-              discountPercentage: discountPercentage,
-              promotionDetails: getPromotionDetails(item) || undefined,
-            };
-          }),
-          transactionDate: new Date(),
-          redeemedPoints: orderData.redeemedPoints || 0,
-          totalBeforePointsDiscount: orderData.totalAfterPromotionDiscount || orderData.total_harga,
-          totalPromotionDiscount: totalPromotionDiscount
-        };
-  
-        setReceiptModalData(modalData);
-        setShowReceiptModal(true);
-  
-        setOrder({
-          penjualanId: 0,
-          tanggalPenjualan: new Date(),
-          total_harga: 0,
-          pelangganId: null,
-          guestId: null,
-          userId: orderData.userId,
-          detailPenjualan: [],
-          uangMasuk: 0,
-          kembalian: 0,
-          keuntungan: 0,
-          total_modal: 0,
-        });
-      } else {
-        throw new Error("Failed to create order");
-      }
-    } catch (error) {
-      console.error("Error creating order:", error);
-      toast({
-        title: "Error",
-        description: "Gagal membuat pesanan. Silakan coba lagi.",
-        variant: "destructive",
+
+      setReceiptModalData(modalData);
+      setShowReceiptModal(true);
+
+      setOrder({
+        penjualanId: 0,
+        tanggalPenjualan: new Date(),
+        total_harga: 0,
+        pelangganId: null,
+        guestId: null,
+        userId: orderData.userId,
+        detailPenjualan: [],
+        uangMasuk: 0,
+        kembalian: 0,
+        keuntungan: 0,
+        total_modal: 0,
       });
+    } else {
+      throw new Error("Failed to create order");
     }
-  };
+  } catch (error) {
+    console.error("Error creating order:", error);
+    toast({
+      title: "Error",
+      description: "Gagal membuat pesanan. Silakan coba lagi.",
+      variant: "destructive",
+    });
+  }
+};
 
   const handleSearch = (query: string): void => {
     setSearchQuery(query);
