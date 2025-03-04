@@ -12,7 +12,8 @@ import { AdminSidebar } from "@/components/AdminSidebar";
 import { ProductManagement } from "@/components/ProductManagement";
 import AdminDashboard from "@/components/AdminDashboard";
 import { CategoryManagement } from "@/components/CategoryManagement";
-import {PromotionManagement} from "@/components/PromotionManagement";
+// import {PromotionManagement} from "@/components/PromotionManagement";
+import PromotionPage from "@/components/PromotionPage";
 
 export default function AdminPage() {
   const [activeSection, setActiveSection] = useState("dashboard");
@@ -34,7 +35,7 @@ export default function AdminPage() {
       case "stock":
         return <StockManagement />;
       case "promotion":
-        return <PromotionManagement />;
+        return <PromotionPage />;
       case "reports":
         return <ReportManagement />;
       case "analytics":
