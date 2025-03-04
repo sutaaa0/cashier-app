@@ -2512,8 +2512,9 @@ export async function createPromotion(input: CreatePromotionInput) {
       discountAmount, 
       minQuantity, 
       productIds, 
-      categoryIds 
     } = input;
+
+    console.log("data yang akan di buat promosi :",input)
     
     // Validasi input dasar
     if (!title || !type || !startDate || !endDate) {
@@ -2534,11 +2535,6 @@ export async function createPromotion(input: CreatePromotionInput) {
     const end = new Date(endDate);
     if (end < start) {
       throw new Error("End date must be after start date");
-    }
-    
-    // Validasi produk atau kategori
-    if ((!productIds || productIds.length === 0) && (!categoryIds || categoryIds.length === 0)) {
-      throw new Error("Either products or categories must be specified for the promotion");
     }
     
     // Membuat transaksi untuk memastikan data integrity
@@ -2565,16 +2561,6 @@ export async function createPromotion(input: CreatePromotionInput) {
             produkId,
             // Opsional: tambahkan activeUntil yang sama dengan endDate promosi
             activeUntil: end
-          })),
-        });
-      }
-      
-      // 3. Jika ada categoryIds, buat entri di join table PromotionCategory
-      if (categoryIds && categoryIds.length > 0) {
-        await prismaClient.promotionCategory.createMany({
-          data: categoryIds.map(kategoriId => ({
-            promotionId: newPromotion.promotionId,
-            kategoriId,
           })),
         });
       }
@@ -2607,7 +2593,6 @@ export async function updatePromotion(promotionId: number, input: CreatePromotio
       discountAmount,
       minQuantity,
       productIds,
-      categoryIds
     } = input;
     
     // Validation checks
@@ -2629,11 +2614,6 @@ export async function updatePromotion(promotionId: number, input: CreatePromotio
     const end = new Date(endDate);
     if (end < start) {
       throw new Error("End date must be after start date");
-    }
-    
-    // Validate products or categories
-    if ((!productIds || productIds.length === 0) && (!categoryIds || categoryIds.length === 0)) {
-      throw new Error("Either products or categories must be specified for the promotion");
     }
     
     // Use transaction to ensure data integrity
@@ -2658,28 +2638,14 @@ export async function updatePromotion(promotionId: number, input: CreatePromotio
         where: { promotionId },
       });
       
-      // 3. Delete existing category relations
-      await prismaClient.promotionCategory.deleteMany({
-        where: { promotionId },
-      });
       
-      // 4. If productIds provided, create new product relations
+      // 4. create new product relations
       if (productIds && productIds.length > 0) {
         await prismaClient.promotionProduct.createMany({
           data: productIds.map(produkId => ({
             promotionId,
             produkId,
             activeUntil: end
-          })),
-        });
-      }
-      
-      // 5. If categoryIds provided, create new category relations
-      if (categoryIds && categoryIds.length > 0) {
-        await prismaClient.promotionCategory.createMany({
-          data: categoryIds.map(kategoriId => ({
-            promotionId,
-            kategoriId,
           })),
         });
       }
@@ -2705,11 +2671,6 @@ export async function deletePromotion(promotionId: number) {
     await prisma.$transaction(async (prismaClient) => {
       // 1. First delete all product relations
       await prismaClient.promotionProduct.deleteMany({
-        where: { promotionId },
-      });
-      
-      // 2. Next delete all category relations
-      await prismaClient.promotionCategory.deleteMany({
         where: { promotionId },
       });
       
@@ -2749,16 +2710,6 @@ export async function getPromotions() {
                     nama: true,
                   },
                 },
-              },
-            },
-          },
-        },
-        promotionCategories: {
-          select: {
-            kategori: {
-              select: {
-                kategoriId: true,
-                nama: true,
               },
             },
           },
