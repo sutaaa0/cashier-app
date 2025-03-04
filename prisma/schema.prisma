@@ -66,8 +66,6 @@ model Kategori {
   icon       String
   produk     Produk[]
   isDeleted  Boolean     @default(false)  // Tambahkan field ini
-  // Relasi ke promosi melalui join table
-  promotionCategories PromotionCategory[]
 }
 
 model Produk {
@@ -138,7 +136,6 @@ model Promotion {
    // Hubungan ke produk via join table
   promotionProducts  PromotionProduct[]
   // Hubungan ke kategori via join table baru
-  promotionCategories PromotionCategory[]
 }
 
 model PromotionProduct {
@@ -152,13 +149,6 @@ model PromotionProduct {
 }
 
 
-model PromotionCategory {
-  id          Int       @id @default(autoincrement())
-  promotionId Int
-  kategoriId  Int
-  promotion   Promotion @relation(fields: [promotionId], references: [promotionId])
-  kategori    Kategori  @relation(fields: [kategoriId], references: [kategoriId])
-}
 
 
 enum PromotionType {
