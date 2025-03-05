@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
-import localFont from 'next/font/local'
+import localFont from "next/font/local";
+import ClientProvider from "@/components/ClientProvider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -17,14 +18,14 @@ const geistMono = Geist_Mono({
 const Cera = localFont({
   src: "../public/fonts/CeraRoundProMediumRegular.woff",
   variable: "--font-cera-medium",
-  weight: "700"
-})
+  weight: "700",
+});
 
 const CeraNormal = localFont({
   src: "../public/fonts/CeraRoundProRegular.woff",
   variable: "--font-cera-normal",
-  weight: "700"
-})
+  weight: "700",
+});
 
 export const metadata: Metadata = {
   title: "Create Next App",
@@ -38,11 +39,13 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} ${Cera.variable} ${CeraNormal.variable} antialiased`}
-      >
-        {children}
-        <Toaster />
+      <body className={`${geistSans.variable} ${geistMono.variable} ${Cera.variable} ${CeraNormal.variable} antialiased`}>
+        <ClientProvider>
+          <div>
+            {children}
+            <Toaster />
+          </div>
+        </ClientProvider>
       </body>
     </html>
   );
