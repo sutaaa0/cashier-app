@@ -1,23 +1,31 @@
 "use client";
+
+import { useQuery } from "@tanstack/react-query";
 import { getTransactionsStats } from "@/server/actions";
 import { ArrowDown, ArrowUp, ShoppingCart } from "lucide-react";
-import React, { useEffect, useState } from "react";
+import React from "react";
+
+// Interface untuk tipe data statistik transaksi
+interface TransactionStats {
+  today: number;
+  difference: number;
+  yesterday: number;
+}
 
 const Transactions = () => {
-  const [transactionStats, setTransactionStats] = useState({ today: 0, difference: 0, yesterday: 0 });
-
-  useEffect(() => {
-    const fetchTransactionStats = async () => {
-      try {
-        const data = await getTransactionsStats();
-        setTransactionStats(data);
-      } catch (error) {
-        console.error("Error fetching transaction data:", error);
-      }
-    };
-
-    fetchTransactionStats();
-  }, []);
+  // Menggunakan React Query untuk fetching data dengan caching otomatis
+  const { data: transactionStats = { 
+    today: 0, 
+    difference: 0, 
+    yesterday: 0 
+  } } = useQuery<TransactionStats>({
+    queryKey: ['transactionStats'],
+    queryFn: getTransactionsStats,
+    // Refresh data setiap 30 detik
+    refetchInterval: 30000,
+    // Pertahankan data terakhir selama loading
+    placeholderData: (previousData) => previousData,
+  });
 
   return (
     <div className="bg-white border-4 border-black p-6 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] transform -rotate-1">
@@ -37,3 +45,10 @@ const Transactions = () => {
 };
 
 export default Transactions;
+
+// Catatan Implementasi:
+// 1. Instal @tanstack/react-query terlebih dahulu
+// 2. Bungkus komponen induk dengan QueryClientProvider
+// 3. Fungsi server action (getTransactionsStats) harus mengembalikan objek TransactionStats lengkap
+// 4. Konfigurasi refetchInterval untuk refresh berkala
+// 5. keepPreviousData mencegah flicker saat memuat ulang data
