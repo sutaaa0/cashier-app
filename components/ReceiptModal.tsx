@@ -254,7 +254,6 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ receiptData, onClose
     leftRightText("Subtotal setelah promosi:", formatCurrency(receiptData.totalBeforePointsDiscount || receiptData.finalTotal), yPos);
     yPos += lineHeight;
 
-    // Tampilkan subtotal sebelum potongan poin jika ada poin yang ditukarkan
     // Tampilkan potongan poin jika ada
     if (receiptData.redeemedPoints && receiptData.redeemedPoints > 0) {
       doc.setTextColor(0, 128, 0); // Warna hijau untuk potongan poin
@@ -374,8 +373,8 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ receiptData, onClose
             </div>
           </div>
 
-          {/* Area scrollable untuk konten utama */}
-          <div className="flex-grow overflow-y-auto px-6 pb-2 custom-scrollbar">
+          {/* Area scrollable untuk konten utama - FIXED: added min-height and display */}
+          <div className="flex-grow overflow-y-auto px-6 pb-2 min-h-[300px] flex flex-col">
             {/* Informasi Transaksi */}
             <div className="bg-green-50 rounded-lg p-4 mb-4">
               <h3 className="font-semibold text-green-800 mb-2">Informasi Transaksi</h3>
@@ -422,46 +421,51 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ receiptData, onClose
               </div>
             </div>
 
-            {/* Detail Pesanan */}
-            <div className="mb-4">
-              <h3 className="font-semibold text-gray-800 mb-2 flex items-center sticky top-0 bg-white py-2">
+            {/* Debug Information - ADDED to verify items */}
+            {receiptData.orderItems.length === 0 && (
+              <div className="bg-red-50 p-4 mb-4 rounded-lg">
+                <p className="text-red-600 font-medium">Tidak ada item dalam pesanan</p>
+              </div>
+            )}
+
+            {/* Detail Pesanan - FIXED: removed sticky positioning and added better visibility */}
+            <div className="mb-4 border-2 border-gray-200 rounded-lg p-2 bg-white">
+              <h3 className="font-semibold text-gray-800 mb-2 flex items-center bg-white py-2 border-b">
                 <ShoppingBag className="w-4 h-4 mr-2 text-green-600" />
-                Detail Pesanan
+                Detail Pesanan ({receiptData.orderItems.length} items)
               </h3>
-              <div className="border rounded-lg overflow-hidden">
-                <table className="w-full">
-                  <thead className="bg-gray-50 sticky top-10">
-                    <tr>
+              <div className="overflow-hidden">
+                <table className="w-full table-auto">
+                  <thead className="bg-gray-50">
+                    <tr className="border-b">
                       <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Item</th>
                       <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">Jumlah</th>
                       <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">Subtotal</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
-                    {receiptData.orderItems.map((item, index) => {
-                      return (
-                        <React.Fragment key={index}>
-                          <tr className={index % 2 === 0 ? "bg-white" : "bg-gray-50"}>
-                            <td className="px-4 py-3 text-sm text-gray-900">{item.nama}</td>
-                            <td className="px-4 py-3 text-sm text-gray-500 text-right">{item.kuantitas}x</td>
-                            <td className="px-4 py-3 text-sm text-gray-900 text-right">{formatCurrency(item.subtotal)}</td>
+                    {receiptData.orderItems.map((item, index) => (
+                      <React.Fragment key={index}>
+                        <tr className={index % 2 === 0 ? "bg-white" : "bg-gray-50"}>
+                          <td className="px-4 py-3 text-sm text-gray-900">{item.nama}</td>
+                          <td className="px-4 py-3 text-sm text-gray-500 text-right">{item.kuantitas}x</td>
+                          <td className="px-4 py-3 text-sm text-gray-900 text-right">{formatCurrency(item.subtotal)}</td>
+                        </tr>
+                        {(item.discountAmount && item.discountAmount > 0) || item.promotionDetails ? (
+                          <tr className="bg-red-50">
+                            <td colSpan={3} className="px-4 py-1 text-xs">
+                              {item.hargaNormal && item.hargaSetelahDiskon && (
+                                <div className="flex justify-between text-gray-600">
+                                  <span>Harga Normal: {formatCurrency(item.hargaNormal)}</span>
+                                  <span className="text-red-600 font-medium">Hemat: {formatCurrency(item.discountAmount || 0)}</span>
+                                </div>
+                              )}
+                              {item.promotionDetails && <div className="text-red-600 font-medium mt-1">{item.promotionDetails}</div>}
+                            </td>
                           </tr>
-                          {(item.discountAmount && item.discountAmount > 0) || item.promotionDetails ? (
-                            <tr className="bg-red-50">
-                              <td colSpan={3} className="px-4 py-1 text-xs">
-                                {item.hargaNormal && item.hargaSetelahDiskon && (
-                                  <div className="flex justify-between text-gray-600">
-                                    <span>Harga Normal: {formatCurrency(item.hargaNormal)}</span>
-                                    <span className="text-red-600 font-medium">Hemat: {formatCurrency(item.discountAmount || 0)}</span>
-                                  </div>
-                                )}
-                                {item.promotionDetails && <div className="text-red-600 font-medium mt-1">{item.promotionDetails}</div>}
-                              </td>
-                            </tr>
-                          ) : null}
-                        </React.Fragment>
-                      );
-                    })}
+                        ) : null}
+                      </React.Fragment>
+                    ))}
                   </tbody>
                 </table>
               </div>
@@ -563,4 +567,3 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ receiptData, onClose
     </motion.div>
   );
 };
-
