@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { ArrowUp, ArrowDown } from "lucide-react";
 import { formatRupiah } from "@/lib/formatIdr";
 import { getRevenue } from "@/server/actions";
@@ -20,8 +21,8 @@ const Revenue = () => {
   // State untuk periode revenue yang dipilih
   const [revenueTimePeriod, setRevenueTimePeriod] = useState<"today" | "thisWeek" | "thisMonth" | "thisYear">("today");
 
-  // State untuk data revenue yang didapat dari server action
-  const [revenueStats, setRevenueStats] = useState<RevenueStats>({
+  // Mengambil data revenue menggunakan React Query
+  const { data: revenueStats = {
     today: 0,
     todayChange: 0,
     thisWeek: 0,
@@ -30,21 +31,11 @@ const Revenue = () => {
     thisMonthChange: 0,
     thisYear: 0,
     thisYearChange: 0,
+  } } = useQuery<RevenueStats>({
+    queryKey: ['revenue', revenueTimePeriod],
+    queryFn: getRevenue,
+    refetchInterval: 3000, // Refresh data setiap 30 detik
   });
-
-  // Mengambil data revenue dari server setiap kali periode berubah
-  useEffect(() => {
-    const fetchRevenueData = async () => {
-      try {
-        const data = await getRevenue();
-        setRevenueStats(data);
-      } catch (error) {
-        console.error("Error fetching revenue data:", error);
-      }
-    };
-
-    fetchRevenueData();
-  }, [revenueTimePeriod]);
 
   // Fungsi untuk mendapatkan revenue sesuai periode yang dipilih
   const getDisplayedRevenue = (): number => {
@@ -105,3 +96,8 @@ const Revenue = () => {
 };
 
 export default Revenue;
+
+// Catatan Implementasi:
+// 1. Instal @tanstack/react-query terlebih dahulu
+// 2. Bungkus komponen induk dengan QueryClientProvider
+// 3. Fungsi server action (getRevenue) harus mengembalikan objek RevenueStats lengkap
