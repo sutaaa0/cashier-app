@@ -353,15 +353,67 @@ export async function getCustomers(query: string) {
   return customers;
 }
 
-export async function createCustomer(customerData: { nama: string; alamat: string; nomorTelepon: string }) {
+
+export async function createCustomer(customerData: { 
+  nama: string; 
+  alamat: string; 
+  nomorTelepon: string 
+}) {
   try {
+    // Validate that all required fields are present
+    if (!customerData.nama || !customerData.alamat || !customerData.nomorTelepon) {
+      return { 
+        status: "Error", 
+        message: "Semua field harus diisi" 
+      };
+    }
+
+    // Validate phone number format (Indonesian format)
+    const phoneRegex = /^(\+62|0)[0-9]{9,12}$/;
+    if (!phoneRegex.test(customerData.nomorTelepon)) {
+      return { 
+        status: "Error", 
+        message: "Format nomor telepon tidak valid" 
+      };
+    }
+
+    // Check if phone number already exists
+    const existingCustomer = await prisma.pelanggan.findFirst({
+      where: {
+        nomorTelepon: customerData.nomorTelepon
+      }
+    });
+
+    if (existingCustomer) {
+      return { 
+        status: "Error", 
+        message: "duplicate: Nomor telepon sudah terdaftar" 
+      };
+    }
+
+    // Create customer if validation passes
     const customer = await prisma.pelanggan.create({
       data: customerData,
     });
+
     return { status: "Success", data: customer };
   } catch (error) {
     console.error("Error creating customer:", error);
-    return { status: "Error", message: "Failed to create customer" };
+    
+    // Check for Prisma unique constraint error
+    if (error instanceof Prisma.PrismaClientKnownRequestError) {
+      if (error.code === 'P2002') {
+        return { 
+          status: "Error", 
+          message: "duplicate: Nomor telepon sudah terdaftar" 
+        };
+      }
+    }
+    
+    return { 
+      status: "Error", 
+      message: "Failed to create customer" 
+    };
   }
 }
 
