@@ -1,23 +1,31 @@
 "use client";
+
+import { useQuery } from "@tanstack/react-query";
 import { getNewCustomersStats } from "@/server/actions";
 import { ArrowDown, ArrowUp, Users } from "lucide-react";
-import React, { useEffect, useState } from "react";
+import React from "react";
+
+// Interface untuk tipe data statistik pelanggan baru
+interface CustomerStats {
+  today: number;
+  difference: number;
+  yesterday: number;
+}
 
 const Member = () => {
-  const [customerStats, setCustomerStats] = useState({ today: 0, difference: 0, yesterday: 0 });
-
-  useEffect(() => {
-    const fetchCustomerStats = async () => {
-      try {
-        const data = await getNewCustomersStats();
-        setCustomerStats(data);
-      } catch (error) {
-        console.error("Error fetching customer data:", error);
-      }
-    };
-
-    fetchCustomerStats();
-  }, []);
+  // Menggunakan React Query untuk fetching data dengan caching otomatis
+  const { data: customerStats = { 
+    today: 0, 
+    difference: 0, 
+    yesterday: 0 
+  } } = useQuery<CustomerStats, Error, CustomerStats>({
+    queryKey: ['customerStats'],
+    queryFn: getNewCustomersStats,
+    // Refresh data setiap 30 detik
+    refetchInterval: 30000,
+    // Pertahankan data terakhir selama loading
+    placeholderData: (previousData) => previousData,
+  });
 
   return (
     <div className="bg-white border-4 border-black p-6 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] transform rotate-1">
@@ -37,3 +45,10 @@ const Member = () => {
 };
 
 export default Member;
+
+// Catatan Implementasi:
+// 1. Instal @tanstack/react-query terlebih dahulu
+// 2. Bungkus komponen induk dengan QueryClientProvider
+// 3. Fungsi server action (getNewCustomersStats) harus mengembalikan objek CustomerStats lengkap
+// 4. Konfigurasi refetchInterval untuk refresh berkala
+// 5. keepPreviousData mencegah flicker saat memuat ulang data
