@@ -1,7 +1,42 @@
-import React, { useState } from 'react';
+"use client"
+
+import React from 'react';
 import { X } from 'lucide-react';
+import { zodResolver } from "@hookform/resolvers/zod"
+import { useForm } from "react-hook-form"
+import * as z from "zod"
 import { toast } from '@/hooks/use-toast';
 import { addUser } from '@/server/actions';
+
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form"
+import { Input } from "@/components/ui/input"
+import { Button } from "@/components/ui/button"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+
+// Define the form schema with Zod
+const userFormSchema = z.object({
+  username: z.string().min(1, { message: "Username harus diisi" }),
+  password: z.string().min(8, { message: "Password harus minimal 8 karakter" }),
+  level: z.enum(["PETUGAS", "ADMIN"], {
+    required_error: "Level harus dipilih",
+  }),
+})
+
+// Type for the form values
+type UserFormValues = z.infer<typeof userFormSchema>
 
 interface AddUserModalProps {
   isOpen: boolean;
@@ -9,28 +44,22 @@ interface AddUserModalProps {
 }
 
 export function AddUserModal({ isOpen, onClose }: AddUserModalProps) {
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [level, setLevel] = useState('PETUGAS');
+  // Define form with React Hook Form
+  const form = useForm<UserFormValues>({
+    resolver: zodResolver(userFormSchema),
+    defaultValues: {
+      username: "",
+      password: "",
+      level: "PETUGAS",
+    },
+  })
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    // Validasi: Password minimal 8 karakter
-    if (password.length < 8) {
-      toast({
-        title: "Error",
-        description: "Password harus minimal 8 karakter",
-        variant: "destructive",
-      });
-      return;
-    }
-
+  const onSubmit = async (data: UserFormValues) => {
     try {
       const response = await addUser({
-        username,
-        password,
-        level,
+        username: data.username,
+        password: data.password,
+        level: data.level,
       });
 
       if (response.status === "Success") {
@@ -40,9 +69,7 @@ export function AddUserModal({ isOpen, onClose }: AddUserModalProps) {
         });
         onClose();
         // Reset form
-        setUsername('');
-        setPassword('');
-        setLevel('PETUGAS');
+        form.reset();
       } else {
         toast({
           title: "Error",
@@ -71,49 +98,77 @@ export function AddUserModal({ isOpen, onClose }: AddUserModalProps) {
             <X size={24} />
           </button>
         </div>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label htmlFor="username" className="block mb-1 font-bold">Username</label>
-            <input
-              type="text"
-              id="username"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              className="w-full p-2 border-[3px] border-black rounded focus:outline-none focus:ring-2 focus:ring-[#93B8F3]"
-              required
+        
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <FormField
+              control={form.control}
+              name="username"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="font-bold">Username</FormLabel>
+                  <FormControl>
+                    <Input
+                      {...field}
+                      className="p-2 border-[3px] border-black rounded focus:outline-none focus:ring-2 focus:ring-[#93B8F3]"
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
             />
-          </div>
-          <div>
-            <label htmlFor="password" className="block mb-1 font-bold">Password</label>
-            <input
-              type="password"
-              id="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full p-2 border-[3px] border-black rounded focus:outline-none focus:ring-2 focus:ring-[#93B8F3]"
-              required
+            
+            <FormField
+              control={form.control}
+              name="password"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="font-bold">Password</FormLabel>
+                  <FormControl>
+                    <Input
+                      {...field}
+                      type="password"
+                      className="p-2 border-[3px] border-black rounded focus:outline-none focus:ring-2 focus:ring-[#93B8F3]"
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
             />
-          </div>
-          <div>
-            <label htmlFor="level" className="block mb-1 font-bold">Level</label>
-            <select
-              id="level"
-              value={level}
-              onChange={(e) => setLevel(e.target.value)}
-              className="w-full p-2 border-[3px] border-black rounded focus:outline-none focus:ring-2 focus:ring-[#93B8F3]"
-              required
+            
+            <FormField
+              control={form.control}
+              name="level"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="font-bold">Level</FormLabel>
+                  <Select
+                    onValueChange={field.onChange}
+                    defaultValue={field.value}
+                  >
+                    <FormControl>
+                      <SelectTrigger className="p-2 border-[3px] border-black rounded focus:outline-none focus:ring-2 focus:ring-[#93B8F3]">
+                        <SelectValue placeholder="Select level" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="PETUGAS">Petugas</SelectItem>
+                      <SelectItem value="ADMIN">Admin</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            
+            <Button
+              type="submit"
+              className="w-full px-4 py-2 bg-[#93B8F3] font-bold border-[3px] border-black rounded shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none transition-all"
             >
-              <option value="PETUGAS">Petugas</option>
-              <option value="ADMIN">Admin</option>
-            </select>
-          </div>
-          <button
-            type="submit"
-            className="w-full px-4 py-2 bg-[#93B8F3] font-bold border-[3px] border-black rounded shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none transition-all"
-          >
-            Add User
-          </button>
-        </form>
+              Add User
+            </Button>
+          </form>
+        </Form>
       </div>
     </div>
   );
