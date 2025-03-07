@@ -1,12 +1,13 @@
 "use client";
-import { useState, useEffect } from "react";
-import { User, Trash2, Edit, Plus } from "lucide-react";
+import { useState } from "react";
+import { User, Trash2, Edit, Plus, Search } from "lucide-react";
 import { AddUserModal } from "./AddUserModal";
 import { EditUserModal } from "./EditUserModal";
 import { DeleteConfirmModal } from "./DeleteConfirmModal";
 import { deleteUser, getUsers } from "@/server/actions";
 import { toast } from "@/hooks/use-toast";
 import { NeoProgressIndicator } from "./NeoProgresIndicator";
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 interface UserData {
   id: number;
@@ -15,34 +16,51 @@ interface UserData {
 }
 
 export function UserManagement() {
-  const [users, setUsers] = useState<UserData[]>([]);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  const [isLoading, setIsLoading] = useState(false)
   const [selectedUser, setSelectedUser] = useState<UserData | null>(null);
   const [userToDelete, setUserToDelete] = useState<UserData | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  
+  // Get QueryClient instance
+  const queryClient = useQueryClient();
 
-  useEffect(() => {
-    fetchUsers();
-  }, []);
+  // Fetch users with React Query and search
+  const { data: users = [], isLoading } = useQuery<UserData[]>({
+    queryKey: ['users', searchTerm],
+    queryFn: () => getUsers(searchTerm),
+    staleTime: 5 * 60 * 1000, // Consider data fresh for 5 minutes
+  });
 
-  const fetchUsers = async () => {
-    try {
-      setIsLoading(true)
-      const userData = await getUsers();
-      setUsers(userData);
-    } catch (error) {
+  // Delete user mutation
+  const deleteUserMutation = useMutation({
+    mutationFn: (userId: number) => deleteUser(userId),
+    onSuccess: (response) => {
+      if (response.status === "Success") {
+        toast({
+          title: "Berhasil",
+          description: "User berhasil dihapus",
+        });
+        // Invalidate and refetch users query
+        queryClient.invalidateQueries({ queryKey: ['users'] });
+      } else {
+        toast({
+          title: "Error",
+          description: response.message,
+          variant: "destructive",
+        });
+      }
+    },
+    onError: (error) => {
       console.log(error);
       toast({
         title: "Error",
-        description: "Gagal mengambil data user",
+        description: "Gagal menghapus user",
         variant: "destructive",
       });
-    } finally {
-      setIsLoading(false)
-    }
-  };
+    },
+  });
 
   const handleDeleteClick = (user: UserData) => {
     setUserToDelete(user);
@@ -51,32 +69,7 @@ export function UserManagement() {
 
   const handleDeleteConfirm = async () => {
     if (userToDelete) {
-      try {
-        setIsLoading(true)
-        const response = await deleteUser(userToDelete.id);
-        if (response.status === "Success") {
-          toast({
-            title: "Berhasil",
-            description: "User berhasil dihapus",
-          });
-          fetchUsers(); // Refresh data
-        } else {
-          toast({
-            title: "Error",
-            description: response.message,
-            variant: "destructive",
-          });
-        }
-      } catch (error) {
-        console.log(error);
-        toast({
-          title: "Error",
-          description: "Gagal menghapus user",
-          variant: "destructive",
-        });
-      } finally {
-        setIsLoading(false)
-      }
+      deleteUserMutation.mutate(userToDelete.id);
     }
     setIsDeleteModalOpen(false);
     setUserToDelete(null);
@@ -85,6 +78,15 @@ export function UserManagement() {
   const handleEditClick = (user: UserData) => {
     setSelectedUser(user);
     setIsEditModalOpen(true);
+  };
+
+  const handleModalClose = () => {
+    // Invalidate and refetch users data when modal closes
+    queryClient.invalidateQueries({ queryKey: ['users'] });
+  };
+
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchTerm(e.target.value);
   };
 
   return (
@@ -98,6 +100,21 @@ export function UserManagement() {
           <Plus size={20} />
           Add New User
         </button>
+      </div>
+
+      {/* Search Input */}
+      <div className="relative">
+        <input
+          type="text"
+          placeholder="Search users by username or level"
+          value={searchTerm}
+          onChange={handleSearchChange}
+          className="w-full px-4 py-2 border-[3px] border-black rounded shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] focus:outline-none focus:ring-2 focus:ring-[#93B8F3]"
+        />
+        <Search 
+          size={20} 
+          className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500"
+        />
       </div>
 
       <div className="grid gap-4">
@@ -123,6 +140,7 @@ export function UserManagement() {
                 <button
                   onClick={() => handleDeleteClick(user)}
                   className="p-2 bg-white border-[3px] border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none transition-all hover:bg-red-500 hover:text-white"
+                  disabled={deleteUserMutation.isPending}
                 >
                   <Trash2 size={20} />
                 </button>
@@ -130,6 +148,17 @@ export function UserManagement() {
             </div>
           </div>
         ))}
+        
+        {users.length === 0 && !isLoading && (
+          <div className="bg-white border-[3px] border-black p-4 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+            <p className="text-center text-gray-500">
+              {searchTerm 
+                ? `Tidak ada user ditemukan untuk "${searchTerm}"` 
+                : "Tidak ada user ditemukan"
+              }
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Modal Tambah User */}
@@ -137,7 +166,7 @@ export function UserManagement() {
         isOpen={isAddModalOpen}
         onClose={() => {
           setIsAddModalOpen(false);
-          fetchUsers(); // Refresh data setelah menambah user
+          handleModalClose();
         }}
       />
 
@@ -148,16 +177,22 @@ export function UserManagement() {
           onClose={() => {
             setIsEditModalOpen(false);
             setSelectedUser(null);
-            fetchUsers(); // Refresh data setelah edit user
+            handleModalClose();
           }}
           user={selectedUser}
         />
       )}
 
       {/* Modal Konfirmasi Hapus */}
-      <DeleteConfirmModal isOpen={isDeleteModalOpen} onClose={() => setIsDeleteModalOpen(false)} onConfirm={handleDeleteConfirm} itemName={userToDelete?.username || ""} subject="User" />
+      <DeleteConfirmModal 
+        isOpen={isDeleteModalOpen} 
+        onClose={() => setIsDeleteModalOpen(false)} 
+        onConfirm={handleDeleteConfirm} 
+        itemName={userToDelete?.username || ""} 
+        subject="User" 
+      />
 
-        <NeoProgressIndicator isLoading={isLoading}/>
+      <NeoProgressIndicator isLoading={isLoading || deleteUserMutation.isPending}/>
     </div>
   );
 }
