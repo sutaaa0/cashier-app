@@ -1,12 +1,39 @@
 "use client"
 
-import type React from "react"
-import { useState, useEffect } from "react"
+import { useEffect } from "react"
 import { X } from "lucide-react"
+import { zodResolver } from "@hookform/resolvers/zod"
+import { useForm } from "react-hook-form"
+import * as z from "zod"
 import { toast } from "@/hooks/use-toast"
 import { updatePelanggan } from "@/server/actions"
 import type { Pelanggan as PelangganType } from "@prisma/client"
 import { NeoProgressIndicator } from "./NeoProgresIndicator"
+
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form"
+import { Input } from "@/components/ui/input"
+import { Button } from "@/components/ui/button"
+
+// Define the form schema with Zod
+const customerFormSchema = z.object({
+  name: z.string().min(1, { message: "Name is required" }),
+  address: z.string().optional(),
+  phoneNumber: z.string()
+    .optional()
+    .refine((val) => !val || /^(\+62|0)[0-9]{9,12}$/.test(val), {
+      message: "Invalid phone number format (use format: 08xxxxxxxxxx or +62xxxxxxxxxx)",
+    }),
+})
+
+// Type for the form values
+type CustomerFormValues = z.infer<typeof customerFormSchema>
 
 interface EditCustomerModalProps {
   isOpen: boolean
@@ -16,27 +43,34 @@ interface EditCustomerModalProps {
 }
 
 export function EditCustomerModal({ isOpen, onClose, customer, onEditCustomer }: EditCustomerModalProps) {
-  const [name, setName] = useState(customer.nama)
-  const [address, setAddress] = useState(customer.alamat || "")
-  const [phoneNumber, setPhoneNumber] = useState(customer.nomorTelepon || "")
-  const [isLoading, setIsLoading] = useState(false)
+  // Define form with React Hook Form
+  const form = useForm<CustomerFormValues>({
+    resolver: zodResolver(customerFormSchema),
+    defaultValues: {
+      name: customer.nama,
+      address: customer.alamat || "",
+      phoneNumber: customer.nomorTelepon || "",
+    },
+  })
 
+  // Update form values when customer changes
   useEffect(() => {
-    setName(customer.nama)
-    setAddress(customer.alamat || "")
-    setPhoneNumber(customer.nomorTelepon || "")
-  }, [customer])
+    form.reset({
+      name: customer.nama,
+      address: customer.alamat || "",
+      phoneNumber: customer.nomorTelepon || "",
+    })
+  }, [customer, form])
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setIsLoading(true)
+  const isLoading = form.formState.isSubmitting
 
+  const onSubmit = async (data: CustomerFormValues) => {
     try {
       const updatedCustomer = {
         ...customer,
-        nama: name,
-        alamat: address,
-        nomorTelepon: phoneNumber,
+        nama: data.name,
+        alamat: data.address || null,
+        nomorTelepon: data.phoneNumber || null,
       }
 
       const result = await updatePelanggan(updatedCustomer)
@@ -49,11 +83,24 @@ export function EditCustomerModal({ isOpen, onClose, customer, onEditCustomer }:
         onEditCustomer(updatedCustomer)
         onClose()
       } else {
-        toast({
-          title: "Error",
-          description: result.message,
-          variant: "destructive",
-        })
+        // Handle specific error for duplicate phone numbers
+        if (result.message && result.message.includes("duplicate")) {
+          toast({
+            title: "Error",
+            description: "Phone number already registered",
+            variant: "destructive",
+          })
+          form.setError("phoneNumber", { 
+            type: "manual", 
+            message: "Phone number already in use" 
+          })
+        } else {
+          toast({
+            title: "Error",
+            description: result.message,
+            variant: "destructive",
+          })
+        }
       }
     } catch (error) {
       console.error(error)
@@ -62,8 +109,6 @@ export function EditCustomerModal({ isOpen, onClose, customer, onEditCustomer }:
         description: "Failed to update customer",
         variant: "destructive",
       })
-    } finally {
-      setIsLoading(false)
     }
   }
 
@@ -78,54 +123,73 @@ export function EditCustomerModal({ isOpen, onClose, customer, onEditCustomer }:
             <X size={24} />
           </button>
         </div>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label htmlFor="name" className="block mb-1 font-bold">
-              Name
-            </label>
-            <input
-              type="text"
-              id="name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="w-full p-2 border-[3px] border-black rounded focus:outline-none focus:ring-2 focus:ring-[#93B8F3]"
-              required
+        
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <FormField
+              control={form.control}
+              name="name"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="font-bold">Name</FormLabel>
+                  <FormControl>
+                    <Input
+                      {...field}
+                      className="p-2 border-[3px] border-black rounded focus:outline-none focus:ring-2 focus:ring-[#93B8F3]"
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
             />
-          </div>
-          <div>
-            <label htmlFor="address" className="block mb-1 font-bold">
-              Address
-            </label>
-            <input
-              type="text"
-              id="address"
-              value={address}
-              onChange={(e) => setAddress(e.target.value)}
-              className="w-full p-2 border-[3px] border-black rounded focus:outline-none focus:ring-2 focus:ring-[#93B8F3]"
+            
+            <FormField
+              control={form.control}
+              name="address"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="font-bold">Address</FormLabel>
+                  <FormControl>
+                    <Input
+                      {...field}
+                      className="p-2 border-[3px] border-black rounded focus:outline-none focus:ring-2 focus:ring-[#93B8F3]"
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
             />
-          </div>
-          <div>
-            <label htmlFor="phoneNumber" className="block mb-1 font-bold">
-              Phone Number
-            </label>
-            <input
-              type="tel"
-              id="phoneNumber"
-              value={phoneNumber}
-              onChange={(e) => setPhoneNumber(e.target.value)}
-              className="w-full p-2 border-[3px] border-black rounded focus:outline-none focus:ring-2 focus:ring-[#93B8F3]"
+            
+            <FormField
+              control={form.control}
+              name="phoneNumber"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="font-bold">Phone Number</FormLabel>
+                  <FormControl>
+                    <Input
+                      {...field}
+                      type="tel"
+                      className="p-2 border-[3px] border-black rounded focus:outline-none focus:ring-2 focus:ring-[#93B8F3]"
+                      placeholder="Format: 08xxxxxxxxxx or +62xxxxxxxxxx"
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
             />
-          </div>
-          <button
-            type="submit"
-            className="w-full px-4 py-2 bg-[#93B8F3] font-bold border-[3px] border-black rounded shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none transition-all"
-          >
-            Update Customer
-          </button>
-        </form>
+            
+            <Button
+              type="submit"
+              disabled={isLoading}
+              className="w-full px-4 py-2 bg-[#93B8F3] font-bold border-[3px] border-black rounded shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none transition-all disabled:opacity-50"
+            >
+              Update Customer
+            </Button>
+          </form>
+        </Form>
       </div>
       <NeoProgressIndicator isLoading={isLoading} message="Updating customer..." />
     </div>
   )
 }
-
