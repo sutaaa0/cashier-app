@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Percent, DollarSign, TrendingUp, Sparkles } from 'lucide-react';
 import {
   BarChart,
@@ -14,6 +14,7 @@ import {
 } from "recharts";
 import { formatRupiah } from "@/lib/formatIdr";
 import { getPromotionAnalytics } from "@/server/actions";
+import { useState } from 'react';
 
 // Neo-brutalist vibrant color palette matching RevenueByCategoryChart
 const COLORS = ['#FF6B6B', '#4ECDC4', '#FFE66D', '#FF8364'];
@@ -36,25 +37,14 @@ interface CustomTooltipProps {
 }
 
 export function PromotionAnalysis() {
-  const [promotionData, setPromotionData] = useState<PromotionAnalytics[]>([]);
+  const { data: promotionData = [], isLoading } = useQuery<PromotionAnalytics[]>({
+    queryKey: ['promotionAnalytics'],
+    queryFn: getPromotionAnalytics,
+    refetchInterval: 3000, // Refresh data every 30 seconds
+    placeholderData: (previousData) => previousData, // Keep previous data during loading
+  });
+  
   const [activeBar, setActiveBar] = useState<number | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setIsLoading(true);
-        const res = await getPromotionAnalytics();
-        setPromotionData(res);
-      } catch (error) {
-        console.error("Error fetching promotion data:", error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    
-    fetchData();
-  }, []);
 
   const totalRevenue = promotionData.reduce((sum, promo) => sum + promo.revenue, 0);
   const totalProfit = promotionData.reduce((sum, promo) => sum + promo.profit, 0);
@@ -64,31 +54,40 @@ export function PromotionAnalysis() {
 
   const CustomTooltip = ({ active, payload, label }: CustomTooltipProps) => {
     if (active && payload && payload.length) {
-      const dataType = payload[0].dataKey === "revenue" 
-        ? "Pendapatan" 
-        : payload[0].dataKey === "profit"
-          ? "Keuntungan"
-          : "Transaksi";
+      // Ekstrak semua nilai dari payload untuk menampilkan semua data
+      const revenueItem = payload.find(item => item.dataKey === "revenue");
+      const profitItem = payload.find(item => item.dataKey === "profit");
+      const transactionsItem = payload.find(item => item.dataKey === "transactions");
       
-      const value = payload[0].value;
+      // Dapatkan nilai untuk setiap kategori
+      const revenue = revenueItem?.value as number || 0;
+      const profit = profitItem?.value as number || 0;
+      const transactions = transactionsItem?.value as number || 0;
       
       return (
         <div className="relative group">
           <div className="absolute -inset-1 bg-gradient-to-r from-purple-500 to-blue-500 rounded-lg blur opacity-25 group-hover:opacity-100 transition duration-1000 group-hover:duration-200" />
           <div className="relative bg-white border-4 border-black p-4 transform -rotate-2 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]">
             <div className="flex items-center gap-2 mb-2">
-              {dataType === "Pendapatan" || dataType === "Keuntungan" ? (
-                <DollarSign className="text-purple-500" size={20} />
-              ) : (
-                <Sparkles className="text-green-500" size={20} />
-              )}
+              <DollarSign className="text-purple-500" size={20} />
               <h3 className="font-black text-xl">{label}</h3>
             </div>
-            <div className="font-mono bg-black text-white p-2 transform rotate-1">
-              {dataType === "Pendapatan" || dataType === "Keuntungan" 
-                ? formatRupiah(value as number) 
-                : value}
-              <span className="ml-2 font-bold">{dataType}</span>
+            
+            <div className="space-y-2">
+              <div className="font-mono bg-black text-white p-2 transform rotate-1">
+                {formatRupiah(revenue)}
+                <span className="ml-2 font-bold" style={{ color: COLORS[0] }}>Pendapatan</span>
+              </div>
+              
+              <div className="font-mono bg-black text-white p-2 transform rotate-1">
+                {formatRupiah(profit)}
+                <span className="ml-2 font-bold" style={{ color: COLORS[1] }}>Keuntungan</span>
+              </div>
+              
+              <div className="font-mono bg-black text-white p-2 transform rotate-1">
+                {transactions}
+                <span className="ml-2 font-bold" style={{ color: COLORS[2] }}>Transaksi</span>
+              </div>
             </div>
           </div>
         </div>
