@@ -2,11 +2,13 @@
 import { useState, useEffect } from "react";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 import { ChartPie, Sparkles, TrendingUp } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import { getCategorySales } from "@/server/actions";
 
 // Vibrant neo-brutalist color palette
 const COLORS = ["#FF6B6B", "#4ECDC4", "#FFE66D", "#FF8364", "#45B7D1", "#96CEB4", "#D4A5A5"];
 
+// Interfaces
 interface CategorySale {
   name: string;
   value: number;
@@ -21,13 +23,16 @@ interface CustomTooltipProps {
 }
 
 export default function CategorySalesSummary() {
-  const [categoryData, setCategoryData] = useState<CategorySale[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
-  const [positions, setPositions] = useState<{ left: string; top: string }[]>([]);
+  interface Position {
+    left: string;
+    top: string;
+  }
+  
+  const [positions, setPositions] = useState<Position[]>([]);
 
+  // Generate random positions on client-side only
   useEffect(() => {
-    // Generate posisi acak hanya di client
     setPositions(
       [...Array(20)].map(() => ({
         left: `${Math.random() * 100}%`,
@@ -36,22 +41,24 @@ export default function CategorySalesSummary() {
     );
   }, []);
 
-  useEffect(() => {
-    const fetchCategoryData = async () => {
-      try {
-        setIsLoading(true);
-        const data = await getCategorySales();
-        setCategoryData(data);
-      } catch (error) {
-        console.error("Error fetching category sales:", error);
-        setCategoryData([]);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchCategoryData();
-  }, []);
+  // Menggunakan React Query untuk fetching data
+  const { 
+    data: categoryData = [], 
+    isLoading, 
+    error 
+  } = useQuery<CategorySale[]>({
+    // Kunci query unik
+    queryKey: ['categorySalesData'],
+    
+    // Fungsi untuk mengambil data kategori penjualan
+    queryFn: getCategorySales,
+    
+    // Refresh data setiap 30 detik
+    refetchInterval: 30000,
+    
+    // Pertahankan data sebelumnya selama loading
+    placeholderData: (previousData) => previousData,
+  });
 
   const CustomTooltip = ({ active, payload }: CustomTooltipProps) => {
     if (active && payload && payload.length) {
@@ -112,6 +119,12 @@ export default function CategorySalesSummary() {
                 <p className="font-bold text-xl">LOADING DATA...</p>
               </div>
             </div>
+          ) : error ? (
+            <div className="h-full flex items-center justify-center">
+              <div className="bg-red-400 border-4 border-black p-4 transform rotate-2">
+                <p className="font-bold text-xl">ERROR LOADING DATA!</p>
+              </div>
+            </div>
           ) : categoryData.length === 0 ? (
             <div className="h-full flex items-center justify-center">
               <div className="bg-red-400 border-4 border-black p-4 transform rotate-2">
@@ -135,7 +148,11 @@ export default function CategorySalesSummary() {
                   onMouseLeave={() => setActiveIndex(null)}
                 >
                   {categoryData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} className={`transition-all duration-300 ${activeIndex === index ? "opacity-100 stroke-[4px]" : "opacity-80 stroke-[2px]"}`} />
+                    <Cell 
+                      key={`cell-${index}`} 
+                      fill={COLORS[index % COLORS.length]} 
+                      className={`transition-all duration-300 ${activeIndex === index ? "opacity-100 stroke-[4px]" : "opacity-80 stroke-[2px]"}`} 
+                    />
                   ))}
                 </Pie>
                 <Tooltip content={<CustomTooltip />} />
@@ -156,7 +173,10 @@ export default function CategorySalesSummary() {
               `}
             >
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 border-3 border-black transform rotate-45 transition-transform group-hover/item:rotate-0" style={{ backgroundColor: COLORS[index % COLORS.length] }} />
+                <div 
+                  className="w-8 h-8 border-3 border-black transform rotate-45 transition-transform group-hover/item:rotate-0" 
+                  style={{ backgroundColor: COLORS[index % COLORS.length] }} 
+                />
                 <span className="font-bold text-lg">{entry.name}</span>
                 <span className="ml-auto font-mono bg-white text-black px-2 py-1 border-2 border-black">{entry.value}</span>
               </div>
