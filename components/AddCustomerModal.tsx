@@ -1,11 +1,38 @@
 "use client"
 
 import type React from "react"
-import { useState } from "react"
 import { X } from "lucide-react"
+import { zodResolver } from "@hookform/resolvers/zod"
+import { useForm } from "react-hook-form"
+import * as z from "zod"
 import { toast } from "@/hooks/use-toast"
-import { addPelanggan } from "@/server/actions"
+import { createCustomer } from "@/server/actions"
 import { NeoProgressIndicator } from "./NeoProgresIndicator"
+
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form"
+import { Input } from "@/components/ui/input"
+import { Button } from "@/components/ui/button"
+
+// Define the form schema with Zod
+const customerFormSchema = z.object({
+  name: z.string().min(1, { message: "Name is required" }),
+  address: z.string().min(1, { message: "Address is required" }),
+  phoneNumber: z.string()
+    .min(1, { message: "Phone number is required" })
+    .regex(/^(\+62|0)[0-9]{9,12}$/, { 
+      message: "Invalid phone number format (use format: 08xxxxxxxxxx or +62xxxxxxxxxx)" 
+    })
+})
+
+// Type for the form values
+type CustomerFormValues = z.infer<typeof customerFormSchema>
 
 interface AddCustomerModalProps {
   isOpen: boolean
@@ -14,20 +41,24 @@ interface AddCustomerModalProps {
 }
 
 export function AddCustomerModal({ isOpen, onClose, onCustomerAdded }: AddCustomerModalProps) {
-  const [name, setName] = useState("")
-  const [address, setAddress] = useState("")
-  const [phoneNumber, setPhoneNumber] = useState("")
-  const [isLoading, setIsLoading] = useState(false)
+  // Define form with React Hook Form
+  const form = useForm<CustomerFormValues>({
+    resolver: zodResolver(customerFormSchema),
+    defaultValues: {
+      name: "",
+      address: "",
+      phoneNumber: "",
+    },
+  })
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setIsLoading(true)
+  const isLoading = form.formState.isSubmitting
 
+  const onSubmit = async (data: CustomerFormValues) => {
     try {
-      const result = await addPelanggan({
-        nama: name,
-        alamat: address,
-        nomorTelepon: phoneNumber,
+      const result = await createCustomer({
+        nama: data.name,
+        alamat: data.address,
+        nomorTelepon: data.phoneNumber,
       })
 
       if (result.status === "Success") {
@@ -38,15 +69,26 @@ export function AddCustomerModal({ isOpen, onClose, onCustomerAdded }: AddCustom
         onClose()
         onCustomerAdded()
         // Reset form
-        setName("")
-        setAddress("")
-        setPhoneNumber("")
+        form.reset()
       } else {
-        toast({
-          title: "Error",
-          description: result.message,
-          variant: "destructive",
-        })
+        // Handle specific error for duplicate phone numbers
+        if (result.message && result.message.includes("duplicate")) {
+          toast({
+            title: "Error",
+            description: "Phone number already registered",
+            variant: "destructive",
+          })
+          form.setError("phoneNumber", { 
+            type: "manual", 
+            message: "Phone number already in use" 
+          })
+        } else {
+          toast({
+            title: "Error",
+            description: result.message,
+            variant: "destructive",
+          })
+        }
       }
     } catch (error) {
       console.error(error)
@@ -55,8 +97,6 @@ export function AddCustomerModal({ isOpen, onClose, onCustomerAdded }: AddCustom
         description: "Failed to add customer",
         variant: "destructive",
       })
-    } finally {
-      setIsLoading(false)
     }
   }
 
@@ -71,56 +111,73 @@ export function AddCustomerModal({ isOpen, onClose, onCustomerAdded }: AddCustom
             <X size={24} />
           </button>
         </div>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label htmlFor="name" className="block mb-1 font-bold">
-              Name
-            </label>
-            <input
-              type="text"
-              id="name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="w-full p-2 border-[3px] border-black rounded focus:outline-none focus:ring-2 focus:ring-[#93B8F3]"
-              required
+        
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <FormField
+              control={form.control}
+              name="name"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="font-bold">Name</FormLabel>
+                  <FormControl>
+                    <Input
+                      {...field}
+                      className="p-2 border-[3px] border-black rounded focus:outline-none focus:ring-2 focus:ring-[#93B8F3]"
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
             />
-          </div>
-          <div>
-            <label htmlFor="address" className="block mb-1 font-bold">
-              Address
-            </label>
-            <input
-              type="text"
-              id="address"
-              value={address}
-              onChange={(e) => setAddress(e.target.value)}
-              className="w-full p-2 border-[3px] border-black rounded focus:outline-none focus:ring-2 focus:ring-[#93B8F3]"
-              required
+            
+            <FormField
+              control={form.control}
+              name="address"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="font-bold">Address</FormLabel>
+                  <FormControl>
+                    <Input
+                      {...field}
+                      className="p-2 border-[3px] border-black rounded focus:outline-none focus:ring-2 focus:ring-[#93B8F3]"
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
             />
-          </div>
-          <div>
-            <label htmlFor="phoneNumber" className="block mb-1 font-bold">
-              Phone Number
-            </label>
-            <input
-              type="tel"
-              id="phoneNumber"
-              value={phoneNumber}
-              onChange={(e) => setPhoneNumber(e.target.value)}
-              className="w-full p-2 border-[3px] border-black rounded focus:outline-none focus:ring-2 focus:ring-[#93B8F3]"
-              required
+            
+            <FormField
+              control={form.control}
+              name="phoneNumber"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="font-bold">Phone Number</FormLabel>
+                  <FormControl>
+                    <Input
+                      {...field}
+                      type="tel"
+                      className="p-2 border-[3px] border-black rounded focus:outline-none focus:ring-2 focus:ring-[#93B8F3]"
+                      placeholder="Format: 08xxxxxxxxxx"
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
             />
-          </div>
-          <button
-            type="submit"
-            className="w-full px-4 py-2 bg-[#93B8F3] font-bold border-[3px] border-black rounded shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none transition-all"
-          >
-            Add Customer
-          </button>
-        </form>
+            
+            <Button
+              type="submit"
+              disabled={isLoading}
+              className="w-full px-4 py-2 bg-[#93B8F3] font-bold border-[3px] border-black rounded shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none transition-all disabled:opacity-50"
+            >
+              Add Customer
+            </Button>
+          </form>
+        </Form>
       </div>
       <NeoProgressIndicator isLoading={isLoading} message="Adding new customer..." />
     </div>
   )
 }
-
