@@ -1,42 +1,45 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useQuery } from "@tanstack/react-query"
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts"
 import { ArrowUp, ArrowDown } from 'lucide-react'
 import { formatRupiah } from "@/lib/formatIdr"
 import { getSalesTrendData } from "@/server/actions"
 
+// Interface untuk data penjualan harian
 interface SalesData {
   day: string
   sales: number
 }
 
+// Interface untuk data tren penjualan
 interface SalesTrendData {
   thisWeek: SalesData[]
   lastWeek: SalesData[]
 }
 
 export function SalesTrend() {
-  const [data, setData] = useState<SalesTrendData | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
+  // Menggunakan React Query untuk fetching data
+  const { 
+    data, 
+    isLoading, 
+    error 
+  } = useQuery<SalesTrendData>({
+    // Kunci query unik
+    queryKey: ['salesTrendData'],
+    
+    // Fungsi untuk mengambil data tren penjualan
+    queryFn: getSalesTrendData,
+    
+    // Refresh data setiap 3 menit
+    refetchInterval: 3000,
+    
+    // Pertahankan data sebelumnya selama loading
+    placeholderData: (previousData) => previousData,
+  });
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const salesData = await getSalesTrendData()
-        setData(salesData)
-        console.log("Data penjualan:", salesData)
-      } catch (error) {
-        console.error("Error mengambil data penjualan:", error)
-      } finally {
-        setIsLoading(false)
-      }
-    }
-
-    fetchData()
-  }, [])
-
-  if (isLoading || !data) {
+  // Tampilan loading
+  if (isLoading) {
     return (
       <div className="bg-white border-4 border-black p-6 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] transform rotate-1">
         <p className="text-center">Memuat data...</p>
@@ -44,9 +47,20 @@ export function SalesTrend() {
     )
   }
 
+  // Tampilan error
+  if (error || !data) {
+    return (
+      <div className="bg-white border-4 border-black p-6 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] transform rotate-1">
+        <p className="text-center text-red-500">Gagal memuat data</p>
+      </div>
+    )
+  }
+
+  // Hitung total penjualan minggu ini dan minggu lalu
   const thisWeekSales = data.thisWeek.reduce((sum, day) => sum + day.sales, 0)
   const lastWeekSales = data.lastWeek.reduce((sum, day) => sum + day.sales, 0)
 
+  // Hitung pertumbuhan
   let growthDisplay: string
   let isPositiveGrowth: boolean
 
@@ -132,4 +146,3 @@ export function SalesTrend() {
     </div>
   )
 }
-
