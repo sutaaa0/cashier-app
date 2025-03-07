@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { FileText, Eye, Download, Calendar } from "lucide-react";
+import { FileText, Eye, Download, Calendar, RefreshCw } from "lucide-react";
 import { getTransactions } from "@/server/actions";
 import { toast } from "@/hooks/use-toast";
 import { ViewTransactionModal } from "./ViewTransactionModal";
@@ -9,13 +9,39 @@ import { NeoProgressIndicator } from "@/components/NeoProgresIndicator";
 import * as XLSX from "xlsx";
 import { formatRupiah } from "@/lib/formatIdr";
 
+interface PromotionInfo {
+  title: string;
+  discountPercentage: number | null;
+  discountAmount: number | null;
+}
+
+interface DetailPenjualanWithPromotion {
+  produk: { 
+    nama: string 
+  };
+  promotion?: PromotionInfo;
+  subtotal: number;
+  kuantitas: number;
+}
+
+interface RefundInfo {
+  refundId: number;
+  tanggalRefund: Date;
+  totalRefund: number;
+  detailRefund: Array<{
+    produk: { nama: string };
+    kuantitas: number;
+  }>;
+}
+
 interface TransactionData {
   penjualanId: number;
   tanggalPenjualan: Date;
   total_harga: number;
   pelanggan?: { nama: string } | null;
   guest?: { guestId: number } | null;
-  detailPenjualan: Array<{ produk: { nama: string } }>;
+  detailPenjualan: DetailPenjualanWithPromotion[];
+  returns: RefundInfo[];
 }
 
 export function TransactionManagement() {
@@ -54,13 +80,31 @@ export function TransactionManagement() {
   };
 
   const convertToExcelData = (transactions: TransactionData[]) => {
-    return transactions.map((transaction) => ({
-      "Transaction ID": transaction.penjualanId,
-      Date: new Date(transaction.tanggalPenjualan).toLocaleString(),
-      Total: transaction.total_harga.toFixed(2),
-      Customer: transaction.pelanggan ? transaction.pelanggan.nama : `Guest ${transaction.guest?.guestId}`,
-      Items: transaction.detailPenjualan.map((detail) => detail.produk.nama).join(", "),
-    }));
+    return transactions.map((transaction) => {
+      // Prepare details with promotions
+      const itemsWithPromotion = transaction.detailPenjualan.map((detail) => {
+        const promotionInfo = detail.promotion 
+          ? `${detail.produk.nama} (${detail.promotion.title}: ${detail.promotion.discountPercentage ? detail.promotion.discountPercentage + '% off' : formatRupiah(detail.promotion.discountAmount || 0)})`
+          : detail.produk.nama;
+        return promotionInfo;
+      }).join(", ");
+
+      // Prepare refund information
+      const refundInfo = transaction.returns.length > 0 
+        ? transaction.returns.map(refund => 
+            `Refund #${refund.refundId} on ${new Date(refund.tanggalRefund).toLocaleString()} - ${formatRupiah(refund.totalRefund)}`
+          ).join("; ")
+        : "No Refunds";
+
+      return {
+        "Transaction ID": transaction.penjualanId,
+        Date: new Date(transaction.tanggalPenjualan).toLocaleString(),
+        Total: transaction.total_harga.toFixed(2),
+        Customer: transaction.pelanggan ? transaction.pelanggan.nama : `Guest ${transaction.guest?.guestId}`,
+        Items: itemsWithPromotion,
+        Refunds: refundInfo
+      };
+    });
   };
 
   const handleExportData = () => {
@@ -92,13 +136,21 @@ export function TransactionManagement() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="text-3xl font-black">TRANSACTION HISTORY</h2>
-        <button
-          onClick={handleExportData}
-          className="px-4 py-2 bg-[#93B8F3] font-bold border-[3px] border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none transition-all flex items-center gap-2"
-        >
-          <Download size={20} />
-          Export to Excel
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={fetchTransactions}
+            className="p-2 bg-[#93B8F3] font-bold border-[3px] border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none transition-all"
+          >
+            <RefreshCw size={20} />
+          </button>
+          <button
+            onClick={handleExportData}
+            className="px-4 py-2 bg-[#93B8F3] font-bold border-[3px] border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none transition-all flex items-center gap-2"
+          >
+            <Download size={20} />
+            Export to Excel
+          </button>
+        </div>
       </div>
       <div className="grid gap-4">
         {transactions.map((transaction) => (
@@ -111,6 +163,11 @@ export function TransactionManagement() {
                 <div>
                   <div className="flex items-center gap-2">
                     <h3 className="font-bold text-lg">Transaction #{transaction.penjualanId}</h3>
+                    {transaction.returns.length > 0 && (
+                      <span className="text-red-500 text-sm">
+                        ({transaction.returns.length} Refund{transaction.returns.length > 1 ? 's' : ''})
+                      </span>
+                    )}
                   </div>
                   <div className="flex items-center gap-4 mt-1">
                     <span className="flex items-center text-sm">
@@ -136,7 +193,13 @@ export function TransactionManagement() {
           </div>
         ))}
       </div>
-      {selectedTransaction && <ViewTransactionModal isOpen={isViewModalOpen} onClose={() => setIsViewModalOpen(false)} transaction={selectedTransaction} />}
+      {selectedTransaction && (
+        <ViewTransactionModal 
+          isOpen={isViewModalOpen} 
+          onClose={() => setIsViewModalOpen(false)} 
+          transaction={selectedTransaction} 
+        />
+      )}
       <NeoProgressIndicator isLoading={isLoading} message="Fetching transactions..." />
     </div>
   );
