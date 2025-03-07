@@ -6,7 +6,7 @@ import { StockManagement } from "./components/StockManagement";
 import { AnalyticsPage } from "./components/AnalyticsPage";
 import { UserManagement } from "@/components/UserManagement";
 import { CustomerManagement } from "@/components/CustomerManagement";
-import { ReportManagement } from "./components/RepostManagement";
+import { ReportManagement } from "./components/ReportManagement";
 import { AdminHeader } from "@/components/AdminHeader";
 import { AdminSidebar } from "@/components/AdminSidebar";
 import { ProductManagement } from "@/components/ProductManagement";
