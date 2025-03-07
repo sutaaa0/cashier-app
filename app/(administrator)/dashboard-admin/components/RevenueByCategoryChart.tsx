@@ -1,6 +1,8 @@
-import { useEffect, useState } from 'react';
-import { DollarSign, TrendingUp, Sparkles, BarChart as BarChartIcon } from 'lucide-react';
+"use client";
 
+import { useState } from 'react';
+import { DollarSign, TrendingUp, Sparkles, BarChart as BarChartIcon } from 'lucide-react';
+import { useQuery } from "@tanstack/react-query";
 import {
   Bar,
   BarChart,
@@ -28,30 +30,17 @@ interface CustomTooltipProps {
 
 export function RevenueByCategoryChart() {
   const [activeBar, setActiveBar] = useState<number | null>(null);
-  const [categoryRevenue, setCategoryRevenue] = useState<{ category: string; revenue: number }[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-
-  useEffect(() => {
-    const fetchDataCategoruRevenue = async () => {
-      try {
-        setIsLoading(true);
-        const res = await getCategoryRevenue();
-        setCategoryRevenue(res);
-      } catch (error) {
-        console.error('Error fetching category revenue:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    
-    fetchDataCategoruRevenue();
-  }, []);
+  
+  // Mengambil data revenue by category menggunakan React Query
+  const { data: categoryRevenue = [], isLoading } = useQuery({
+    queryKey: ['categoryRevenue'],
+    queryFn: getCategoryRevenue,
+    refetchInterval: 3000, // Refresh data setiap 3 detik
+  });
 
   if (isLoading) {
     return <RevenueByCategoryLoading />;
   }
-
-  
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('id-ID', {
