@@ -1,27 +1,56 @@
 "use client"
 
 import { useState } from 'react'
+import { zodResolver } from "@hookform/resolvers/zod"
+import { useForm } from "react-hook-form"
+import * as z from "zod"
 import { createCustomer, getCustomers } from "@/server/actions"
 import { toast } from "@/hooks/use-toast"
+
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form"
+import { Input } from "@/components/ui/input"
+import { Button } from "@/components/ui/button"
+
+// Define the form schema with Zod
+const customerFormSchema = z.object({
+  name: z.string().min(1, { message: "Nama harus diisi" }),
+  address: z.string().min(1, { message: "Alamat harus diisi" }),
+  phoneNumber: z.string()
+    .min(1, { message: "Nomor telepon harus diisi" })
+    .regex(/^(\+62|0)[0-9]{9,12}$/, { 
+      message: "Format nomor telepon tidak valid (gunakan format: 08xxxxxxxxxx atau +62xxxxxxxxxx)" 
+    })
+})
+
+// Type for the form values
+type CustomerFormValues = z.infer<typeof customerFormSchema>
 
 interface CustomerInputProps {
   onSubmit: (customerData: { pelangganId?: number; guestId?: number; nama?: string; alamat?: string | null; nomorTelepon?: string | null }) => void
   onCancel: () => void
 }
 
-export function NeoCustomerInput({ onSubmit, onCancel }: CustomerInputProps) {
-  const [name, setName] = useState('')
-  const [address, setAddress] = useState('')
-  const [phoneNumber, setPhoneNumber] = useState('')
+export function CustomerInputForm({ onSubmit, onCancel }: CustomerInputProps) {
   const [isLoading, setIsLoading] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [customers, setCustomers] = useState<Array<{ pelangganId: number; nama: string; alamat: string | null; nomorTelepon: string | null }>>([])
   
-  // Add validation state
-  const [errors, setErrors] = useState({
-    name: '',
-    address: '',
-    phoneNumber: ''
+  // Define form with React Hook Form
+  const form = useForm<CustomerFormValues>({
+    resolver: zodResolver(customerFormSchema),
+    defaultValues: {
+      name: "",
+      address: "",
+      phoneNumber: ""
+    },
   })
 
   const handleSearch = async () => {
@@ -57,64 +86,20 @@ export function NeoCustomerInput({ onSubmit, onCancel }: CustomerInputProps) {
     }
   }
 
-  // Validate phone number format
-  const validatePhoneNumber = (phone: string): boolean => {
-    // Indonesian phone format: starts with 0 or +62, followed by 9-12 digits
-    const phoneRegex = /^(\+62|0)[0-9]{9,12}$/
-    return phoneRegex.test(phone)
-  }
-
-  // Validate form before submission
-  const validateForm = (): boolean => {
-    const newErrors = {
-      name: '',
-      address: '',
-      phoneNumber: ''
-    }
-    
-    let isValid = true
-    
-    // Validate name
-    if (!name.trim()) {
-      newErrors.name = 'Nama harus diisi'
-      isValid = false
-    }
-    
-    // Validate address
-    if (!address.trim()) {
-      newErrors.address = 'Alamat harus diisi'
-      isValid = false
-    }
-    
-    // Validate phone number
-    if (!phoneNumber.trim()) {
-      newErrors.phoneNumber = 'Nomor telepon harus diisi'
-      isValid = false
-    } else if (!validatePhoneNumber(phoneNumber)) {
-      newErrors.phoneNumber = 'Format nomor telepon tidak valid (gunakan format: 08xxxxxxxxxx atau +62xxxxxxxxxx)'
-      isValid = false
-    }
-    
-    setErrors(newErrors)
-    return isValid
-  }
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    
-    // Validate form
-    if (!validateForm()) {
-      return
-    }
-    
+  const onFormSubmit = async (data: CustomerFormValues) => {
     setIsLoading(true)
     
     try {
       const result = await createCustomer({ 
-        nama: name, 
-        alamat: address, 
-        nomorTelepon: phoneNumber 
+        nama: data.name, 
+        alamat: data.address, 
+        nomorTelepon: data.phoneNumber 
       })
+
+      // Check if result is undefined, which would indicate a server error
+      if (!result) {
+        throw new Error("Server error - no response received")
+      }
 
       if (result.status === "Success") {
         toast({
@@ -124,9 +109,17 @@ export function NeoCustomerInput({ onSubmit, onCancel }: CustomerInputProps) {
         if (result.data) {
           onSubmit(result.data)
         } else {
-          throw new Error("Invalid customer data")
+          toast({
+            title: "Warning",
+            description: "Data pelanggan tersimpan tetapi ada informasi yang tidak lengkap",
+            variant: "destructive",
+          })
+          onSubmit({ nama: data.name, alamat: data.address, nomorTelepon: data.phoneNumber })
         }
       } else {
+        // Handle error from server action
+        console.log("Server returned error:", result)
+        
         // Display specific error message if phone number already exists
         if (result.message && result.message.includes("duplicate")) {
           toast({
@@ -134,19 +127,28 @@ export function NeoCustomerInput({ onSubmit, onCancel }: CustomerInputProps) {
             description: "Nomor telepon sudah terdaftar",
             variant: "destructive",
           })
-          setErrors(prev => ({
-            ...prev,
-            phoneNumber: 'Nomor telepon sudah digunakan'
-          }))
+          form.setError("phoneNumber", { 
+            type: "manual", 
+            message: "Nomor telepon sudah digunakan" 
+          })
         } else {
-          throw new Error(result.message)
+          // Handle other error types
+          toast({
+            title: "Error",
+            description: result.message || "Gagal menyimpan data pelanggan",
+            variant: "destructive",
+          })
         }
       }
     } catch (error) {
-      console.log(error);
+      console.error("Error in form submission:", error);
+      
+      // Improved error handling with more specific messages
+      const errorMessage = "Gagal menyimpan data member"
+      
       toast({
         title: "Error",
-        description: "Gagal menyimpan data pelanggan",
+        description: errorMessage,
         variant: "destructive",
       })
     } finally {
@@ -163,7 +165,7 @@ export function NeoCustomerInput({ onSubmit, onCancel }: CustomerInputProps) {
       <div className="mb-4">
         <label htmlFor="search" className="block mb-2 font-bold">Cari Member</label>
         <div className="flex gap-2">
-          <input
+          <Input
             id="search"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -171,15 +173,16 @@ export function NeoCustomerInput({ onSubmit, onCancel }: CustomerInputProps) {
             disabled={isLoading}
             className="flex-1 px-4 py-2 border-2 border-black focus:outline-none focus:ring-2 focus:ring-[#FFD700]"
           />
-          <button 
+          <Button 
             onClick={handleSearch} 
             disabled={isLoading}
             className="px-4 py-2 bg-[#FFD700] text-black font-bold border-2 border-black hover:bg-black hover:text-[#FFD700] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isLoading ? "Mencari..." : "Cari"}
-          </button>
+          </Button>
         </div>
       </div>
+
       {customers.length > 0 && (
         <div className="mb-4 border-2 border-black p-2">
           <h3 className="text-lg font-bold mb-2">Hasil Pencarian</h3>
@@ -196,84 +199,103 @@ export function NeoCustomerInput({ onSubmit, onCancel }: CustomerInputProps) {
           </ul>
         </div>
       )}
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
-          <label htmlFor="name" className="block mb-2 font-bold">Nama <span className="text-red-500">*</span></label>
-          <input
-            id="name"
-            value={name}
-            onChange={(e) => {
-              setName(e.target.value)
-              if (e.target.value.trim()) {
-                setErrors(prev => ({ ...prev, name: '' }))
-              }
-            }}
-            required
-            disabled={isLoading}
-            className={`w-full px-4 py-2 border-2 ${errors.name ? 'border-red-500 bg-red-50' : 'border-black'} focus:outline-none focus:ring-2 focus:ring-[#FFD700]`}
+
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(onFormSubmit)} className="space-y-4">
+          <FormField
+            control={form.control}
+            name="name"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel className="font-bold">
+                  Nama <span className="text-red-500">*</span>
+                </FormLabel>
+                <FormControl>
+                  <Input
+                    {...field}
+                    placeholder="Masukkan nama"
+                    disabled={isLoading}
+                    className="w-full px-4 py-2 border-2 border-black focus:outline-none focus:ring-2 focus:ring-[#FFD700]"
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
           />
-          {errors.name && <p className="text-red-500 text-sm mt-1">{errors.name}</p>}
-        </div>
-        <div>
-          <label htmlFor="address" className="block mb-2 font-bold">Alamat <span className="text-red-500">*</span></label>
-          <input
-            id="address"
-            value={address}
-            onChange={(e) => {
-              setAddress(e.target.value)
-              if (e.target.value.trim()) {
-                setErrors(prev => ({ ...prev, address: '' }))
-              }
-            }}
-            required
-            disabled={isLoading}
-            className={`w-full px-4 py-2 border-2 ${errors.address ? 'border-red-500 bg-red-50' : 'border-black'} focus:outline-none focus:ring-2 focus:ring-[#FFD700]`}
+
+          <FormField
+            control={form.control}
+            name="address"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel className="font-bold">
+                  Alamat <span className="text-red-500">*</span>
+                </FormLabel>
+                <FormControl>
+                  <Input
+                    {...field}
+                    placeholder="Masukkan alamat"
+                    disabled={isLoading}
+                    className="w-full px-4 py-2 border-2 border-black focus:outline-none focus:ring-2 focus:ring-[#FFD700]"
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
           />
-          {errors.address && <p className="text-red-500 text-sm mt-1">{errors.address}</p>}
-        </div>
-        <div>
-          <label htmlFor="phoneNumber" className="block mb-2 font-bold">Nomor Telepon <span className="text-red-500">*</span></label>
-          <input
-            id="phoneNumber"
-            value={phoneNumber}
-            onChange={(e) => {
-              setPhoneNumber(e.target.value)
-              if (e.target.value.trim()) {
-                setErrors(prev => ({ ...prev, phoneNumber: '' }))
-              }
-            }}
-            placeholder="Format: 08xxxxxxxxxx atau +62xxxxxxxxxx"
-            required
-            disabled={isLoading}
-            className={`w-full px-4 py-2 border-2 ${errors.phoneNumber ? 'border-red-500 bg-red-50' : 'border-black'} focus:outline-none focus:ring-2 focus:ring-[#FFD700]`}
+
+          <FormField
+            control={form.control}
+            name="phoneNumber"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel className="font-bold">
+                  Nomor Telepon <span className="text-red-500">*</span>
+                </FormLabel>
+                <FormControl>
+                  <Input
+                    {...field}
+                    placeholder="Format: 08xxxxxxxxxx atau +62xxxxxxxxxx"
+                    disabled={isLoading}
+                    className="w-full px-4 py-2 border-2 border-black focus:outline-none focus:ring-2 focus:ring-[#FFD700]"
+                  />
+                </FormControl>
+                <FormDescription>
+                  Masukkan nomor telepon dengan format 08xxxxxxxxxx atau +62xxxxxxxxxx
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
           />
-          {errors.phoneNumber && <p className="text-red-500 text-sm mt-1">{errors.phoneNumber}</p>}
-        </div>
-        <div className="flex justify-end gap-2">
-          <button 
-            type="button" 
-            onClick={onCancel}
-            disabled={isLoading}
-            className="px-4 py-2 bg-white text-black font-bold border-2 border-black hover:bg-[#FFD700] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            Batal
-          </button>
-          <button 
-            type="submit" 
-            disabled={isLoading}
-            className="px-4 py-2 bg-[#FFD700] text-black font-bold border-2 border-black hover:bg-black hover:text-[#FFD700] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isLoading ? "Menyimpan..." : "Simpan"}
-          </button>
-        </div>
-      </form>
+
+          <div className="flex justify-end gap-2">
+            <Button 
+              type="button" 
+              onClick={onCancel}
+              disabled={isLoading}
+              variant="default"
+              className="px-4 py-2 bg-white text-black font-bold border-2 border-black hover:bg-[#FFD700] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Batal
+            </Button>
+            <Button 
+              type="submit" 
+              disabled={isLoading}
+              className="px-4 py-2 bg-[#FFD700] text-black font-bold border-2 border-black hover:bg-black hover:text-[#FFD700] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isLoading ? "Menyimpan..." : "Simpan"}
+            </Button>
+          </div>
+        </form>
+      </Form>
+
       <div className="mt-4">
-        <button 
+        <Button 
           onClick={handleGuestPurchase} 
           className="w-full px-4 py-2 bg-white text-black font-bold border-2 border-black hover:bg-[#FFD700] transition-colors"
         >
           Lanjutkan sebagai Guest
-        </button>
+        </Button>
       </div>
     </div>
   )
