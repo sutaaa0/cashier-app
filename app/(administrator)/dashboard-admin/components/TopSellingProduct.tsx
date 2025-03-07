@@ -1,4 +1,7 @@
-import React, { useEffect, useState } from "react";
+"use client";
+
+import React, { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Coffee, TrendingUp, Sparkles, Crown } from "lucide-react";
 import { getTopProducts } from "@/server/actions";
@@ -32,25 +35,14 @@ const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?:
 
 export function TopSellingProducts() {
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
-  const [topProducts, setTopProducts] = useState<Product[]>([]);
-
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setIsLoading(true);
-        const res = await getTopProducts();
-        setTopProducts(res);
-      } catch (error) {
-        console.error("Error fetching top products:", error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchData();
-  }, []);
+  
+  // Use TanStack Query to fetch and cache data
+  const { data: topProducts = [], isLoading } = useQuery<Product[]>({
+    queryKey: ['top-products'],
+    queryFn: getTopProducts,
+    refetchInterval: 3000, // Refresh data every 3 seconds
+    staleTime: 2000,
+  });
 
   if (isLoading) {
     return <LoadingAnimationsTopSelling />;
@@ -155,3 +147,5 @@ export function TopSellingProducts() {
     </div>
   );
 }
+
+export default TopSellingProducts;
