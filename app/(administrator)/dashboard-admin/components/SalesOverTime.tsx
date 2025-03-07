@@ -1,4 +1,7 @@
-import React, { useState, useEffect } from "react";
+"use client";
+
+import React, { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import {
   ArrowUp,
   ArrowDown,
@@ -149,72 +152,37 @@ const TimeRangeSelector = ({
 };
 
 export default function ProfitAnalytics() {
-  const [profitData, setProfitData] = useState<ProfitData[]>([]);
-  const [currentPeriodStats, setCurrentPeriodStats] = useState<{
-    sales: number;
-    profit: number;
-    transactions: number;
-  }>({ sales: 0, profit: 0, transactions: 0 });
-  const [previousPeriodStats, setPreviousPeriodStats] = useState<{
-    sales: number;
-    profit: number;
-    transactions: number;
-  }>({ sales: 0, profit: 0, transactions: 0 });
   const [timeRange, setTimeRange] = useState<TimeRange>("daily");
-  const [isLoaded, setIsLoaded] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
-  const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    const fetchData = async () => {
-      setIsLoading(true);
-      try {
-        const data = await getProfitData(timeRange);
-        setProfitData(data);
-        
-        // Get latest period data (last item in the array)
-        if (data.length > 0) {
-          const latestData = data[data.length - 1];
-          setCurrentPeriodStats({
-            sales: latestData.sales,
-            profit: latestData.profit,
-            transactions: latestData.transactions
-          });
-          
-          // Get previous period data (second to last item, if it exists)
-          if (data.length > 1) {
-            const previousData = data[data.length - 2];
-            setPreviousPeriodStats({
-              sales: previousData.sales,
-              profit: previousData.profit,
-              transactions: previousData.transactions
-            });
-          } else {
-            // If no previous data, set to 0
-            setPreviousPeriodStats({
-              sales: 0,
-              profit: 0,
-              transactions: 0
-            });
-          }
-        }
-        
-        setIsLoaded(true);
-        setIsLoading(false);
-      } catch (error) {
-        console.error("Error fetching data:", error);
-        setIsLoading(false);
+  // Fetch data using TanStack Query
+  const { data, isLoading } = useQuery({
+    queryKey: ['profit-data', timeRange],
+    queryFn: () => getProfitData(timeRange),
+    refetchInterval: 3000, // Refresh data every 3 seconds
+    staleTime: 2000,
+  });
+
+  // Set default empty data array if data is not available yet
+  const profitData: ProfitData[] = data || [];
+
+  // Calculate current period stats (latest item in the array)
+  const currentPeriodStats = profitData.length > 0 
+    ? {
+        sales: profitData[profitData.length - 1].sales,
+        profit: profitData[profitData.length - 1].profit,
+        transactions: profitData[profitData.length - 1].transactions
       }
-    };
+    : { sales: 0, profit: 0, transactions: 0 };
 
-    fetchData();
-
-    const interval = setInterval(() => {
-      setActiveIndex((prev) => (prev + 1) % (profitData.length || 1));
-    }, 3000);
-
-    return () => clearInterval(interval);
-  }, [timeRange]);
+  // Calculate previous period stats (second to last item in the array)
+  const previousPeriodStats = profitData.length > 1
+    ? {
+        sales: profitData[profitData.length - 2].sales,
+        profit: profitData[profitData.length - 2].profit,
+        transactions: profitData[profitData.length - 2].transactions
+      }
+    : { sales: 0, profit: 0, transactions: 0 };
 
   // Function to calculate percentage increase/decrease
   const calculateIncrease = (current: number, previous: number) => {
@@ -322,13 +290,9 @@ export default function ProfitAnalytics() {
         {/* Time Range Selector */}
         <TimeRangeSelector activeRange={timeRange} onChange={setTimeRange} />
 
-        <div
-          className={`transform transition-all duration-1000 ${
-            isLoaded ? "translate-y-0 opacity-100" : "translate-y-10 opacity-0"
-          }`}
-        >
+        <div className="transform translate-y-0 opacity-100 transition-all duration-1000">
           {/* Stats Grid */}
-          {isLoaded && profitData.length > 0 && (
+          {profitData.length > 0 && (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
               <StatCard
                 title={`Penjualan ${getTimePeriodLabel()}`}
@@ -488,7 +452,7 @@ export default function ProfitAnalytics() {
           </div>
 
           {/* Summary Statistics */}
-          {!isLoading && profitData.length > 0 && (
+          {profitData.length > 0 && (
             <div className="mt-6">
               <div className="mb-4 transform -rotate-1 bg-white border-4 border-black p-3 inline-block shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
                 <h3 className="font-black text-xl">RINGKASAN STATISTIK</h3>
@@ -550,7 +514,7 @@ export default function ProfitAnalytics() {
           )}
 
           {/* Highlighted Data */}
-          {!isLoading && profitData.length > 0 && (
+          {profitData.length > 0 && (
             <div className="mt-6 grid grid-cols-3 gap-4">
               {(["sales", "profit", "transactions"] as const).map(
                 (metric, index) => (
