@@ -1,7 +1,7 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import { User, Trash2, Edit, Plus, Star, Phone } from "lucide-react"
+import { useEffect, useState, useMemo } from "react"
+import { User, Trash2, Edit, Plus, Star, Phone, Search } from "lucide-react"
 import { getPelanggan, deletePelanggan, updatePelanggan } from "@/server/actions"
 import { toast } from "@/hooks/use-toast"
 import type { Pelanggan as PelangganType } from "@prisma/client"
@@ -11,13 +11,14 @@ import { EditCustomerModal } from "./EditCUstomerModal"
 import { NeoProgressIndicator } from "./NeoProgresIndicator"
 
 export function CustomerManagement() {
-  const [customers, setCustomers] = useState<PelangganType[]>([])
+  const [originalCustomers, setOriginalCustomers] = useState<PelangganType[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [loadingMessage, setLoadingMessage] = useState("")
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
   const [selectedCustomer, setSelectedCustomer] = useState<PelangganType | null>(null)
+  const [searchTerm, setSearchTerm] = useState("")
 
   useEffect(() => {
     fetchCustomers()
@@ -29,7 +30,7 @@ export function CustomerManagement() {
     try {
       const pelanggan = await getPelanggan()
       if (pelanggan) {
-        setCustomers(pelanggan)
+        setOriginalCustomers(pelanggan)
       }
     } catch (error) {
       toast({
@@ -42,6 +43,19 @@ export function CustomerManagement() {
       setIsLoading(false)
     }
   }
+
+  // Filter customers based on search term
+  const customers = useMemo(() => {
+    if (!searchTerm) return originalCustomers;
+    
+    const searchTermLower = searchTerm.toLowerCase();
+    return originalCustomers.filter(customer => 
+      customer.nama.toLowerCase().includes(searchTermLower) ||
+      (customer.alamat && customer.alamat.toLowerCase().includes(searchTermLower)) ||
+      (customer.nomorTelepon && customer.nomorTelepon.toLowerCase().includes(searchTermLower)) ||
+      customer.points.toString().includes(searchTermLower)
+    );
+  }, [originalCustomers, searchTerm]);
 
   const handleDeleteClick = (customer: PelangganType) => {
     setSelectedCustomer(customer)
@@ -91,7 +105,6 @@ export function CustomerManagement() {
     setIsLoading(true)
     setLoadingMessage("Updating customer...")
     try {
-      // Implement updatePelanggan action in server/actions.ts
       const result = await updatePelanggan(updatedCustomer)
       if (result.status === "Success") {
         toast({
@@ -119,6 +132,10 @@ export function CustomerManagement() {
     }
   }
 
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchTerm(e.target.value)
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -131,7 +148,34 @@ export function CustomerManagement() {
           Add New Customer
         </button>
       </div>
+
+      {/* Search Input */}
+      <div className="relative">
+        <input
+          type="text"
+          placeholder="Search customers by name, phone, address, or points"
+          value={searchTerm}
+          onChange={handleSearchChange}
+          className="w-full px-4 py-2 border-[3px] border-black rounded shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] focus:outline-none focus:ring-2 focus:ring-[#93B8F3]"
+        />
+        <Search 
+          size={20} 
+          className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500"
+        />
+      </div>
+
       <div className="grid gap-4">
+        {customers.length === 0 && !isLoading && (
+          <div className="bg-white border-[3px] border-black p-4 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+            <p className="text-center text-gray-500">
+              {searchTerm 
+                ? `No customers found for "${searchTerm}"` 
+                : "No customers found"
+              }
+            </p>
+          </div>
+        )}
+
         {customers.map((customer) => (
           <div
             key={customer.pelangganId}
@@ -206,4 +250,3 @@ export function CustomerManagement() {
     </div>
   )
 }
-
