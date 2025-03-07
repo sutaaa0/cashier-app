@@ -1,19 +1,21 @@
-import { useEffect, useState } from 'react';
-import { Package2, AlertTriangle, Sparkles, ArrowDown } from 'lucide-react';
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Cell,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis
-} from 'recharts';
-import { getLowStockProducts } from '@/server/actions';
+"use client";
+
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { Package2, AlertTriangle, Sparkles, ArrowDown } from "lucide-react";
+import { Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { getLowStockProducts } from "@/server/actions";
 
 // Neo-brutalist vibrant color palette
-const COLORS = ['#FF6B6B', '#4ECDC4', '#FFE66D', '#FF8364', '#45B7D1'];
+const COLORS = ["#FF6B6B", "#4ECDC4", "#FFE66D", "#FF8364", "#45B7D1"];
+
+interface LowStockProduct {
+  name: string;
+  stock: number;
+  minimumStock: number;
+  status: string;
+}
+
 interface CustomTooltipProps {
   active?: boolean;
   payload?: Array<{
@@ -25,18 +27,14 @@ interface CustomTooltipProps {
 
 export function LowStockProductsChart() {
   const [activeBar, setActiveBar] = useState<number | null>(null);
-  const [lowStockProducts, setLowStockProducts] = useState<{ name: string; stock: number; minimumStock: number; status: string }[]>([])
 
-  useEffect(() => {
-    const fetchDataStock = async () => {
-      const res = await getLowStockProducts();
-
-      setLowStockProducts(res);
-    }
-
-    fetchDataStock();
-  }, [])
-  
+  // Use TanStack Query to fetch and cache data
+  const { data: lowStockProducts = [] } = useQuery<LowStockProduct[]>({
+    queryKey: ["low-stock-products"],
+    queryFn: getLowStockProducts,
+    refetchInterval: 3000, // Refresh data every 3 seconds
+    staleTime: 2000,
+  });
 
   const CustomTooltip = ({ active, payload, label }: CustomTooltipProps) => {
     if (active && payload && payload.length) {
@@ -48,9 +46,7 @@ export function LowStockProductsChart() {
               <AlertTriangle className="text-red-500" size={20} />
               <h3 className="font-black text-xl">{label}</h3>
             </div>
-            <div className="font-mono bg-black text-white p-2 transform -rotate-1">
-              {payload[0].value} UNITS LEFT
-            </div>
+            <div className="font-mono bg-black text-white p-2 transform -rotate-1">{payload[0].value} UNITS LEFT</div>
           </div>
         </div>
       );
@@ -69,8 +65,8 @@ export function LowStockProductsChart() {
             style={{
               left: `${Math.random() * 100}%`,
               top: `${Math.random() * 100}%`,
-              width: '20px',
-              height: '20px'
+              width: "20px",
+              height: "20px",
             }}
           />
         ))}
@@ -96,91 +92,77 @@ export function LowStockProductsChart() {
 
         {/* Chart */}
         <div className="h-[400px] relative border-4 border-black bg-white p-4">
-          {lowStockProducts.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full">
-              {/* Animated Alert Icon */}
-              <div className="animate-pulse">
-                <AlertTriangle size={48} className="text-red-500" />
-              </div>
-
-              {/* Main Message */}
-              <h3 className="text-3xl font-black mt-4">
-                STOK SEMUA PRODUK<br />
-                <span className="text-red-500">AMAN</span>
-              </h3>
-
-              {/* Subtle Animation Effect */}
-              <div className="absolute inset-0 bg-gradient-to-r from-red-100 via-orange-100 to-yellow-100 rounded-lg blur opacity-20 animate-pulse" />
-
-              {/* Decorative Border */}
-              <div className="absolute inset-0 border-2 border-black transform -rotate-2 -translate-x-4 -translate-y-4 opacity-20" />
-
-              {/* Interactive Message Box */}
-              <div className="relative mt-8 p-6 bg-black text-white border-4 border-black transform transition-transform duration-300 hover:scale-105">
-                <div className="font-mono text-center">
-                  Tidak ada produk yang memiliki stok rendah saat ini. Semua stok dalam kondisi yang baik dan aman untuk operasional.
-                </div>
-              </div>
-
-              {/* Animated Dots */}
-              <div className="flex gap-4 mt-8">
-                {[...Array(3)].map((_, i) => (
-                  <div
-                    key={i}
-                    className="w-4 h-4 bg-red-500 rounded-full animate-bounce"
-                    style={{ animationDelay: `${i * 200}ms` }}
-                  />
-                ))}
-              </div>
-            </div>
-          ) : (
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart
-                data={lowStockProducts}
-                onMouseMove={(data) => {
-                  if (data.activeTooltipIndex !== undefined) {
-                    setActiveBar(data.activeTooltipIndex);
-                  }
-                }}
-                onMouseLeave={() => setActiveBar(null)}
-              >
-                <CartesianGrid 
-                  strokeDasharray="3 3" 
-                  stroke="#000"
-                  strokeWidth={1}
-                  opacity={0.1}
-                />
-                <XAxis 
-                  dataKey="name" 
-                  stroke="#000" 
-                  strokeWidth={2}
-                  tick={{ fill: '#000', fontWeight: 'bold' }}
-                />
-                <YAxis 
-                  stroke="#000" 
-                  strokeWidth={2}
-                  tick={{ fill: '#000', fontWeight: 'bold' }}
-                />
-                <Tooltip content={<CustomTooltip />} />
-                <Bar 
-                  dataKey="stock" 
-                  radius={[4, 4, 0, 0]}
-                >
-                  {lowStockProducts.map((_, index) => (
-                    <Cell
-                      key={`cell-${index}`}
-                      fill={COLORS[index % COLORS.length]}
-                      className={`transition-all duration-300 ${
-                        activeBar === index ? 'opacity-100' : 'opacity-80'
-                      }`}
-                      stroke="#000"
-                      strokeWidth={2}
-                    />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          )}
+        {lowStockProducts.length === 0 ? (
+  <div className="flex flex-col items-center justify-center h-full">
+    {/* Simple container with neo-brutalism style */}
+    <div className="bg-white border-4 border-black p-6 transform rotate-1 shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]">
+      {/* Simple checkmark icon */}
+      <div className="flex justify-center mb-4">
+        <div className="w-12 h-12 bg-green-500 border-4 border-black flex items-center justify-center">
+          <span className="text-2xl font-black text-white">✓</span>
+        </div>
+      </div>
+      
+      {/* Simple neo-brutalist heading */}
+      <h3 className="text-xl font-black text-center uppercase tracking-tight mb-3">
+        Stok Aman
+      </h3>
+      
+      {/* Simple message with neo-brutalist styling */}
+      <div className="font-mono text-sm border-2 border-black p-2 text-center">
+        Tidak ada produk dengan stok rendah
+      </div>
+    </div>
+  </div>
+) : (
+  <ResponsiveContainer width="100%" height="100%">
+    {/* The existing BarChart component and its children remain unchanged */}
+    <BarChart
+      data={lowStockProducts}
+      onMouseMove={(data) => {
+        if (data.activeTooltipIndex !== undefined) {
+          setActiveBar(data.activeTooltipIndex);
+        }
+      }}
+      onMouseLeave={() => setActiveBar(null)}
+    >
+      <CartesianGrid 
+        strokeDasharray="3 3" 
+        stroke="#000"
+        strokeWidth={1}
+        opacity={0.1}
+      />
+      <XAxis 
+        dataKey="name" 
+        stroke="#000" 
+        strokeWidth={2}
+        tick={{ fill: '#000', fontWeight: 'bold' }}
+      />
+      <YAxis 
+        stroke="#000" 
+        strokeWidth={2}
+        tick={{ fill: '#000', fontWeight: 'bold' }}
+      />
+      <Tooltip content={<CustomTooltip />} />
+      <Bar 
+        dataKey="stock" 
+        radius={[4, 4, 0, 0]}
+      >
+        {lowStockProducts.map((_, index) => (
+          <Cell
+            key={`cell-${index}`}
+            fill={COLORS[index % COLORS.length]}
+            className={`transition-all duration-300 ${
+              activeBar === index ? 'opacity-100' : 'opacity-80'
+            }`}
+            stroke="#000"
+            strokeWidth={2}
+          />
+        ))}
+      </Bar>
+    </BarChart>
+  </ResponsiveContainer>
+)}
         </div>
 
         {/* Legend */}
@@ -191,18 +173,13 @@ export function LowStockProductsChart() {
               className={`
                 relative group/item border-3 border-black p-3
                 transform transition-all duration-300
-                ${activeBar === index ? 'bg-black text-white -translate-y-1' : 'bg-white hover:-translate-y-1'}
+                ${activeBar === index ? "bg-black text-white -translate-y-1" : "bg-white hover:-translate-y-1"}
               `}
             >
               <div className="flex items-center gap-2">
-                <div
-                  className="w-6 h-6 border-2 border-black transform rotate-45 transition-transform group-hover/item:rotate-0"
-                  style={{ backgroundColor: COLORS[index % COLORS.length] }}
-                />
+                <div className="w-6 h-6 border-2 border-black transform rotate-45 transition-transform group-hover/item:rotate-0" style={{ backgroundColor: COLORS[index % COLORS.length] }} />
                 <span className="font-bold">{product.name}</span>
-                <span className="ml-auto font-mono bg-white text-black px-2 py-1 border-2 border-black">
-                  {product.stock}
-                </span>
+                <span className="ml-auto font-mono bg-white text-black px-2 py-1 border-2 border-black">{product.stock}</span>
               </div>
               <div className="absolute inset-0 border-2 border-black transform translate-x-1 translate-y-1 -z-10" />
             </div>
@@ -220,3 +197,5 @@ export function LowStockProductsChart() {
     </div>
   );
 }
+
+export default LowStockProductsChart;
