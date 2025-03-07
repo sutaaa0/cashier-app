@@ -18,9 +18,9 @@ model User {
 
 model Pelanggan {
   pelangganId  Int         @id @default(autoincrement())
-  nama         String      @default("Guest")
+  nama         String      
   alamat       String?
-  nomorTelepon String?
+  nomorTelepon String?     @unique
   points       Int         @default(0)
   createdAt    DateTime    @default(now())
   penjualan    Penjualan[]
