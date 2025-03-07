@@ -3,7 +3,7 @@ import { cookies } from "next/headers";
 import { prisma } from "@/lib/db";
 import bcrypt from "bcryptjs";
 import * as jose from "jose";
-import { DetailPenjualan, Pelanggan, Produk } from "@prisma/client";
+import { DetailPenjualan, Pelanggan, Produk, Prisma } from "@prisma/client";
 import { CreateOrderDetail, CustomerTransactionData } from "@/types/types";
 import { revalidatePath } from "next/cache";
 import { v2 as cloudinary } from "cloudinary";
@@ -815,9 +815,15 @@ export async function deleteUser(id: number): Promise<ActionResponse> {
   }
 }
 
-export async function getUsers() {
+export async function getUsers(searchTerm?: string) {
   try {
     const users = await prisma.user.findMany({
+      where: searchTerm ? {
+        OR: [
+          { username: { contains: searchTerm, mode: 'insensitive' } },
+          { level: { contains: searchTerm, mode: 'insensitive' } }
+        ]
+      } : {},
       select: {
         id: true,
         username: true,
@@ -829,6 +835,7 @@ export async function getUsers() {
     throw error;
   }
 }
+
 
 export async function getPelanggan() {
   try {
@@ -848,24 +855,26 @@ export async function getPelanggan() {
   }
 }
 
-export async function addPelanggan(data: { nama: string; alamat?: string; nomorTelepon?: string }) {
-  try {
-    const newPelanggan = await prisma.pelanggan.create({
-      data: {
-        nama: data.nama,
-        alamat: data.alamat,
-        nomorTelepon: data.nomorTelepon,
-      },
-    });
-    return { status: "Success", data: newPelanggan };
-  } catch (error) {
-    console.error("Error adding customer:", error);
-    return { status: "Error", message: "Failed to add customer" };
-  }
-}
 
 export async function updatePelanggan(data: Pelanggan) {
   try {
+    // Only check for duplicate phone number if one is provided
+    if (data.nomorTelepon) {
+      const existingPhoneNumber = await prisma.pelanggan.findUnique({
+        where: {
+          nomorTelepon: data.nomorTelepon
+        }
+      });
+      
+      // Check if the found phone number belongs to a different customer
+      if (existingPhoneNumber && existingPhoneNumber.pelangganId !== data.pelangganId) {
+        return {
+          status: "Error",
+          message: "duplicate: Nomor telepon sudah terdaftar"
+        };
+      }
+    }
+    
     const updatedPelanggan = await prisma.pelanggan.update({
       where: { pelangganId: data.pelangganId },
       data: {
@@ -875,6 +884,7 @@ export async function updatePelanggan(data: Pelanggan) {
         points: data.points,
       },
     });
+    
     return { status: "Success", data: updatedPelanggan };
   } catch (error) {
     console.error("Error updating customer:", error);
@@ -894,6 +904,7 @@ export async function deletePelanggan(pelangganId: number) {
   }
 }
 
+
 export async function getTransactions() {
   try {
     const transactions = await prisma.penjualan.findMany({
@@ -902,15 +913,49 @@ export async function getTransactions() {
         guest: true,
         detailPenjualan: {
           include: {
-            produk: true,
-          },
+            produk: {
+                    include: {
+                      promotionProducts: {
+                        include: {
+                          promotion: true
+                        }
+                      }
+                    }
+            }
+          }
         },
+        // Include refund information
+        returns: {
+          include: {
+            detailRefund: {
+              include: {
+                produk: true
+              }
+            }
+          }
+        }
       },
       orderBy: {
-        tanggalPenjualan: "desc",
-      },
+        tanggalPenjualan: "desc"
+      }
     });
-    return { status: "Success", data: transactions };
+
+    // Transform transactions to include promotion and detailed refund information
+    const transformedTransactions = transactions.map(transaction => ({
+      ...transaction,
+      detailPenjualan: transaction.detailPenjualan.map(detail => ({
+        ...detail,
+        promotion: detail.produk.promotionProducts.length > 0 
+          ? {
+              title: detail.produk.promotionProducts[0].promotion.title,
+              discountPercentage: detail.produk.promotionProducts[0].promotion.discountPercentage,
+              discountAmount: detail.produk.promotionProducts[0].promotion.discountAmount
+            }
+          : undefined
+      }))
+    }));
+
+    return { status: "Success", data: transformedTransactions };
   } catch (error) {
     console.error("Error fetching transactions:", error);
     return { status: "Error", message: "Failed to fetch transactions" };
