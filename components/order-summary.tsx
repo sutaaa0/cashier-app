@@ -4,7 +4,7 @@ import { useState, forwardRef, useImperativeHandle, useCallback, useEffect } fro
 import Image from "next/image";
 import { Minus, Plus, Trash2, Tag } from "lucide-react";
 import type { Penjualan, DetailPenjualan, Promotion } from "@prisma/client";
-import { NeoCustomerInput } from "./CustomerInput";
+import { CustomerInputForm } from "./CustomerInput";
 import { toast } from "@/hooks/use-toast";
 import { getCurrentUser, getMemberPoints, redeemPoints } from "@/server/actions";
 import { Button } from "./ui/button";
@@ -661,7 +661,7 @@ export const NeoOrderSummary = forwardRef<{ resetCustomerData: () => void }, Ord
             {customerData ? "Ubah Data Pelanggan" : "Pilih Member"}
           </Button>
         )}
-        {showCustomerInput && <NeoCustomerInput onSubmit={handleCustomerSubmit} onCancel={() => setShowCustomerInput(false)} />}
+        {showCustomerInput && <CustomerInputForm onSubmit={handleCustomerSubmit} onCancel={() => setShowCustomerInput(false)} />}
       </div>
     </div>
   );
