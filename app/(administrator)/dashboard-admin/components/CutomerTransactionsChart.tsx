@@ -1,8 +1,19 @@
-import React, { useEffect, useState } from 'react';
+"use client";
+
+import React, { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip, Cell } from "recharts";
 import { Users, Crown, BarChart2, Zap } from 'lucide-react';
 import { getCustomerTransactionsAnalytic } from '@/server/actions';
 import CustomerTransactionsLoading from './CustomerTransactionsLoading';
+
+interface CustomerTransaction {
+  name: string;
+  value: number;
+  transactions: number;
+  growth: string;
+  growthColor?: string;
+}
 
 const COLORS = ['#FF6B6B', '#4ECDC4']; // Keeping original colors
 
@@ -25,41 +36,28 @@ const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?:
 };
 
 const CustomerTransactionsChart = () => {
-  const [isLoading, setIsLoading] = useState(true);
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
   
-  interface CustomerTransaction {
-    name: string;
-    value: number;
-    transactions: number;
-    growth: string;
-    growthColor: string;
-  }
+  // Fetch data using TanStack Query
+  const { data, isLoading } = useQuery<CustomerTransaction[]>({
+    queryKey: ['customer-transactions'],
+    queryFn: async () => {
+      const res = await getCustomerTransactionsAnalytic();
+      // Process the data and add the growthColor property
+      return res.map(item => ({
+        ...item,
+        growthColor: parseFloat(item.growth) >= 0 ? 'text-green-500' : 'text-red-500'
+      }));
+    },
+    refetchInterval: 3000, // Refresh data every 3 seconds
+    staleTime: 2000,
+  });
   
-  const [customerData, setCustomerData] = useState<CustomerTransaction[]>([]);
-  const [totalTransactions, setTotalTransactions] = useState(0);
-
-  useEffect(() => {
-    const fetchDataTransactions = async () => {
-      try {
-        setIsLoading(true);
-        const res = await getCustomerTransactionsAnalytic();
-        const data = res.map(item => ({
-          ...item,
-          growthColor: parseFloat(item.growth) >= 0 ? 'text-green-500' : 'text-red-500'
-        }));
-        
-        setCustomerData(data);
-        const total = data.reduce((sum, item) => sum + item.transactions, 0);
-        setTotalTransactions(total);
-      } catch (error) {
-        console.error('Error fetching customer transactions:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    fetchDataTransactions();
-  }, []);
+  // Set default empty array if data is not available yet
+  const customerData: CustomerTransaction[] = data || [];
+  
+  // Calculate total transactions
+  const totalTransactions = customerData.reduce((sum, item) => sum + item.transactions, 0);
 
   if (isLoading) return <CustomerTransactionsLoading />;
 
