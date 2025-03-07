@@ -21,6 +21,7 @@ export function CategoryManagement() {
   const [isLoading, setIsLoading] = useState(false);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [originalCategories, setOriginalCategories] = useState<Category[]>([]); // Store original state
+  const [iconPreview, setIconPreview] = useState<{[key: number]: string}>({});
   const [newIconFile, setNewIconFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -52,9 +53,17 @@ export function CategoryManagement() {
     loadCategories();
   }, []);
 
-  const handleIconChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleIconChange = (e: React.ChangeEvent<HTMLInputElement>, categoryId: number) => {
     if (e.target.files && e.target.files[0]) {
-      setNewIconFile(e.target.files[0]);
+      const file = e.target.files[0];
+      setNewIconFile(file);
+      
+      // Create an object URL for preview
+      const objectUrl = URL.createObjectURL(file);
+      setIconPreview(prev => ({
+        ...prev,
+        [categoryId]: objectUrl
+      }));
     }
   };
 
@@ -62,6 +71,11 @@ export function CategoryManagement() {
     // Save current state before editing
     setOriginalCategories(JSON.parse(JSON.stringify(categories)));
     setEditingCategory(category);
+    // Reset any previous icon preview
+    setIconPreview(prev => ({
+      ...prev,
+      [category.kategoriId]: category.icon
+    }));
   };
 
   const handleCancelEdit = () => {
@@ -69,6 +83,18 @@ export function CategoryManagement() {
     setCategories(JSON.parse(JSON.stringify(originalCategories)));
     setEditingCategory(null);
     setNewIconFile(null);
+    
+    // Clean up any object URLs to prevent memory leaks
+    if (editingCategory) {
+      if (iconPreview[editingCategory.kategoriId] && iconPreview[editingCategory.kategoriId].startsWith('blob:')) {
+        URL.revokeObjectURL(iconPreview[editingCategory.kategoriId]);
+      }
+      setIconPreview(prev => {
+        const newPreview = {...prev};
+        delete newPreview[editingCategory.kategoriId];
+        return newPreview;
+      });
+    }
   };
 
   const handleSaveCategory = async (categoryToUpdate: Category) => {
@@ -112,8 +138,15 @@ export function CategoryManagement() {
   
       if (updateResponse.status === "Success") {
         toast({ title: "Success", description: "Category updated successfully" });
+        
+        // Clean up any object URLs
+        if (iconPreview[categoryToUpdate.kategoriId] && iconPreview[categoryToUpdate.kategoriId].startsWith('blob:')) {
+          URL.revokeObjectURL(iconPreview[categoryToUpdate.kategoriId]);
+        }
+        
         setEditingCategory(null);
         setNewIconFile(null);
+        setIconPreview({});
         loadCategories(); // Reload categories to get updated data
       } else {
         toast({
@@ -161,6 +194,18 @@ export function CategoryManagement() {
     }
   };
 
+  // Use effect to clean up object URLs when component unmounts
+  useEffect(() => {
+    return () => {
+      // Clean up all object URLs
+      Object.values(iconPreview).forEach(url => {
+        if (url.startsWith('blob:')) {
+          URL.revokeObjectURL(url);
+        }
+      });
+    };
+  }, []);
+
   return (
     <div className="p-6 bg-[#F3F3F3] min-h-screen">
       <div className="flex justify-between items-center mb-8">
@@ -200,12 +245,27 @@ export function CategoryManagement() {
                       className="border-4 border-black p-2 text-xl font-bold focus:outline-none focus:ring-4 focus:ring-[#FFD700]"
                     />
                     <div className="flex items-center gap-4">
-                      {cat.icon ? (
-                        <Image src={cat.icon || "/placeholder.svg"} alt={cat.nama} width={60} height={60} className="border-4 border-black" />
-                      ) : (
-                        <div className="w-[60px] h-[60px] bg-gray-300 border-4 border-black flex items-center justify-center font-bold">No Icon</div>
-                      )}
-                      <input type="file" onChange={handleIconChange} accept="image/*" ref={fileInputRef} className="hidden" />
+                      <div className="relative">
+                        <Image 
+                          src={iconPreview[cat.kategoriId] || cat.icon || "/placeholder.svg"} 
+                          alt={cat.nama} 
+                          width={60} 
+                          height={60} 
+                          className="border-4 border-black"
+                        />
+                        {newIconFile && (
+                          <div className="absolute -top-2 -right-2 bg-green-500 text-white text-xs font-bold px-1 rounded-full border-2 border-black">
+                            NEW
+                          </div>
+                        )}
+                      </div>
+                      <input 
+                        type="file" 
+                        onChange={(e) => handleIconChange(e, cat.kategoriId)} 
+                        accept="image/*" 
+                        ref={fileInputRef} 
+                        className="hidden" 
+                      />
                       <button
                         type="button"
                         onClick={() => fileInputRef.current?.click()}
@@ -219,11 +279,13 @@ export function CategoryManagement() {
                 ) : (
                   <>
                     <div className="flex items-center gap-6">
-                      {cat.icon ? (
-                        <Image src={cat.icon || "/placeholder.svg"} alt={cat.nama} width={60} height={60} className="border-4 border-black" />
-                      ) : (
-                        <div className="w-[60px] h-[60px] bg-gray-300 border-4 border-black flex items-center justify-center font-bold">No Icon</div>
-                      )}
+                      <Image 
+                        src={cat.icon || "/placeholder.svg"} 
+                        alt={cat.nama} 
+                        width={60} 
+                        height={60} 
+                        className="border-4 border-black" 
+                      />
                       <span className="text-2xl font-bold">{cat.nama}</span>
                     </div>
                   </>
@@ -242,7 +304,7 @@ export function CategoryManagement() {
                       Save
                     </button>
                     <button
-                      onClick={handleCancelEdit} // Using the new cancel function
+                      onClick={handleCancelEdit}
                       className="p-3 bg-[#F44336] text-white font-bold border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] 
                                  hover:translate-x-[3px] hover:translate-y-[3px] hover:shadow-none transition-all"
                     >
@@ -252,7 +314,7 @@ export function CategoryManagement() {
                 ) : (
                   <>
                     <button
-                      onClick={() => handleEditClick(cat)} // Using the new edit function
+                      onClick={() => handleEditClick(cat)}
                       className="p-3 bg-[#2196F3] text-white font-bold border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] 
                                  hover:translate-x-[3px] hover:translate-y-[3px] hover:shadow-none transition-all"
                     >
