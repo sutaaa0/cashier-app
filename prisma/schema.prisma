@@ -105,6 +105,8 @@ model Refund {
   detailRefund  DetailRefund[]
   penjualan     Penjualan      @relation(fields: [penjualanId], references: [penjualanId])
   user          User           @relation(fields: [userId], references: [id])
+  returnHistoryData String?    // New field to store detailed return history JSON
+
 }
 
 model DetailRefund {
