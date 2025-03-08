@@ -9,19 +9,18 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PromotionType } from "@prisma/client";
 import { MultiSelect } from "./Multiselect";
-import { PromotionFormProps } from "@/types/promotion"; // Import the type
+import { PromotionFormProps } from "@/types/promotion";
 
-const PromotionForm: React.FC<PromotionFormProps> = ({ 
-  formData, 
-  setFormData, 
-  products, 
-  isPending, 
-  onSubmit, 
-  onCancel 
-}) => {
+const PromotionForm: React.FC<PromotionFormProps> = ({ formData, setFormData, products, isPending, onSubmit, onCancel }) => {
   // State to track validation errors
   const [errors, setErrors] = useState<Record<string, string>>({});
   
+  // Debug: Log important information when component renders or updates
+  useEffect(() => {
+    console.log("PromotionForm Products:", products);
+    console.log("PromotionForm Current Selection:", formData.selectedProductIds);
+  }, [products, formData.selectedProductIds]);
+
   // Clear errors when form data changes
   useEffect(() => {
     setErrors({});
@@ -30,49 +29,49 @@ const PromotionForm: React.FC<PromotionFormProps> = ({
   // Validation function
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
-    
+
     // Required text fields
     if (!formData.title.trim()) {
       newErrors.title = "Judul promosi harus diisi";
     }
-    
+
     // Date validation
     if (!formData.startDate) {
       newErrors.startDate = "Tanggal mulai harus diisi";
     }
-    
+
     if (!formData.endDate) {
       newErrors.endDate = "Tanggal berakhir harus diisi";
     }
-    
+
     if (formData.startDate && formData.endDate) {
       const startDateTime = new Date(`${formData.startDate}T${formData.startTime}:00`);
       const endDateTime = new Date(`${formData.endDate}T${formData.endTime}:00`);
-      
+
       if (endDateTime <= startDateTime) {
         newErrors.endDate = "Tanggal berakhir harus setelah tanggal mulai";
       }
     }
-    
+
     // Validate discount
     if (formData.discountValue <= 0) {
       newErrors.discountValue = "Nilai diskon harus lebih dari 0";
     }
-    
+
     if (formData.discountType === "percentage" && formData.discountValue > 100) {
       newErrors.discountValue = "Persentase diskon tidak boleh lebih dari 100%";
     }
-    
+
     // For quantity-based promotions
     if (formData.type === PromotionType.QUANTITY_BASED && (!formData.minQuantity || formData.minQuantity < 1)) {
       newErrors.minQuantity = "Minimal kuantitas harus diisi dan minimal 1";
     }
-    
-    // Validate product selection
-    if (formData.selectedProductIds.length === 0) {
+
+    // Validate product selection for product-specific type
+    if (formData.type === PromotionType.PRODUCT_SPECIFIC && formData.selectedProductIds.length === 0) {
       newErrors.selectedProductIds = "Minimal satu produk harus dipilih";
     }
-    
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -80,56 +79,70 @@ const PromotionForm: React.FC<PromotionFormProps> = ({
   // Handle form submission with validation
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
+    console.log("Form submission attempted with product IDs:", formData.selectedProductIds);
+
     if (validateForm()) {
+      console.log("Form validated successfully, submitting with product IDs:", formData.selectedProductIds);
       onSubmit(e);
     } else {
+      console.log("Form validation failed:", errors);
       // Scroll to the first error
       const firstErrorField = Object.keys(errors)[0];
       const element = document.querySelector(`[name="${firstErrorField}"]`);
       if (element) {
-        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        element.scrollIntoView({ behavior: "smooth", block: "center" });
       }
     }
   };
 
   // Error message component
   const ErrorMessage: React.FC<{ name: string }> = ({ name }) => {
-    return errors[name] ? (
-      <p className="text-red-500 text-sm mt-1">{errors[name]}</p>
-    ) : null;
+    return errors[name] ? <p className="text-red-500 text-sm mt-1">{errors[name]}</p> : null;
   };
+
+  // Prepare product options for MultiSelect, ensuring no duplicate or undefined entries
+  const productOptions = React.useMemo(() => {
+    if (!products || !Array.isArray(products)) {
+      console.log("Products is not an array:", products);
+      return [];
+    }
+    
+    // Filter out invalid products and ensure uniqueness
+    const validProducts = products
+      .filter(product => 
+        product && 
+        product.produkId !== undefined && 
+        product.nama !== undefined
+      );
+    
+    // Ensure uniqueness by produkId
+    const uniqueProducts = [...new Map(validProducts.map(p => [p.produkId, p])).values()];
+    
+    const options = uniqueProducts.map(product => ({
+      value: product.produkId.toString(),
+      label: `${product.nama || ''} - ${formatRupiah(product.harga || 0)} ${product.kategori ? `(${product.kategori.nama || ''})` : ''}`,
+    }));
+    
+    console.log("Prepared product options:", options);
+    return options;
+  }, [products]);
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div>
         <Label className="font-bold">Judul Promosi</Label>
-        <Input 
-          name="title"
-          value={formData.title} 
-          onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-          className={`border-2 ${errors.title ? 'border-red-500' : 'border-black'}`}
-        />
+        <Input name="title" value={formData.title} onChange={(e) => setFormData({ ...formData, title: e.target.value })} className={`border-2 ${errors.title ? "border-red-500" : "border-black"}`} />
         <ErrorMessage name="title" />
       </div>
 
       <div>
         <Label className="font-bold">Deskripsi</Label>
-        <Textarea 
-          name="description"
-          value={formData.description} 
-          onChange={(e) => setFormData({ ...formData, description: e.target.value })} 
-          className="border-2 border-black" 
-        />
+        <Textarea name="description" value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} className="border-2 border-black" />
       </div>
 
       <div>
         <Label className="font-bold">Tipe Promosi</Label>
-        <Select 
-          name="type"
-          value={formData.type} 
-          onValueChange={(value: PromotionType) => setFormData({ ...formData, type: value })}
-        >
+        <Select name="type" value={formData.type} onValueChange={(value: PromotionType) => setFormData({ ...formData, type: value })}>
           <SelectTrigger className="border-2 border-black">
             <SelectValue placeholder="Pilih tipe promosi" />
           </SelectTrigger>
@@ -147,42 +160,16 @@ const PromotionForm: React.FC<PromotionFormProps> = ({
         <div className="space-y-2">
           <Label className="font-bold">Tanggal Mulai</Label>
           <div className="grid grid-cols-2 gap-2">
-            <Input 
-              name="startDate"
-              type="date" 
-              value={formData.startDate} 
-              onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
-              className={`border-2 ${errors.startDate ? 'border-red-500' : 'border-black'}`}
-            />
-            <Input 
-              name="startTime"
-              type="time" 
-              value={formData.startTime} 
-              onChange={(e) => setFormData({ ...formData, startTime: e.target.value })}
-              className="border-2 border-black" 
-              placeholder="00:00" 
-            />
+            <Input name="startDate" type="date" value={formData.startDate} onChange={(e) => setFormData({ ...formData, startDate: e.target.value })} className={`border-2 ${errors.startDate ? "border-red-500" : "border-black"}`} />
+            <Input name="startTime" type="time" value={formData.startTime} onChange={(e) => setFormData({ ...formData, startTime: e.target.value })} className="border-2 border-black" placeholder="00:00" />
           </div>
           <ErrorMessage name="startDate" />
         </div>
         <div className="space-y-2">
           <Label className="font-bold">Tanggal Berakhir</Label>
           <div className="grid grid-cols-2 gap-2">
-            <Input 
-              name="endDate"
-              type="date" 
-              value={formData.endDate} 
-              onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
-              className={`border-2 ${errors.endDate ? 'border-red-500' : 'border-black'}`}
-            />
-            <Input 
-              name="endTime"
-              type="time" 
-              value={formData.endTime} 
-              onChange={(e) => setFormData({ ...formData, endTime: e.target.value })}
-              className="border-2 border-black" 
-              placeholder="23:59" 
-            />
+            <Input name="endDate" type="date" value={formData.endDate} onChange={(e) => setFormData({ ...formData, endDate: e.target.value })} className={`border-2 ${errors.endDate ? "border-red-500" : "border-black"}`} />
+            <Input name="endTime" type="time" value={formData.endTime} onChange={(e) => setFormData({ ...formData, endTime: e.target.value })} className="border-2 border-black" placeholder="23:59" />
           </div>
           <ErrorMessage name="endDate" />
         </div>
@@ -212,13 +199,13 @@ const PromotionForm: React.FC<PromotionFormProps> = ({
         </div>
         <div>
           <Label className="font-bold">Nilai Diskon</Label>
-          <Input 
+          <Input
             name="discountValue"
-            type="number" 
-            value={formData.discountValue} 
+            type="number"
+            value={formData.discountValue}
             onChange={(e) => setFormData({ ...formData, discountValue: Number(e.target.value) })}
-            min="0" 
-            className={`border-2 ${errors.discountValue ? 'border-red-500' : 'border-black'}`}
+            min="0"
+            className={`border-2 ${errors.discountValue ? "border-red-500" : "border-black"}`}
           />
           <ErrorMessage name="discountValue" />
         </div>
@@ -227,49 +214,78 @@ const PromotionForm: React.FC<PromotionFormProps> = ({
       {formData.type === PromotionType.QUANTITY_BASED && (
         <div>
           <Label className="font-bold">Minimal Kuantitas</Label>
-          <Input 
+          <Input
             name="minQuantity"
-            type="number" 
-            value={formData.minQuantity} 
+            type="number"
+            value={formData.minQuantity}
             onChange={(e) => setFormData({ ...formData, minQuantity: Number(e.target.value) })}
-            min="1" 
-            className={`border-2 ${errors.minQuantity ? 'border-red-500' : 'border-black'}`}
+            min="1"
+            className={`border-2 ${errors.minQuantity ? "border-red-500" : "border-black"}`}
           />
           <ErrorMessage name="minQuantity" />
         </div>
       )}
 
-      <div>
-        <Label className="font-bold">Pilih Produk</Label>
-        <div className={`${errors.selectedProductIds ? 'border-2 border-red-500 rounded-md p-1' : ''}`}>
-          <MultiSelect
-            options={products.map((product) => ({
-              value: product.produkId.toString(),
-              label: `${product.nama} - ${formatRupiah(product.harga)} (${product.kategori.nama})`,
-            }))}
-            value={formData.selectedProductIds.map(String)}
-            onChange={(values: string[]) => setFormData({ ...formData, selectedProductIds: values.map(Number) })}
-            placeholder="Pilih produk yang akan mendapat promosi"
-          />
-        </div>
-        <ErrorMessage name="selectedProductIds" />
+{formData.type === PromotionType.PRODUCT_SPECIFIC && (
+  <div className="border-2 border-black p-4 rounded-md">
+    <Label className="font-bold mb-2 block">Pilih Produk</Label>
+    <div className={`${errors.selectedProductIds ? 'border-2 border-red-500 rounded-md p-1' : ''}`}>
+      {/* Display total products available */}
+      <div className="text-sm text-gray-500 mb-2">
+        Total produk tersedia: {productOptions.length}
       </div>
+      
+      {/* Show which products are currently selected */}
+      <div className="text-sm text-gray-500 mb-2">
+        Produk terpilih: {formData.selectedProductIds.length}
+      </div>
+      
+      {/* Add a warning about products with active promotions */}
+      {productOptions.some(product => {
+        const originalProduct = products.find(p => p.produkId?.toString() === product.value);
+        return originalProduct && originalProduct.hasActivePromotion;
+      }) && (
+        <div className="mb-2 p-2 bg-yellow-100 border border-yellow-500 rounded-md">
+          <p className="text-sm text-yellow-800 font-medium">
+            <span className="mr-1">⚠️</span>
+            Beberapa produk sudah memiliki promosi aktif dan tidak dapat ditambahkan.
+          </p>
+        </div>
+      )}
+      
+      {/* Using the MultiSelect component with disabled items */}
+      <MultiSelect
+        options={productOptions.map(option => {
+          // Find the original product to check if it has active promotions
+          const originalProduct = products.find(p => p.produkId?.toString() === option.value);
+          const hasActivePromotion = originalProduct && originalProduct.hasActivePromotion;
+          
+          return {
+            ...option,
+            label: hasActivePromotion ? `${option.label} (Sudah dalam promosi)` : option.label,
+            disabled: hasActivePromotion
+          };
+        })}
+        value={formData.selectedProductIds.map(id => id.toString())}
+        onChange={(values: string[]) => {
+          console.log("MultiSelect onChange called with values:", values);
+          setFormData({ 
+            ...formData, 
+            selectedProductIds: values.map(Number) 
+          });
+        }}
+        placeholder="Pilih produk yang akan mendapat promosi"
+      />
+    </div>
+    <ErrorMessage name="selectedProductIds" />
+  </div>
+)}
 
       <div className="flex justify-end gap-2">
-        <Button
-          type="button"
-          variant="default"
-          onClick={onCancel}
-          disabled={isPending}
-          className="border-2 bg-white border-black hover:bg-red-500 hover:text-white"
-        >
+        <Button type="button" variant="default" onClick={onCancel} disabled={isPending} className="border-2 bg-white border-black hover:bg-red-500 hover:text-white">
           Batal
         </Button>
-        <Button 
-          type="submit" 
-          disabled={isPending} 
-          className="bg-[#FFD700] text-black hover:bg-black hover:text-[#FFD700] border-2 border-black font-bold"
-        >
+        <Button type="submit" disabled={isPending} className="bg-[#FFD700] text-black hover:bg-black hover:text-[#FFD700] border-2 border-black font-bold">
           {isPending ? "Menyimpan..." : formData.isEditMode ? "Update Promosi" : "Simpan Promosi"}
         </Button>
       </div>
@@ -277,4 +293,4 @@ const PromotionForm: React.FC<PromotionFormProps> = ({
   );
 };
 
-export { PromotionForm };
+export { PromotionForm }; 
