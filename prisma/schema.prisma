@@ -34,7 +34,7 @@ model Guest {
 model Penjualan {
   penjualanId      Int               @id @default(autoincrement())
   total_harga      Float
-  total_modal      Float?             // Total modal dari semua produk di transaksi ini
+  total_modal      Float?             
   keuntungan       Float?             // Keuntungan = total_harga - total_modal
   pelangganId      Int?
   tanggalPenjualan DateTime          @default(now())
@@ -42,6 +42,9 @@ model Penjualan {
   userId           Int
   kembalian        Int?
   uangMasuk        Int?
+  diskonPoin       Int?              // Field baru untuk diskon dari penukaran poin
+
+
   detailPenjualan  DetailPenjualan[]
   guest            Guest?            @relation(fields: [guestId], references: [guestId])
   pelanggan        Pelanggan?        @relation(fields: [pelangganId], references: [pelangganId])
