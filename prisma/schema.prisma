@@ -55,6 +55,12 @@ model DetailPenjualan {
   detailId    Int       @id @default(autoincrement())
   penjualanId Int
   produkId    Int
+
+  promotionId         Int?
+  promotionTitle      String?
+  discountPercentage  Float?
+  discountAmount      Float?
+
   penjualan   Penjualan @relation(fields: [penjualanId], references: [penjualanId])
   produk      Produk    @relation(fields: [produkId], references: [produkId])
 }
