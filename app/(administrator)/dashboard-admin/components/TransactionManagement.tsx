@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { FileText, Eye, Download, Calendar, RefreshCw } from "lucide-react";
+import { FileText, Eye, Download, Calendar, RefreshCw, CreditCard } from "lucide-react";
 import { getTransactions } from "@/server/actions";
 import { toast } from "@/hooks/use-toast";
 import { ViewTransactionModal } from "./ViewTransactionModal";
@@ -42,6 +42,7 @@ interface TransactionData {
   guest?: { guestId: number } | null;
   detailPenjualan: DetailPenjualanWithPromotion[];
   returns: RefundInfo[];
+  diskonPoin: number | null;
 }
 
 export function TransactionManagement() {
@@ -96,11 +97,17 @@ export function TransactionManagement() {
           ).join("; ")
         : "No Refunds";
 
+      // Add point discount information
+      const pointDiscountInfo = transaction.diskonPoin ? 
+        `Points Discount: ${formatRupiah(transaction.diskonPoin)}` : 
+        "No Points Discount";
+
       return {
         "Transaction ID": transaction.penjualanId,
         Date: new Date(transaction.tanggalPenjualan).toLocaleString(),
-        Total: transaction.total_harga.toFixed(2),
+        Total: formatRupiah(transaction.total_harga),
         Customer: transaction.pelanggan ? transaction.pelanggan.nama : `Guest ${transaction.guest?.guestId}`,
+        "Points Discount": transaction.diskonPoin ? formatRupiah(transaction.diskonPoin) : "0",
         Items: itemsWithPromotion,
         Refunds: refundInfo
       };
@@ -175,9 +182,15 @@ export function TransactionManagement() {
                       {new Date(transaction.tanggalPenjualan).toLocaleDateString()}
                     </span>
                     <span className="flex items-center text-sm font-bold">{formatRupiah(transaction.total_harga)}</span>
+                    {transaction.diskonPoin && transaction.diskonPoin > 0 && (
+                      <span className="flex items-center text-sm text-green-600">
+                        <CreditCard size={16} className="mr-1" />
+                        Points: -{formatRupiah(transaction.diskonPoin)}
+                      </span>
+                    )}
                   </div>
                   <p className="text-sm mt-1">
-                    {transaction.pelanggan ? transaction.pelanggan.nama : `Guest ${transaction.guest?.guestId}`} •{transaction.detailPenjualan.length} items
+                    {transaction.pelanggan ? transaction.pelanggan.nama : `Guest ${transaction.guest?.guestId}`} • {transaction.detailPenjualan.length} items
                   </p>
                 </div>
               </div>
