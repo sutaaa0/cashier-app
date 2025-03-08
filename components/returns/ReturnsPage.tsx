@@ -20,10 +20,10 @@ interface TransactionDetail {
   };
   kuantitas: number;
   subtotal: number;
-  promotionId?: number;
-  promotionTitle?: string;
-  discountPercentage?: number;
-  discountAmount?: number;
+  promotionId: number | null;
+  promotionTitle: string | null | undefined;
+  discountPercentage?: number | null;
+  discountAmount?: number | null;
 }
 
 interface TransactionDetailsType {
@@ -76,6 +76,22 @@ interface ReplacementItem {
   discountAmount?: number;
 }
 
+interface DiscountInfo {
+  percentage?: number;
+  amount?: number;
+  promotionTitle?: string;
+}
+
+interface ReturnHistoryItem {
+  type: 'return' | 'replacement';
+  produkId: number;
+  produkName: string;
+  quantity: number;
+  originalPrice: number;
+  effectivePrice: number;
+  discount?: DiscountInfo;
+}
+
 interface RefundDetails {
   transactionDetails: {
     penjualanId: number;
@@ -94,7 +110,7 @@ interface RefundDetails {
   totalReturn: number;
   totalReplacement: number;
   additionalPayment: number;
-  returnHistory?: any[];
+  returnHistory?: ReturnHistoryItem[];
 }
 
 export function ReturnsPage() {
@@ -125,12 +141,22 @@ export function ReturnsPage() {
       
       // Also fetch active promotions for replacement items
       const promotions = await getActivePromotions()
-      setActivePromotions(promotions || [])
+      setActivePromotions((promotions || []).map(promotion => ({
+        ...promotion,
+        discountPercentage: promotion.discountPercentage === null ? undefined : promotion.discountPercentage,
+        discountAmount: promotion.discountAmount === null ? undefined : promotion.discountAmount,
+      })))
       
       setTransactionDetails({
         penjualanId: details.penjualanId,
         tanggalPenjualan: details.tanggalPenjualan.toString(),
-        detailPenjualan: details.detailPenjualan,
+        detailPenjualan: details.detailPenjualan.map((item) => ({
+                  ...item,
+                  promotionId: item.promotionId ?? null,
+                  promotionTitle: item.promotionTitle === null ? undefined : item.promotionTitle,
+                  discountPercentage: item.discountPercentage === null ? undefined : item.discountPercentage,
+                  discountAmount: item.discountAmount === null ? undefined : item.discountAmount,
+                })) as TransactionDetail[],
         total_harga: details.total_harga,
         uangMasuk: details.uangMasuk ?? 0,
         kembalian: details.kembalian ?? 0,
@@ -161,9 +187,9 @@ export function ReturnsPage() {
             effectivePrice: effectivePrice, // Price after discounts
             image: item.produk.image,
             maxKuantitas: item.kuantitas,
-            promotionTitle: item.promotionTitle,
-            discountPercentage: item.discountPercentage,
-            discountAmount: item.discountAmount,
+            promotionTitle: item.promotionTitle === null ? undefined : item.promotionTitle,
+            discountPercentage: item.discountPercentage === null ? undefined : item.discountPercentage,
+            discountAmount: item.discountAmount === null ? undefined : item.discountAmount,
           }
         }),
       )
@@ -213,9 +239,8 @@ export function ReturnsPage() {
           produkId: item.produkId,
           kuantitas: item.kuantitas,
           harga: item.effectivePrice, // Use the effective (discounted) price
-          discountPercentage: item.discountPercentage,
-          discountAmount: item.discountAmount,
-          promotionTitle: item.promotionTitle
+          discountPercentage: item.discountPercentage ?? null,
+          discountAmount: item.discountAmount ?? null,
         }))
         
       // Format replacement items with discount information
@@ -223,9 +248,9 @@ export function ReturnsPage() {
         produkId: item.produkId,
         kuantitas: item.kuantitas,
         harga: item.effectivePrice, // Use the effective (discounted) price
-        discountPercentage: item.discountPercentage,
-        discountAmount: item.discountAmount,
-        promotionTitle: item.promotionTitle
+        discountPercentage: item.discountPercentage ?? null,
+        discountAmount: item.discountAmount ?? null,
+        promotionTitle: item.promotionTitle ?? ""
       }))
       
       const result = await processReturn({
@@ -253,7 +278,10 @@ export function ReturnsPage() {
         totalReturn,
         totalReplacement,
         additionalPayment,
-        returnHistory: result.returnHistory
+        returnHistory: (result.returnHistory as ReturnHistoryItem[]).map((item) => ({
+          ...item,
+          type: item.type === "return" || item.type === "replacement" ? item.type : "return"
+        }))
       })
 
       setShowRefundReceipt(true)
@@ -262,6 +290,15 @@ export function ReturnsPage() {
         title: "Berhasil",
         description: "Pengembalian berhasil diproses",
       })
+
+      // Reset the form
+      setPenjualanId("")
+      setTransactionDetails(null)
+      setReturnedItems([])
+      setReplacementItems([])
+      setTotalReturn(0)
+      setTotalReplacement(0)
+
     } catch (error) {
       console.error("Error processing return:", error)
       toast({
