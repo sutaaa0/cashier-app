@@ -7,6 +7,7 @@ interface RefundSummaryProps {
   totalReplacement: number
   additionalPayment: number
   setAdditionalPayment: (amount: number) => void
+  diskonPoin?: number
 }
 
 export function RefundSummary({
@@ -14,7 +15,11 @@ export function RefundSummary({
   totalReplacement,
   additionalPayment,
   setAdditionalPayment,
+  diskonPoin = 0,
 }: RefundSummaryProps) {
+  const difference = totalReplacement - totalReturn;
+  const isRefund = difference < 0;
+  
   return (
     <div className="border-4 border-black p-4 bg-white mt-8">
       <h2 className="text-2xl font-bold mb-4 transform -rotate-1 inline-block">Ringkasan Pengembalian</h2>
@@ -23,16 +28,28 @@ export function RefundSummary({
           <span className="font-bold">Total Pengembalian:</span>
           <span>{formatRupiah(totalReturn)}</span>
         </p>
+        
+        {diskonPoin > 0 && (
+          <p className="flex justify-between text-blue-600">
+            <span className="font-bold">Termasuk Diskon Poin:</span>
+            <span>{formatRupiah(diskonPoin)}</span>
+          </p>
+        )}
+        
         <p className="flex justify-between">
           <span className="font-bold">Total Penggantian:</span>
           <span>{formatRupiah(totalReplacement)}</span>
         </p>
-        <p className="flex justify-between">
-          <span className="font-bold">Selisih:</span>
-          <span>{formatRupiah(totalReplacement - totalReturn)}</span>
+        
+        <p className="flex justify-between font-bold">
+          <span>{isRefund ? "Kembali ke Pelanggan:" : "Selisih:"}</span>
+          <span className={isRefund ? "text-green-600" : "text-red-600"}>
+            {isRefund ? formatRupiah(Math.abs(difference)) : formatRupiah(difference)}
+          </span>
         </p>
-        {totalReplacement > totalReturn && (
-          <div>
+        
+        {!isRefund && difference > 0 && (
+          <div className="border-t-2 border-black pt-2 mt-2">
             <label htmlFor="additionalPayment" className="block font-bold mb-1">
               Pembayaran Tambahan:
             </label>
@@ -44,10 +61,21 @@ export function RefundSummary({
               className="w-full px-2 py-1 border-2 border-black"
               min={0}
             />
+            
+            {additionalPayment < difference && (
+              <p className="text-red-500 text-sm mt-1">
+                Pembayaran tambahan kurang dari selisih harga
+              </p>
+            )}
+            
+            {additionalPayment >= difference && (
+              <p className="text-green-600 text-sm mt-1">
+                Kembalian: {formatRupiah(additionalPayment - difference)}
+              </p>
+            )}
           </div>
         )}
       </div>
     </div>
   )
 }
-
