@@ -278,21 +278,18 @@ export const NeoOrderSummary = forwardRef<{ resetCustomerData: () => void }, Ord
     onPlaceOrder({
       ...order,
       total_harga: finalTotal,
-      // Keep the original total_modal
       total_modal: order.total_modal,
-      // Adjust keuntungan according to points redeemed and promotions
       keuntungan: adjustedKeuntungan,
       pelangganId: customerData?.pelangganId ?? null,
       guestId: customerData?.guestId ?? null,
-      redeemedPoints: redeemedPoints,
+      redeemedPoints: redeemedPoints, // Ini akan dipetakan ke diskonPoin di server
       userId: user.id,
       uangMasuk: amountReceived,
       kembalian: change,
       customerName: customerData?.nama || "Guest",
-      // Tambahkan informasi diskon promosi
       promotionDiscounts: promotionDiscounts,
-      totalBeforePromotionDiscount: order.total_harga, // Harga sebelum diskon promosi
-      totalAfterPromotionDiscount: totalAfterPromotions, // Harga setelah diskon promosi, sebelum poin
+      totalBeforePromotionDiscount: order.total_harga,
+      totalAfterPromotionDiscount: totalAfterPromotions,
     });
   };
 
