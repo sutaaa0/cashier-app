@@ -1,11 +1,11 @@
 import React from "react";
-import { X, Calendar, DollarSign, User, ShoppingBag, RefreshCw } from "lucide-react";
+import { X, Calendar, DollarSign, User, ShoppingBag, RefreshCw, CreditCard } from "lucide-react";
 import { formatRupiah } from "@/lib/formatIdr";
 
 interface PromotionInfo {
   title: string;
   discountPercentage: number | null;
-  discountAmount:  number | null;
+  discountAmount: number | null;
 }
 
 interface DetailPenjualanWithPromotion {
@@ -38,6 +38,7 @@ interface ViewTransactionModalProps {
     guest?: { guestId: number } | null;
     detailPenjualan: DetailPenjualanWithPromotion[];
     returns: RefundInfo[];
+    diskonPoin: number | null;
   };
 }
 
@@ -69,6 +70,12 @@ export function ViewTransactionModal({ isOpen, onClose, transaction }: ViewTrans
               <User size={20} />
               <span>Customer: {transaction.pelanggan ? transaction.pelanggan.nama : `Guest ${transaction.guest?.guestId}`}</span>
             </div>
+            {transaction.diskonPoin && transaction.diskonPoin > 0 && (
+              <div className="flex items-center gap-2 text-green-600">
+                <CreditCard size={20} />
+                <span>Points Discount: {formatRupiah(transaction.diskonPoin)}</span>
+              </div>
+            )}
           </div>
 
           {/* Items Section */}
@@ -108,6 +115,19 @@ export function ViewTransactionModal({ isOpen, onClose, transaction }: ViewTrans
               </tbody>
             </table>
           </div>
+
+          {/* Discount Points Summary */}
+          {transaction.diskonPoin && transaction.diskonPoin > 0 && (
+            <div className="bg-green-50 p-3 border border-green-200 rounded">
+              <div className="flex items-center gap-2">
+                <CreditCard size={20} className="text-green-600" />
+                <h3 className="font-bold text-green-700">Points Discount Applied</h3>
+              </div>
+              <p className="mt-1 text-green-700">
+                {formatRupiah(transaction.diskonPoin)} discount from redeemed points
+              </p>
+            </div>
+          )}
 
           {/* Refund Section */}
           {transaction.returns.length > 0 && (
