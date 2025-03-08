@@ -5,6 +5,47 @@ import { CheckCircle2, Download, Printer, Tag } from "lucide-react";
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 
+interface ReturnedItem {
+  produkId: number;
+  nama: string;
+  kuantitas: number;
+  harga: number; // Original price
+  effectivePrice: number; // Price after discounts
+  image: string;
+  maxKuantitas: number;
+  promotionTitle?: string;
+  discountPercentage?: number;
+  discountAmount?: number;
+}
+
+interface ReplacementItem {
+  produkId: number;
+  nama: string;
+  kuantitas: number;
+  harga: number; // Original price
+  effectivePrice: number; // Price after discounts
+  image: string;
+  promotionTitle?: string;
+  discountPercentage?: number;
+  discountAmount?: number;
+}
+
+interface ReturnHistoryItem {
+  type: 'return' | 'replacement';
+  produkId: number;
+  produkName: string;
+  quantity: number;
+  originalPrice: number;
+  effectivePrice: number;
+  discount?: DiscountInfo;
+}
+
+interface DiscountInfo {
+  percentage?: number;
+  amount?: number;
+  promotionTitle?: string;
+}
+
 interface RefundDetailsProps {
   transactionDetails: {
     penjualanId: number;
@@ -18,33 +59,12 @@ interface RefundDetailsProps {
       points?: number;
     };
   };
-  returnedItems: {
-    produkId: number;
-    nama: string;
-    kuantitas: number;
-    harga: number; // Original price
-    effectivePrice: number; // Discounted price
-    image: string;
-    maxKuantitas?: number;
-    promotionTitle?: string;
-    discountPercentage?: number;
-    discountAmount?: number;
-  }[];
-  replacementItems: {
-    produkId: number;
-    nama: string;
-    kuantitas: number;
-    harga: number; // Original price
-    effectivePrice: number; // Discounted price
-    image: string;
-    promotionTitle?: string;
-    discountPercentage?: number;
-    discountAmount?: number;
-  }[];
+  returnedItems: ReturnedItem[];
+  replacementItems: ReplacementItem[];
   totalReturn: number;
   totalReplacement: number;
   additionalPayment: number;
-  returnHistory?: string[];
+  returnHistory?: ReturnHistoryItem[];
 }
 
 interface RefundReceiptModalProps {
