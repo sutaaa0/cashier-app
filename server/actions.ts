@@ -270,6 +270,7 @@ export async function createOrder(orderData: Penjualan & {
   null
 > {
   try {
+    console.log("data order :", orderData)
     return await prisma.$transaction(async (tx) => {
       // Jika pembeli bukan member (guest), pastikan guestId ada
       if (!orderData.pelangganId && !orderData.guestId) {
@@ -351,6 +352,7 @@ export async function createOrder(orderData: Penjualan & {
         total_modal: orderData.total_modal,
         keuntungan: orderData.keuntungan,
         userId: orderData.userId,
+        diskonPoin: redeemedPoints,
         uangMasuk: orderData.uangMasuk || 0, // Simpan uang masuk
         kembalian: orderData.kembalian || 0, // Simpan kembalian
         pelangganId: orderData.pelangganId !== null ? orderData.pelangganId : undefined,
@@ -2928,9 +2930,6 @@ export async function getPromotions() {
 }
 
 
-// Fungsi helper untuk mendapatkan daftar produk
-// Completely revised function for getting products for promotions management
-// Completely revised function for getting products for promotions management
 export async function getProductsForPromotions(promotionIdToEdit = null) {
   try {
     console.log(`Fetching products for promotions, editing promotion ID: ${promotionIdToEdit}`);
