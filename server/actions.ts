@@ -252,15 +252,22 @@ export async function deleteProduct(productId: number) {
   };
 }
 
-export async function createOrder(orderData: Penjualan & { redeemedPoints?: number }): Promise<CategoryCount
-  | (Penjualan & {
-      detailPenjualan: DetailPenjualan[];
-      pointsAwarded: number;
-      pointsRedeemed: number;
-      originalTotal: number;
-      finalTotal: number;
-    })
-  | null
+export async function createOrder(orderData: Penjualan & { 
+  redeemedPoints?: number;
+  promotionDiscounts?: { [produkId: number]: number };
+  customerName?: string;
+  totalBeforePromotionDiscount?: number;
+  totalAfterPromotionDiscount?: number;
+}): Promise<
+  CategoryCount | 
+  (Penjualan & {
+    detailPenjualan: DetailPenjualan[];
+    pointsAwarded: number;
+    pointsRedeemed: number;
+    originalTotal: number;
+    finalTotal: number;
+  }) | 
+  null
 > {
   try {
     return await prisma.$transaction(async (tx) => {
@@ -269,17 +276,73 @@ export async function createOrder(orderData: Penjualan & { redeemedPoints?: numb
         const guest = await tx.guest.create({ data: {} });
         orderData.guestId = guest.guestId;
       }
-
-
+      
+      // Berikan poin kepada member (berdasarkan total setelah diskon)
       if (orderData.pelangganId) {
-        const poinAfterDiscount = orderData.total_harga / 200;
-
-        await prisma.pelanggan.update({
+        const totalAfterAllDiscounts = orderData.total_harga;
+        const poinAfterDiscount = Math.floor(totalAfterAllDiscounts / 200);
+        
+        await tx.pelanggan.update({
           where: { pelangganId: orderData.pelangganId },
           data: { points: { increment: poinAfterDiscount } },
         });
       }
 
+      // Siapkan detail penjualan dengan informasi promosi
+      const detailPenjualanWithPromo = await Promise.all(
+        orderData.detailPenjualan.map(async (detail) => {
+          // Dapatkan informasi produk beserta promosinya
+          const product = await tx.produk.findUnique({
+            where: { produkId: detail.produkId },
+            include: {
+              promotionProducts: {
+                include: {
+                  promotion: true
+                },
+                where: {
+                  promotion: {
+                    startDate: { lte: new Date() },
+                    endDate: { gte: new Date() }
+                  }
+                }
+              }
+            }
+          });
+
+          // Dapatkan diskon promosi untuk produk ini (jika ada)
+          const discountAmount = orderData.promotionDiscounts?.[detail.produkId] || 0;
+          
+          // Cari promosi yang aktif (untuk menyimpan informasi)
+          let promotionId = null;
+          let promotionTitle = null;
+          let discountPercentage = null;
+          // let discountAmountValue = null;
+          
+          if (product?.promotionProducts && product.promotionProducts.length > 0 && discountAmount > 0) {
+            // Ambil promosi aktif pertama (yang memberikan diskon)
+            const activePromotion = product.promotionProducts[0].promotion;
+            promotionId = activePromotion.promotionId;
+            promotionTitle = activePromotion.title;
+            discountPercentage = activePromotion.discountPercentage;
+            // discountAmountValue = activePromotion.discountAmount;
+          }
+
+          return {
+            produkId: detail.produkId,
+            kuantitas: detail.kuantitas,
+            subtotal: Math.round(detail.subtotal),
+            // Simpan informasi promosi
+            promotionId,
+            promotionTitle,
+            discountPercentage,
+            discountAmount: discountAmount > 0 ? discountAmount : null
+          };
+        })
+      );
+      
+      // Tambah informasi poin yang ditukarkan (akan disimpan di tabel Penjualan)
+      const redeemedPoints = orderData.redeemedPoints || 0;
+      
       // Siapkan payload pembuatan penjualan
       const penjualanData = {
         tanggalPenjualan: new Date(),
@@ -292,12 +355,9 @@ export async function createOrder(orderData: Penjualan & { redeemedPoints?: numb
         kembalian: orderData.kembalian || 0, // Simpan kembalian
         pelangganId: orderData.pelangganId !== null ? orderData.pelangganId : undefined,
         guestId: orderData.guestId !== null ? orderData.guestId : undefined,
+        // Gunakan detail penjualan dengan informasi promosi
         detailPenjualan: {
-          create: orderData.detailPenjualan.map((detail) => ({
-            produkId: detail.produkId,
-            kuantitas: detail.kuantitas,
-            subtotal: Math.round(detail.subtotal),
-          })),
+          create: detailPenjualanWithPromo,
         },
       };
 
@@ -322,13 +382,14 @@ export async function createOrder(orderData: Penjualan & { redeemedPoints?: numb
         });
       }
 
+      // Return informasi penjualan dengan tambahan detail poin dan promosi
       return {
         ...penjualan,
         PenjualanId: penjualan.penjualanId,
-        pointsAwarded: orderData.redeemedPoints,
-        pointsRedeemed: orderData.redeemedPoints || 0,
-        originalTotal: orderData.total_harga,
-        finalTotal: orderData.total_harga,
+        pointsAwarded: Math.floor(orderData.total_harga / 200), // Poin yang diberikan
+        pointsRedeemed: redeemedPoints, // Poin yang ditukarkan
+        originalTotal: orderData.totalBeforePromotionDiscount || orderData.total_harga, // Total sebelum diskon
+        finalTotal: orderData.total_harga, // Total setelah semua diskon
       } as Penjualan & {
         detailPenjualan: DetailPenjualan[];
         pointsAwarded: number;
@@ -913,15 +974,7 @@ export async function getTransactions() {
         guest: true,
         detailPenjualan: {
           include: {
-            produk: {
-                    include: {
-                      promotionProducts: {
-                        include: {
-                          promotion: true
-                        }
-                      }
-                    }
-            }
+            produk: true
           }
         },
         // Include refund information
@@ -939,22 +992,21 @@ export async function getTransactions() {
         tanggalPenjualan: "desc"
       }
     });
-
-    // Transform transactions to include promotion and detailed refund information
+    
+    // Transform transactions to use the stored promotion information
     const transformedTransactions = transactions.map(transaction => ({
       ...transaction,
       detailPenjualan: transaction.detailPenjualan.map(detail => ({
         ...detail,
-        promotion: detail.produk.promotionProducts.length > 0 
-          ? {
-              title: detail.produk.promotionProducts[0].promotion.title,
-              discountPercentage: detail.produk.promotionProducts[0].promotion.discountPercentage,
-              discountAmount: detail.produk.promotionProducts[0].promotion.discountAmount
-            }
-          : undefined
+        // Use the stored promotion information
+        promotion: detail.promotionTitle ? {
+          title: detail.promotionTitle,
+          discountPercentage: detail.discountPercentage,
+          discountAmount: detail.discountAmount
+        } : undefined
       }))
     }));
-
+    
     return { status: "Success", data: transformedTransactions };
   } catch (error) {
     console.error("Error fetching transactions:", error);
@@ -2583,44 +2635,70 @@ export interface CreatePromotionInput {
 
 export async function createPromotion(input: CreatePromotionInput) {
   try {
-    const { 
-      title, 
-      description, 
-      type, 
-      startDate, 
-      endDate, 
-      discountPercentage, 
-      discountAmount, 
-      minQuantity, 
-      productIds, 
+    const {
+      title,
+      description,
+      type,
+      startDate,
+      endDate,
+      discountPercentage,
+      discountAmount,
+      minQuantity,
+      productIds,
     } = input;
 
-    console.log("data yang akan di buat promosi :",input)
-    
-    // Validasi input dasar
+    // Basic input validation
     if (!title || !type || !startDate || !endDate) {
       throw new Error("Missing required fields");
     }
-    
+
     if (!discountPercentage && !discountAmount) {
       throw new Error("Either discount percentage or amount must be provided");
     }
-    
-    // Validasi tipe diskon
+
+    // Discount type validation
     if (discountPercentage && discountAmount) {
       throw new Error("Cannot provide both discount percentage and amount");
     }
-    
-    // Validasi tanggal
+
+    // Date validation
     const start = new Date(startDate);
     const end = new Date(endDate);
     if (end < start) {
       throw new Error("End date must be after start date");
     }
-    
-    // Membuat transaksi untuk memastikan data integrity
+
+    // Create transaction to ensure data integrity
     const promotion = await prisma.$transaction(async (prismaClient) => {
-      // 1. Buat entri promosi utama
+      // VALIDATION: Check if selected products already have active promotions
+      if (productIds && productIds.length > 0) {
+        const productsWithActivePromotions = await prismaClient.promotionProduct.findMany({
+          where: {
+            produkId: { in: productIds },
+            promotion: {
+              endDate: { gte: new Date() } // Promotions still active if end date >= today
+            }
+          },
+          include: {
+            produk: true,
+            promotion: true
+          }
+        });
+
+        if (productsWithActivePromotions.length > 0) {
+          // Some products already have active promotions
+          const conflictingProducts = productsWithActivePromotions.map(item => ({
+            id: item.produk.produkId,
+            nama: item.produk.nama,
+            promosi: item.promotion.title,
+            berakhir: item.promotion.endDate.toLocaleDateString()
+          }));
+
+          throw new Error(`Beberapa produk sudah memiliki promosi aktif: ${JSON.stringify(conflictingProducts)}`);
+        }
+      }
+
+      // 1. Create the main promotion entry
       const newPromotion = await prismaClient.promotion.create({
         data: {
           title,
@@ -2633,35 +2711,32 @@ export async function createPromotion(input: CreatePromotionInput) {
           minQuantity,
         },
       });
-      
-      // 2. Jika ada productIds, buat entri di join table PromotionProduct
+
+      // 2. If productIds present, create entries in the PromotionProduct join table
       if (productIds && productIds.length > 0) {
         await prismaClient.promotionProduct.createMany({
           data: productIds.map(produkId => ({
             promotionId: newPromotion.promotionId,
             produkId,
-            // Opsional: tambahkan activeUntil yang sama dengan endDate promosi
             activeUntil: end
           })),
         });
       }
-      
+
       return newPromotion;
     });
-    
+
     revalidatePath("/admin/promotions");
     return { success: true, data: promotion };
   } catch (error) {
     console.error("Error creating promotion:", error);
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : "Failed to create promotion" 
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to create promotion"
     };
   }
 }
 
-
-// 1. First, the edit promotion function
 export async function updatePromotion(promotionId: number, input: CreatePromotionInput) {
   try {
     const {
@@ -2675,31 +2750,76 @@ export async function updatePromotion(promotionId: number, input: CreatePromotio
       minQuantity,
       productIds,
     } = input;
-    
-    // Validation checks
+
+    // Basic validation
     if (!title || !type || !startDate || !endDate) {
       throw new Error("Missing required fields");
     }
-    
+
     if (!discountPercentage && !discountAmount) {
       throw new Error("Either discount percentage or amount must be provided");
     }
-    
-    // Validate discount type
+
+    // Discount type validation
     if (discountPercentage && discountAmount) {
       throw new Error("Cannot provide both discount percentage and amount");
     }
-    
-    // Validate dates
+
+    // Date validation
     const start = new Date(startDate);
     const end = new Date(endDate);
     if (end < start) {
       throw new Error("End date must be after start date");
     }
-    
-    // Use transaction to ensure data integrity
+
+    // Transaction to ensure data integrity
     const updatedPromotion = await prisma.$transaction(async (prismaClient) => {
-      // 1. Update the main promotion entry
+      // Get current products associated with this promotion
+      const currentPromotionProducts = await prismaClient.promotionProduct.findMany({
+        where: { promotionId },
+        select: { produkId: true }
+      });
+      
+      const currentProductIds = currentPromotionProducts.map(pp => pp.produkId);
+      
+      // Identify products to add (new products not in the current list)
+      const productsToAdd = productIds 
+        ? productIds.filter(id => !currentProductIds.includes(id)) 
+        : [];
+        
+      // Identify products to remove (products that were in the current list but not in the new list)
+      const productsToRemove = currentProductIds.filter(id => !productIds?.includes(id));
+      
+      // VALIDATION: Check if products to be added already have active promotions
+      if (productsToAdd.length > 0) {
+        const productsWithActivePromotions = await prismaClient.promotionProduct.findMany({
+          where: {
+            produkId: { in: productsToAdd },
+            promotionId: { not: promotionId }, // Don't check the promotion being updated
+            promotion: {
+              endDate: { gte: new Date() } // Still active if end date >= today
+            }
+          },
+          include: {
+            produk: true,
+            promotion: true
+          }
+        });
+
+        if (productsWithActivePromotions.length > 0) {
+          // Some products already have active promotions
+          const conflictingProducts = productsWithActivePromotions.map(item => ({
+            id: item.produk.produkId,
+            nama: item.produk.nama,
+            promosi: item.promotion.title,
+            berakhir: item.promotion.endDate.toLocaleDateString()
+          }));
+
+          throw new Error(`Beberapa produk sudah memiliki promosi aktif: ${JSON.stringify(conflictingProducts)}`);
+        }
+      }
+
+      // 1. Update the main promotion
       const promotion = await prismaClient.promotion.update({
         where: { promotionId },
         data: {
@@ -2713,14 +2833,13 @@ export async function updatePromotion(promotionId: number, input: CreatePromotio
           minQuantity,
         },
       });
-      
+
       // 2. Delete existing product relations
       await prismaClient.promotionProduct.deleteMany({
         where: { promotionId },
       });
-      
-      
-      // 4. create new product relations
+
+      // 3. Create new product relations if productIds provided
       if (productIds && productIds.length > 0) {
         await prismaClient.promotionProduct.createMany({
           data: productIds.map(produkId => ({
@@ -2730,10 +2849,10 @@ export async function updatePromotion(promotionId: number, input: CreatePromotio
           })),
         });
       }
-      
+
       return promotion;
     });
-    
+
     revalidatePath("/admin/promotions");
     return { success: true, data: updatedPromotion };
   } catch (error) {
@@ -2810,33 +2929,157 @@ export async function getPromotions() {
 
 
 // Fungsi helper untuk mendapatkan daftar produk
-export async function getProductsForPromotions() {
+// Completely revised function for getting products for promotions management
+// Completely revised function for getting products for promotions management
+export async function getProductsForPromotions(promotionIdToEdit = null) {
   try {
-    const products = await prisma.produk.findMany({
+    console.log(`Fetching products for promotions, editing promotion ID: ${promotionIdToEdit}`);
+    
+    // Get all active products
+    const allProducts = await prisma.produk.findMany({
       where: {
         isDeleted: false,
+        stok: { gt: 0 }
       },
-      select: {
-        produkId: true,
-        nama: true,
-        harga: true,
-        kategori: {
-          select: {
-            nama: true,
+      include: {
+        kategori: true,
+        // Include promotion associations for these products
+        promotionProducts: {
+          include: {
+            promotion: true
           },
-        },
-      },
-      orderBy: {
-        nama: "asc",
-      },
+          where: {
+            promotion: {
+              endDate: { gte: new Date() } // Only active promotions
+            }
+          }
+        }
+      }
+    });
+    
+    console.log(`Found ${allProducts.length} active products`);
+
+    // If editing a promotion, get its full details
+    let promotionBeingEdited = null;
+    if (promotionIdToEdit) {
+      promotionBeingEdited = await prisma.promotion.findUnique({
+        where: { promotionId: parseInt(promotionIdToEdit) },
+        include: {
+          promotionProducts: {
+            include: {
+              produk: {
+                include: {
+                  kategori: true
+                }
+              }
+            }
+          }
+        }
+      });
+      
+      console.log(`Found promotion to edit: ${promotionBeingEdited?.title || 'Unknown'}`);
+      if (promotionBeingEdited?.promotionProducts) {
+        console.log(`Promotion has ${promotionBeingEdited.promotionProducts.length} associated products`);
+      }
+    }
+
+    // Create a map of products that are part of the promotion being edited
+    const productsInEditedPromotion = new Map();
+    if (promotionBeingEdited && promotionBeingEdited.promotionProducts) {
+      promotionBeingEdited.promotionProducts.forEach(pp => {
+        if (pp.produk && pp.produk.produkId) {
+          productsInEditedPromotion.set(pp.produk.produkId, pp.produk);
+        }
+      });
+    }
+    
+    // Process all products with their promotion information
+    const processedProducts = allProducts.map(product => {
+      // Check if this product is associated with any promotions excluding the one being edited
+      const otherActivePromotions = product.promotionProducts
+        .filter(pp => !promotionIdToEdit || pp.promotion.promotionId !== parseInt(promotionIdToEdit));
+      
+      // Check if product has other active promotions
+      const hasOtherActivePromotions = otherActivePromotions.length > 0;
+      
+      // Format product info consistently
+      const formattedProduct = {
+        produkId: product.produkId,
+        nama: product.nama,
+        harga: product.harga,
+        image: product.image,
+        stok: product.stok,
+        kategori: product.kategori,
+        // Only flag as having active promotions if it's in promotions OTHER than the one being edited
+        hasActivePromotion: hasOtherActivePromotions,
+        // Include all active promotion details
+        activePromotions: product.promotionProducts.map(pp => ({
+          promotionId: pp.promotion.promotionId,
+          title: pp.promotion.title,
+          endDate: pp.promotion.endDate
+        }))
+      };
+
+      return formattedProduct;
     });
 
-    return { success: true, data: products };
+    // Now add any products from the promotion being edited that might not be in the main query
+    // (This handles cases where a product might have been deleted or is out of stock)
+    if (promotionBeingEdited) {
+      const currentProductIds = new Set(processedProducts.map(p => p.produkId));
+      
+      // Find products that are part of this promotion but missing from our main query
+      const missingProducts = [];
+      
+      for (const [produkId, produk] of productsInEditedPromotion.entries()) {
+        if (!currentProductIds.has(produkId)) {
+          missingProducts.push({
+            produkId: produk.produkId,
+            nama: produk.nama,
+            harga: produk.harga,
+            image: produk.image || '',
+            stok: produk.stok,
+            kategori: produk.kategori,
+            hasActivePromotion: false, // Not important since it's already in this promotion
+            activePromotions: [{
+              promotionId: parseInt(promotionIdToEdit),
+              title: promotionBeingEdited.title,
+              endDate: promotionBeingEdited.endDate
+            }]
+          });
+        }
+      }
+      
+      if (missingProducts.length > 0) {
+        console.log(`Adding ${missingProducts.length} products that are in the promotion but missing from active products`);
+        processedProducts.push(...missingProducts);
+      }
+    }
+
+    // Prepare the response
+    const response = {
+      status: "success",
+      data: processedProducts,
+      // Additional info about the promotion being edited
+      editInfo: promotionIdToEdit ? {
+        promotionId: parseInt(promotionIdToEdit),
+        promotionTitle: promotionBeingEdited?.title || 'Unknown Promotion',
+        productIds: Array.from(productsInEditedPromotion.keys())
+      } : null
+    };
+    
+    console.log(`Returning ${processedProducts.length} total products`);
+    return response;
   } catch (error) {
-    console.error("Error fetching products:", error);
-    return { success: false, error: "Failed to fetch products" };
+    console.error("Error fetching products for promotions:", error);
+    return {
+      status: "error",
+      message: "Failed to fetch products for promotion",
+      error: error instanceof Error ? error.message : "Unknown error"
+    };
   }
 }
+
 
 // Fungsi helper untuk mendapatkan daftar kategori
 export async function getCategories() {
