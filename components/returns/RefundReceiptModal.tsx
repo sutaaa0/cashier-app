@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { CheckCircle2, Download, Printer } from "lucide-react";
+import { CheckCircle2, Download, Printer, Tag } from "lucide-react";
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 
@@ -9,32 +9,42 @@ interface RefundDetailsProps {
   transactionDetails: {
     penjualanId: number;
     tanggalPenjualan: string;
+    diskonPoin?: number;
     user?: {
       username: string;
     };
-    // Add customer information fields
     pelanggan?: {
       nama: string;
+      points?: number;
     };
   };
   returnedItems: {
     produkId: number;
     nama: string;
     kuantitas: number;
-    harga: number;
+    harga: number; // Original price
+    effectivePrice: number; // Discounted price
     image: string;
     maxKuantitas?: number;
+    promotionTitle?: string;
+    discountPercentage?: number;
+    discountAmount?: number;
   }[];
   replacementItems: {
     produkId: number;
     nama: string;
     kuantitas: number;
-    harga: number;
+    harga: number; // Original price
+    effectivePrice: number; // Discounted price
     image: string;
+    promotionTitle?: string;
+    discountPercentage?: number;
+    discountAmount?: number;
   }[];
   totalReturn: number;
   totalReplacement: number;
   additionalPayment: number;
+  returnHistory?: string[];
 }
 
 interface RefundReceiptModalProps {
@@ -58,6 +68,13 @@ export const RefundReceiptModal: React.FC<RefundReceiptModalProps> = ({ isOpen, 
       minimumFractionDigits: 0,
       maximumFractionDigits: 0,
     }).format(amount);
+  };
+  
+  // Calculate discount percentage from original price to effective price
+  const calculateDiscountPercent = (original: number, effective: number) => {
+    if (original <= 0) return 0;
+    const discountPercent = ((original - effective) / original) * 100;
+    return Math.round(discountPercent);
   };
 
   useEffect(() => {
@@ -84,6 +101,9 @@ export const RefundReceiptModal: React.FC<RefundReceiptModalProps> = ({ isOpen, 
   const finalAmount = data.totalReturn - data.totalReplacement;
   const isRefundToCustomer = finalAmount > 0;
   
+  // Include points discount if applicable
+  const pointsDiscount = data.transactionDetails.diskonPoin || 0;
+  
   const generatePDF = () => {
     // Define receipt size: width 80mm
     const receiptWidth = 80; // 80mm
@@ -100,23 +120,12 @@ export const RefundReceiptModal: React.FC<RefundReceiptModalProps> = ({ isOpen, 
     const margin = 5;
   
     // Helper function for centered text
-    interface CenterTextParams {
-      text: string;
-      y: number;
-    }
-
-    const centerText = ({ text, y }: CenterTextParams): void => {
+    const centerText = (text: string, y: number) => {
       doc.text(text, pageWidth / 2, y, { align: 'center' });
     };
   
     // Helper function for left-right text
-    interface LeftRightTextParams {
-      left: string;
-      right: string;
-      y: number;
-    }
-
-    const leftRightText = ({ left, right, y }: LeftRightTextParams): void => {
+    const leftRightText = (left: string, right: string, y: number) => {
       doc.text(left, margin, y);
       doc.text(right, pageWidth - margin, y, { align: 'right' });
     };
@@ -131,14 +140,14 @@ export const RefundReceiptModal: React.FC<RefundReceiptModalProps> = ({ isOpen, 
     // Store information (header)
     doc.setFontSize(12);
     doc.setFont('helvetica', 'bold');
-    centerText({ text: storeName, y: yPos });
+    centerText(storeName, yPos);
     yPos += lineHeight * 1.2;
   
     doc.setFontSize(8);
     doc.setFont('helvetica', 'normal');
-    centerText({ text: storeAddress, y: yPos });
+    centerText(storeAddress, yPos);
     yPos += lineHeight;
-    centerText({ text: `Telp: ${storePhone}`, y: yPos });
+    centerText(`Telp: ${storePhone}`, yPos);
     yPos += lineHeight * 1.5;
   
     addDashedLine(yPos);
@@ -147,14 +156,14 @@ export const RefundReceiptModal: React.FC<RefundReceiptModalProps> = ({ isOpen, 
     // Receipt information
     doc.setFontSize(9);
     doc.setFont('helvetica', 'bold');
-    centerText({ text: "BUKTI PENGEMBALIAN BARANG", y: yPos });
+    centerText("BUKTI PENGEMBALIAN BARANG", yPos);
     yPos += lineHeight * 1.5;
   
     doc.setFontSize(8);
     doc.setFont('helvetica', 'normal');
   
     // Transaction details
-    leftRightText({ left: "No. Transaksi Asal:", right: `#${data.transactionDetails.penjualanId}`, y: yPos });
+    leftRightText("No. Transaksi Asal:", `#${data.transactionDetails.penjualanId}`, yPos);
     yPos += lineHeight;
   
     const formattedDate = currentDateTime.toLocaleDateString("id-ID", {
@@ -168,20 +177,20 @@ export const RefundReceiptModal: React.FC<RefundReceiptModalProps> = ({ isOpen, 
       minute: "2-digit",
     });
   
-    leftRightText({ left: "Tgl. Transaksi Asal:", right: new Date(data.transactionDetails.tanggalPenjualan).toLocaleDateString("id-ID", {
+    leftRightText("Tgl. Transaksi Asal:", new Date(data.transactionDetails.tanggalPenjualan).toLocaleDateString("id-ID", {
       year: "numeric",
       month: "long",
       day: "numeric",
-    }), y: yPos });
+    }), yPos);
     yPos += lineHeight;
     
-    leftRightText({ left: "Tgl. Pengembalian:", right: formattedDate, y: yPos });
+    leftRightText("Tgl. Pengembalian:", formattedDate, yPos);
     yPos += lineHeight;
-    leftRightText({ left: "Jam:", right: formattedTime, y: yPos });
+    leftRightText("Jam:", formattedTime, yPos);
     yPos += lineHeight;
-    leftRightText({ left: "Petugas:", right: petugasName, y: yPos });
+    leftRightText("Petugas:", petugasName, yPos);
     yPos += lineHeight;
-    leftRightText({ left: "Pelanggan:", right: customerName, y: yPos });
+    leftRightText("Pelanggan:", customerName, yPos);
     yPos += lineHeight * 1.5;
   
     addDashedLine(yPos);
@@ -198,16 +207,40 @@ export const RefundReceiptModal: React.FC<RefundReceiptModalProps> = ({ isOpen, 
       data.returnedItems.forEach((item) => {
         if (item.kuantitas > 0) {
           doc.text(`${item.nama}`, margin, yPos);
+          
+          // Add promotion info if applicable
+          if (item.promotionTitle) {
+            yPos += lineHeight;
+            doc.text(`(${item.promotionTitle})`, margin + 2, yPos);
+          }
+          
           yPos += lineHeight;
           
-          doc.text(`${item.kuantitas} x ${formatCurrency(item.harga)}`, margin + 2, yPos);
-          doc.text(formatCurrency(item.harga * item.kuantitas), pageWidth - margin, yPos, { align: 'right' });
+          // Show original and discounted price if different
+          if (item.effectivePrice < item.harga) {
+            doc.text(`${item.kuantitas} x ${formatCurrency(item.effectivePrice)}`, margin + 2, yPos);
+            // For the right side, subtract small amount from pageWidth to make room
+            doc.text(`${formatCurrency(item.effectivePrice * item.kuantitas)}`, pageWidth - margin, yPos, { align: 'right' });
+            yPos += lineHeight;
+            doc.text(`Disc: ${item.discountPercentage || calculateDiscountPercent(item.harga, item.effectivePrice)}%`, margin + 2, yPos);
+          } else {
+            doc.text(`${item.kuantitas} x ${formatCurrency(item.harga)}`, margin + 2, yPos);
+            doc.text(formatCurrency(item.harga * item.kuantitas), pageWidth - margin, yPos, { align: 'right' });
+          }
+          
           yPos += lineHeight * 1.2;
         }
       });
       
+      // Add points discount info if applicable
+      if (pointsDiscount > 0) {
+        doc.text("Diskon Poin Member:", margin, yPos);
+        doc.text(`-${formatCurrency(pointsDiscount)}`, pageWidth - margin, yPos, { align: 'right' });
+        yPos += lineHeight;
+      }
+      
       doc.setFont('helvetica', 'bold');
-      leftRightText({ left: "Total Pengembalian:", right: formatCurrency(data.totalReturn), y: yPos });
+      leftRightText("Total Pengembalian:", formatCurrency(data.totalReturn), yPos);
       yPos += lineHeight * 1.5;
     }
     
@@ -224,15 +257,31 @@ export const RefundReceiptModal: React.FC<RefundReceiptModalProps> = ({ isOpen, 
       
       data.replacementItems.forEach((item) => {
         doc.text(`${item.nama}`, margin, yPos);
+        
+        // Add promotion info if applicable
+        if (item.promotionTitle) {
+          yPos += lineHeight;
+          doc.text(`(${item.promotionTitle})`, margin + 2, yPos);
+        }
+        
         yPos += lineHeight;
         
-        doc.text(`${item.kuantitas} x ${formatCurrency(item.harga)}`, margin + 2, yPos);
-        doc.text(formatCurrency(item.harga * item.kuantitas), pageWidth - margin, yPos, { align: 'right' });
+        // Show original and discounted price if different
+        if (item.effectivePrice < item.harga) {
+          doc.text(`${item.kuantitas} x ${formatCurrency(item.effectivePrice)}`, margin + 2, yPos);
+          doc.text(`${formatCurrency(item.effectivePrice * item.kuantitas)}`, pageWidth - margin, yPos, { align: 'right' });
+          yPos += lineHeight;
+          doc.text(`Disc: ${item.discountPercentage || calculateDiscountPercent(item.harga, item.effectivePrice)}%`, margin + 2, yPos);
+        } else {
+          doc.text(`${item.kuantitas} x ${formatCurrency(item.harga)}`, margin + 2, yPos);
+          doc.text(formatCurrency(item.harga * item.kuantitas), pageWidth - margin, yPos, { align: 'right' });
+        }
+        
         yPos += lineHeight * 1.2;
       });
       
       doc.setFont('helvetica', 'bold');
-      leftRightText({ left: "Total Penggantian:", right: formatCurrency(data.totalReplacement), y: yPos });
+      leftRightText("Total Penggantian:", formatCurrency(data.totalReplacement), yPos);
       yPos += lineHeight * 1.5;
     }
     
@@ -241,16 +290,16 @@ export const RefundReceiptModal: React.FC<RefundReceiptModalProps> = ({ isOpen, 
     
     // Additional Payment Section
     if (data.additionalPayment > 0) {
-      leftRightText({ left: "Tambahan Bayar:", right: formatCurrency(data.additionalPayment), y: yPos });
+      leftRightText("Tambahan Bayar:", formatCurrency(data.additionalPayment), yPos);
       yPos += lineHeight;
     }
     
     // Summary
     doc.setFont('helvetica', 'bold');
     if (isRefundToCustomer) {
-      leftRightText({ left: "Refund ke Pelanggan:", right: formatCurrency(finalAmount), y: yPos });
+      leftRightText("Refund ke Pelanggan:", formatCurrency(finalAmount), yPos);
     } else {
-      leftRightText({ left: "Selisih Dibayar Pelanggan:", right: formatCurrency(Math.abs(finalAmount)), y: yPos });
+      leftRightText("Selisih Dibayar Pelanggan:", formatCurrency(Math.abs(finalAmount)), yPos);
     }
     yPos += lineHeight * 2;
     
@@ -260,11 +309,11 @@ export const RefundReceiptModal: React.FC<RefundReceiptModalProps> = ({ isOpen, 
     // Footer
     doc.setFontSize(7);
     doc.setFont('helvetica', 'normal');
-    centerText({ text: "Terima kasih atas kunjungan Anda", y: yPos });
+    centerText("Terima kasih atas kunjungan Anda", yPos);
     yPos += lineHeight;
-    centerText({ text: "Bukti pengembalian ini adalah bukti sah", y: yPos });
+    centerText("Bukti pengembalian ini adalah bukti sah", yPos);
     yPos += lineHeight;
-    centerText({ text: "dari Toko Cita Rasa", y: yPos });
+    centerText("dari Toko Cita Rasa", yPos);
     
     return doc;
   };
@@ -343,14 +392,45 @@ export const RefundReceiptModal: React.FC<RefundReceiptModalProps> = ({ isOpen, 
             <h3 className="font-bold text-lg border-b-2 border-black pb-1 mb-2">Barang Dikembalikan</h3>
             <div className="space-y-2">
               {data.returnedItems.filter(item => item.kuantitas > 0).map((item, index) => (
-                <div key={`returned-${index}`} className="flex justify-between">
-                  <span>
-                    {item.nama} x{item.kuantitas}
-                  </span>
-                  <span>{formatCurrency(item.harga * item.kuantitas)}</span>
+                <div key={`returned-${index}`}>
+                  <div className="flex justify-between">
+                    <span>
+                      {item.nama} x{item.kuantitas}
+                    </span>
+                    <span>
+                      {item.effectivePrice < item.harga ? (
+                        <div className="flex items-center">
+                          <span className="line-through text-gray-500 text-xs mr-1">
+                            {formatCurrency(item.harga * item.kuantitas)}
+                          </span>
+                          <span>{formatCurrency(item.effectivePrice * item.kuantitas)}</span>
+                        </div>
+                      ) : (
+                        formatCurrency(item.harga * item.kuantitas)
+                      )}
+                    </span>
+                  </div>
+                  {item.promotionTitle && (
+                    <div className="text-xs text-blue-600 ml-4">{item.promotionTitle}</div>
+                  )}
+                  {item.effectivePrice < item.harga && (
+                    <div className="text-xs text-red-500 ml-4 flex items-center">
+                      <Tag className="h-3 w-3 mr-1" />
+                      Diskon: {item.discountPercentage || calculateDiscountPercent(item.harga, item.effectivePrice)}%
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
+            
+            {/* Include points discount if applicable */}
+            {pointsDiscount > 0 && (
+              <div className="flex justify-between text-sm mt-2">
+                <span className="text-blue-600">Diskon Poin Member:</span>
+                <span className="text-blue-600">-{formatCurrency(pointsDiscount)}</span>
+              </div>
+            )}
+            
             <div className="flex justify-between font-bold mt-2">
               <span>Total Pengembalian:</span>
               <span>{formatCurrency(data.totalReturn)}</span>
@@ -364,11 +444,33 @@ export const RefundReceiptModal: React.FC<RefundReceiptModalProps> = ({ isOpen, 
             <h3 className="font-bold text-lg border-b-2 border-black pb-1 mb-2">Barang Pengganti</h3>
             <div className="space-y-2">
               {data.replacementItems.map((item, index) => (
-                <div key={`replacement-${index}`} className="flex justify-between">
-                  <span>
-                    {item.nama} x{item.kuantitas}
-                  </span>
-                  <span>{formatCurrency(item.harga * item.kuantitas)}</span>
+                <div key={`replacement-${index}`}>
+                  <div className="flex justify-between">
+                    <span>
+                      {item.nama} x{item.kuantitas}
+                    </span>
+                    <span>
+                      {item.effectivePrice < item.harga ? (
+                        <div className="flex items-center">
+                          <span className="line-through text-gray-500 text-xs mr-1">
+                            {formatCurrency(item.harga * item.kuantitas)}
+                          </span>
+                          <span>{formatCurrency(item.effectivePrice * item.kuantitas)}</span>
+                        </div>
+                      ) : (
+                        formatCurrency(item.harga * item.kuantitas)
+                      )}
+                    </span>
+                  </div>
+                  {item.promotionTitle && (
+                    <div className="text-xs text-blue-600 ml-4">{item.promotionTitle}</div>
+                  )}
+                  {item.effectivePrice < item.harga && (
+                    <div className="text-xs text-red-500 ml-4 flex items-center">
+                      <Tag className="h-3 w-3 mr-1" />
+                      Diskon: {item.discountPercentage || calculateDiscountPercent(item.harga, item.effectivePrice)}%
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
