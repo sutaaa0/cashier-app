@@ -1,13 +1,26 @@
 "use client"
 
 import Image from "next/image"
-import { Minus, Plus } from "lucide-react"
+import { Minus, Plus, Tag } from "lucide-react"
 import { formatRupiah } from "@/lib/formatIdr"
 
+interface ReturnedItem {
+  produkId: number;
+  nama: string;
+  kuantitas: number;
+  harga: number; // Original price
+  effectivePrice: number; // Price after discounts
+  image: string;
+  maxKuantitas: number;
+  promotionTitle?: string;
+  discountPercentage?: number;
+  discountAmount?: number;
+}
+
 interface ReturnedItemsProps {
-  items: any[]
-  setItems: (items: any[]) => void
-  setTotalReturn: (total: number) => void
+  items: ReturnedItem[];
+  setItems: (items: ReturnedItem[]) => void;
+  setTotalReturn: (total: number) => void;
 }
 
 export function ReturnedItems({ items, setItems, setTotalReturn }: ReturnedItemsProps) {
@@ -18,8 +31,17 @@ export function ReturnedItems({ items, setItems, setTotalReturn }: ReturnedItems
         : item,
     )
     setItems(newItems)
-    const total = newItems.reduce((sum, item) => sum + item.harga * item.kuantitas, 0)
+    
+    // Calculate total using effective price (after discounts)
+    const total = newItems.reduce((sum, item) => sum + item.effectivePrice * item.kuantitas, 0)
     setTotalReturn(total)
+  }
+  
+  // Calculate discount percentage from original price to effective price
+  const calculateDiscountPercent = (original: number, effective: number) => {
+    if (original <= 0) return 0
+    const discountPercent = ((original - effective) / original) * 100
+    return Math.round(discountPercent)
   }
 
   return (
@@ -32,7 +54,25 @@ export function ReturnedItems({ items, setItems, setTotalReturn }: ReturnedItems
               <Image src={item.image || "/placeholder.svg"} alt={item.nama} width={50} height={50} />
               <div>
                 <p className="font-bold">{item.nama}</p>
-                <p>{formatRupiah(item.harga)}</p>
+                <div className="flex items-center gap-2">
+                  {item.effectivePrice < item.harga ? (
+                    <>
+                      <span className="line-through text-gray-500 text-sm">{formatRupiah(item.harga)}</span>
+                      <span className="font-semibold">{formatRupiah(item.effectivePrice)}</span>
+                      <span className="bg-red-500 text-white text-xs px-1 py-0.5 rounded-md flex items-center">
+                        <Tag className="h-3 w-3 mr-1" />
+                        {item.discountPercentage 
+                          ? `-${item.discountPercentage}%` 
+                          : `-${calculateDiscountPercent(item.harga, item.effectivePrice)}%`}
+                      </span>
+                    </>
+                  ) : (
+                    <span>{formatRupiah(item.harga)}</span>
+                  )}
+                </div>
+                {item.promotionTitle && (
+                  <p className="text-xs text-blue-600">{item.promotionTitle}</p>
+                )}
               </div>
             </div>
             <div className="flex items-center">
@@ -58,4 +98,3 @@ export function ReturnedItems({ items, setItems, setTotalReturn }: ReturnedItems
     </div>
   )
 }
-
