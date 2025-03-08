@@ -227,7 +227,9 @@ const Pos = (): JSX.Element => {
   };
 
   const addToOrder = (product: Produk): void => {
+    console.log("Adding product to order:", product);
     setOrder((prev) => {
+      console.log(" Previous order:",prev);
       const existingItem = prev.detailPenjualan.find((item) => item.produkId === product.produkId);
 
       let newDetailPenjualan: DetailPenjualanWithProduk[];
@@ -251,6 +253,10 @@ const Pos = (): JSX.Element => {
             kuantitas: 1,
             subtotal: product.harga,
             produk: product,
+            discountAmount:  product.promotionProducts?.map((pp) => pp.promotion.discountAmount)[0] || 0,
+            discountPercentage: product.promotionProducts?.map((pp) => pp.promotion.discountPercentage)[0] || 0,
+            promotionId: product.promotionProducts?.map((pp) => pp.promotionId)[0] || 0,
+            promotionTitle: product.promotionProducts?.map((pp) => pp.promotion.title)[0] || null,
           },
         ];
       }
