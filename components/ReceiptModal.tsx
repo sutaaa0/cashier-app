@@ -26,10 +26,10 @@ interface ReceiptModalProps {
       promotionDetails?: string;
     }>;
     transactionDate: Date;
-    // Field untuk redeem poin
+    // Fields for point redemption
     redeemedPoints?: number;
     totalBeforePointsDiscount?: number;
-    // Field untuk diskon promosi
+    // Fields for promotion discounts
     totalPromotionDiscount?: number;
   };
   onClose: () => void;
@@ -90,7 +90,7 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ receiptData, onClose
   };
 
   const calculateTotalSavings = () => {
-    // Gunakan totalPromotionDiscount jika ada, jika tidak, hitung dari orderItems
+    // Use totalPromotionDiscount if available, otherwise calculate from orderItems
     if (receiptData.totalPromotionDiscount && receiptData.totalPromotionDiscount > 0) {
       return receiptData.totalPromotionDiscount;
     }
@@ -100,19 +100,24 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ receiptData, onClose
       return total + discount;
     }, 0);
   };
+  
+  // Calculate total savings including points
+  const calculateTotalSavingsWithPoints = () => {
+    return calculateTotalSavings() + (receiptData.redeemedPoints || 0);
+  };
 
-  // Hitung poin yang didapat dari transaksi ini (1 poin per 200 rupiah)
+  // Calculate points earned from this transaction (1 point per 200 rupiah)
   const calculateEarnedPoints = () => {
     return Math.floor(receiptData.finalTotal / 200);
   };
 
   const generatePDF = () => {
-    // Tentukan ukuran struk: lebar 80mm, tinggi dinamis
+    // Define receipt size: width 80mm, dynamic height
     const receiptWidth = 80; // 80mm
     const doc = new jsPDF({
       orientation: "portrait",
       unit: "mm",
-      format: [receiptWidth, 200], // tinggi awal, akan disesuaikan
+      format: [receiptWidth, 200], // initial height, will be adjusted
     });
 
     const lineHeight = 3.5; // mm
@@ -120,25 +125,25 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ receiptData, onClose
     const pageWidth = doc.internal.pageSize.getWidth();
     const margin = 5;
 
-    // Fungsi bantu untuk menampilkan teks di tengah
+    // Helper function for centered text
     const centerText = (text: string, y: number) => {
       doc.text(text, pageWidth / 2, y, { align: "center" });
     };
 
-    // Fungsi bantu untuk teks rata kiri-kanan
+    // Helper function for left-right justified text
     const leftRightText = (left: string, right: string, y: number) => {
       doc.text(left, margin, y);
       doc.text(right, pageWidth - margin, y, { align: "right" });
     };
 
-    // Fungsi bantu untuk menambahkan garis putus-putus
+    // Helper function for dashed line
     const addDashedLine = (y: number) => {
       doc.setDrawColor(0);
       doc.setLineDashPattern([0.5, 0.5], 0);
       doc.line(margin, y, pageWidth - margin, y);
     };
 
-    // Informasi toko (header)
+    // Store information (header)
     doc.setFontSize(12);
     doc.setFont("helvetica", "bold");
     centerText(storeName, yPos);
@@ -154,7 +159,7 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ receiptData, onClose
     addDashedLine(yPos);
     yPos += lineHeight;
 
-    // Informasi struk
+    // Receipt information
     doc.setFontSize(9);
     doc.setFont("helvetica", "bold");
     centerText("BUKTI PEMBAYARAN", yPos);
@@ -163,7 +168,7 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ receiptData, onClose
     doc.setFontSize(8);
     doc.setFont("helvetica", "normal");
 
-    // Detail transaksi
+    // Transaction details
     leftRightText("No. Transaksi:", `#${receiptData.PenjualanId}`, yPos);
     yPos += lineHeight;
 
@@ -192,7 +197,7 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ receiptData, onClose
     addDashedLine(yPos);
     yPos += lineHeight;
 
-    // Detail Pesanan
+    // Order Details
     doc.setFont("helvetica", "bold");
     doc.text("DETAIL PESANAN", margin, yPos);
     yPos += lineHeight * 1.5;
@@ -203,13 +208,13 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ receiptData, onClose
       doc.text(`${item.nama}`, margin, yPos);
       yPos += lineHeight;
 
-      // Tampilkan harga satuan jika tersedia
+      // Show unit price if available
       const hargaSatuan = item.hargaSatuan || Math.round(item.subtotal / item.kuantitas);
       doc.text(`${item.kuantitas} x ${formatCurrency(hargaSatuan)}`, margin + 2, yPos);
       doc.text(formatCurrency(item.subtotal), pageWidth - margin, yPos, { align: "right" });
       yPos += lineHeight * 1.2;
 
-      // Jika ada diskon, tampilkan harga normal dan harga setelah diskon
+      // If there's a discount, show normal price and discounted price
       if (item.discountAmount && item.discountAmount > 0 && item.hargaNormal && item.hargaSetelahDiskon) {
         doc.setFontSize(7);
         doc.setFont("helvetica", "italic");
@@ -219,12 +224,12 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ receiptData, onClose
         yPos += lineHeight;
         doc.text(`Anda Hemat: ${formatCurrency(item.discountAmount)}`, margin + 2, yPos);
         yPos += lineHeight;
-        // Kembalikan ukuran font
+        // Reset font size
         doc.setFontSize(8);
         doc.setFont("helvetica", "normal");
       }
 
-      // Tampilkan detail promosi jika ada
+      // Show promotion details if available
       if (item.promotionDetails) {
         doc.setFontSize(7);
         doc.setFont("helvetica", "italic");
@@ -241,25 +246,36 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ receiptData, onClose
     // Totals
     doc.setFont("helvetica", "normal");
 
-    // Tampilkan total penghematan jika ada diskon
-    const totalSavings = calculateTotalSavings();
-    if (totalSavings > 0) {
-      doc.setTextColor(255, 0, 0); // Warna merah untuk diskon promosi
-      leftRightText("Total Hemat Promosi:", formatCurrency(totalSavings), yPos);
+    // Show promotion savings if there are discounts
+    const totalPromotionSavings = calculateTotalSavings();
+    if (totalPromotionSavings > 0) {
+      doc.setTextColor(255, 0, 0); // Red color for promotion discounts
+      leftRightText("Total Hemat Promosi:", formatCurrency(totalPromotionSavings), yPos);
       yPos += lineHeight;
-      doc.setTextColor(0, 0, 0); // Reset warna teks
+      doc.setTextColor(0, 0, 0); // Reset text color
     }
 
-    // Tampilkan subtotal setelah diskon promosi
+    // Show subtotal after promotion discounts
     leftRightText("Subtotal setelah promosi:", formatCurrency(receiptData.totalBeforePointsDiscount || receiptData.finalTotal), yPos);
     yPos += lineHeight;
 
-    // Tampilkan potongan poin jika ada
+    // Show points redemption if available
     if (receiptData.redeemedPoints && receiptData.redeemedPoints > 0) {
-      doc.setTextColor(0, 128, 0); // Warna hijau untuk potongan poin
-      leftRightText("Potongan Poin:", `-${formatCurrency(receiptData.redeemedPoints)}`, yPos);
+      doc.setTextColor(0, 128, 0); // Green color for points discount
+      leftRightText("Potongan Poin Member:", `-${formatCurrency(receiptData.redeemedPoints)}`, yPos);
       yPos += lineHeight;
-      doc.setTextColor(0, 0, 0); // Reset warna teks
+      doc.setTextColor(0, 0, 0); // Reset text color
+
+      // Show total savings (promotions + points)
+      const totalSavings = calculateTotalSavingsWithPoints();
+      if (totalSavings > 0) {
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(255, 0, 0); // Red for total savings
+        leftRightText("Total Penghematan:", formatCurrency(totalSavings), yPos);
+        yPos += lineHeight;
+        doc.setTextColor(0, 0, 0); // Reset text color
+        doc.setFont("helvetica", "normal");
+      }
 
       doc.setFont("helvetica", "bold");
       leftRightText("Total Pembayaran:", formatCurrency(receiptData.finalTotal), yPos);
@@ -279,11 +295,11 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ receiptData, onClose
     leftRightText("Kembali:", formatCurrency(receiptData.change), yPos);
     yPos += lineHeight * 2;
 
-    // Informasi poin member
+    // Member points information
     if (receiptData.customerId) {
       const earnedPoints = calculateEarnedPoints();
       
-      // Hanya tampilkan poin yang didapat jika lebih dari 0
+      // Only show points earned if greater than 0
       if (earnedPoints > 0) {
         leftRightText("Poin Didapat:", `${earnedPoints} poin`, yPos);
         yPos += lineHeight;
@@ -294,7 +310,7 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ receiptData, onClose
         yPos += lineHeight;
       }
       
-      // Tambahkan informasi aturan poin member
+      // Add member points information
       doc.setFontSize(7);
       doc.setFont("helvetica", "italic");
       centerText("Informasi Poin Member:", yPos);
@@ -357,7 +373,7 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ receiptData, onClose
           animate={{ scale: 1, y: 0 }}
           className="bg-white w-full max-w-md rounded-xl shadow-2xl border-2 border-green-500 flex flex-col max-h-[90vh]"
         >
-          {/* Header tetap */}
+          {/* Fixed header */}
           <div className="px-6 pt-6 pb-2">
             <div className="flex flex-col items-center mb-4">
               <motion.div
@@ -373,9 +389,9 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ receiptData, onClose
             </div>
           </div>
 
-          {/* Area scrollable untuk konten utama - FIXED: added min-height and display */}
+          {/* Scrollable content area */}
           <div className="flex-grow overflow-y-auto px-6 pb-2 min-h-[300px] flex flex-col">
-            {/* Informasi Transaksi */}
+            {/* Transaction Information */}
             <div className="bg-green-50 rounded-lg p-4 mb-4">
               <h3 className="font-semibold text-green-800 mb-2">Informasi Transaksi</h3>
               <div className="grid grid-cols-2 gap-2">
@@ -411,24 +427,39 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ receiptData, onClose
                   <span>Total Item: {calculateTotalItems()} item</span>
                 </div>
 
-                {/* Tambahkan informasi poin jika customer adalah member */}
+                {/* Show points information if customer is a member */}
                 {receiptData.customerId && calculateEarnedPoints() > 0 && (
                   <div className="flex items-center text-sm text-green-700 col-span-2">
                     <Coins className="w-4 h-4 mr-2 text-green-600" />
                     <span>Poin Didapat: {calculateEarnedPoints()} poin</span>
                   </div>
                 )}
+                
+                {/* Show redeemed points if any */}
+                {receiptData.redeemedPoints && receiptData.redeemedPoints > 0 && (
+                  <div className="flex items-center text-sm text-green-700 col-span-2">
+                    <Coins className="w-4 h-4 mr-2 text-green-600" />
+                    <span>Poin Ditukarkan: {receiptData.redeemedPoints} poin</span>
+                  </div>
+                )}
+                
+                {/* Show total savings if any */}
+                {calculateTotalSavingsWithPoints() > 0 && (
+                  <div className="flex items-center text-sm text-red-600 font-bold col-span-2 border-t pt-2 mt-1">
+                    <span>Total Penghematan: {formatCurrency(calculateTotalSavingsWithPoints())}</span>
+                  </div>
+                )}
               </div>
             </div>
 
-            {/* Debug Information - ADDED to verify items */}
+            {/* Debug Information - only show if no items in order */}
             {receiptData.orderItems.length === 0 && (
               <div className="bg-red-50 p-4 mb-4 rounded-lg">
                 <p className="text-red-600 font-medium">Tidak ada item dalam pesanan</p>
               </div>
             )}
 
-            {/* Detail Pesanan - FIXED: removed sticky positioning and added better visibility */}
+            {/* Order Details Section */}
             <div className="mb-4 border-2 border-gray-200 rounded-lg p-2 bg-white">
               <h3 className="font-semibold text-gray-800 mb-2 flex items-center bg-white py-2 border-b">
                 <ShoppingBag className="w-4 h-4 mr-2 text-green-600" />
@@ -471,9 +502,9 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ receiptData, onClose
               </div>
             </div>
 
-            {/* Ringkasan Pembayaran */}
+            {/* Payment Summary Section */}
             <div className="bg-gray-50 rounded-lg p-4 mb-4">
-              {/* Tampilkan total hemat dari diskon promosi */}
+              {/* Show promotion discount total if any */}
               {calculateTotalSavings() > 0 && (
                 <div className="flex justify-between mb-2 text-red-600">
                   <span>Total Hemat dari Promosi:</span>
@@ -486,11 +517,19 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ receiptData, onClose
                 <span className="font-medium">{formatCurrency(receiptData.totalBeforePointsDiscount || receiptData.finalTotal)}</span>
               </div>
 
-              {/* Informasi redeem poin jika ada */}
+              {/* Points redemption information */}
               {receiptData.redeemedPoints && receiptData.redeemedPoints > 0 && (
                 <div className="flex justify-between mb-2 text-green-600">
                   <span>Potongan Poin Member:</span>
                   <span className="font-medium">-{formatCurrency(receiptData.redeemedPoints)}</span>
+                </div>
+              )}
+              
+              {/* Show total savings (promo + points) if applicable */}
+              {calculateTotalSavingsWithPoints() > 0 && (
+                <div className="flex justify-between my-2 pt-2 border-t border-dashed text-red-600 font-bold">
+                  <span>Total Penghematan:</span>
+                  <span>{formatCurrency(calculateTotalSavingsWithPoints())}</span>
                 </div>
               )}
 
@@ -509,7 +548,7 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ receiptData, onClose
                 <span className="text-green-700">{formatCurrency(receiptData.change)}</span>
               </div>
 
-              {/* Tambahkan informasi poin jika customer adalah member */}
+              {/* Member points information */}
               {receiptData.customerId && (
                 <div className="mt-3 pt-3 border-t border-dashed">
                   {calculateEarnedPoints() > 0 && (
@@ -520,13 +559,13 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ receiptData, onClose
                   )}
 
                   {receiptData.redeemedPoints && receiptData.redeemedPoints > 0 && (
-                    <div className="flex justify-between text-sm text-gray-600 mt-1">
+                    <div className="flex justify-between text-sm text-green-700 mt-1">
                       <span>Poin yang ditukarkan:</span>
                       <span className="font-medium">{receiptData.redeemedPoints} poin</span>
                     </div>
                   )}
 
-                  {/* Tambahkan informasi aturan poin member */}
+                  {/* Member points rules */}
                   <div className="mt-2 text-xs text-gray-500 border-t border-dashed pt-2">
                     <p className="font-medium">Informasi Poin Member:</p>
                     <ul className="mt-1 list-disc pl-4 space-y-0.5">
@@ -540,7 +579,7 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ receiptData, onClose
             </div>
           </div>
 
-          {/* Footer tetap */}
+          {/* Fixed footer */}
           <div className="px-6 pb-6 pt-2 border-t border-gray-200">
             <div className="grid grid-cols-2 gap-3 mb-3">
               <button
