@@ -2403,8 +2403,23 @@ export async function getTransactionDetails(penjualanId: number) {
 export async function processReturn(returnData: {
   penjualanId: number;
   userId: number;
-  returnedItems: { produkId: number; kuantitas: number; harga: number; hargaModal?: number }[];
-  replacementItems: { produkId: number; kuantitas: number; harga: number; hargaModal?: number }[];
+  returnedItems: { 
+    produkId: number; 
+    kuantitas: number; 
+    harga: number; 
+    hargaModal?: number;
+    discountPercentage: number | null;
+    discountAmount: number | null;
+  }[];
+  replacementItems: { 
+    produkId: number; 
+    kuantitas: number; 
+    promotionTitle: string;
+    harga: number; 
+    hargaModal?: number;
+    discountPercentage: number | null;
+    discountAmount: number | null;
+  }[];
   totalReturn: number;
   totalReplacement: number;
   additionalPayment: number;
@@ -2412,6 +2427,7 @@ export async function processReturn(returnData: {
   const { penjualanId, userId, returnedItems, replacementItems, totalReturn, totalReplacement, additionalPayment } = returnData;
   
   try {
+    console.log("Processing return", returnData);
     return await prisma.$transaction(async (tx) => {
       // Get the original transaction to access its details
       const originalTransaction = await tx.penjualan.findUnique({
@@ -2420,39 +2436,79 @@ export async function processReturn(returnData: {
           detailPenjualan: {
             include: { produk: true },
           },
+          pelanggan: true,
         },
       });
+
+      console.log("hasil query :",originalTransaction)
       
       if (!originalTransaction) {
         throw new Error("Transaction not found");
       }
+
+      // Calculate proportion of points discount (if any) for returned items
+      const pointsDiscount = originalTransaction.diskonPoin || 0;
+      const originalTotal = originalTransaction.total_harga + pointsDiscount; // Add back point discount to get pre-discount total
+      
+      // Calculate what proportion of the original transaction is being returned
+      let returnProportion = 0;
+      if (originalTotal > 0) {
+        returnProportion = totalReturn / originalTotal;
+      }
+      
+      // Calculate points discount amount for returned items (proportional)
+      const returnedPointsDiscount = Math.round(pointsDiscount * returnProportion);
+      
+      // Track original and adjusted item details for history
+      const returnHistory = [];
       
       // Calculate total modal for returned items
       let returnedModalTotal = 0;
       for (const item of returnedItems) {
         // Find the original product details from transaction
-        const originalProduct = originalTransaction.detailPenjualan.find(
+        const originalDetail = originalTransaction.detailPenjualan.find(
           detail => detail.produkId === item.produkId
         );
         
-        if (originalProduct) {
+        if (originalDetail) {
+          // Store original detail info for history
+          const originalItemPrice = originalDetail.produk.harga;
+          const discountedPrice = originalDetail.discountPercentage ? 
+            originalItemPrice * (1 - (originalDetail.discountPercentage / 100)) : 
+            originalItemPrice - (originalDetail.discountAmount || 0);
+            
           // Use the product's modal price and quantity to calculate modal value being returned
-          const productModal = originalProduct.produk.hargaModal;
+          const productModal = originalDetail.produk.hargaModal;
           returnedModalTotal += productModal * item.kuantitas;
+
+          // Track return history
+          returnHistory.push({
+            type: 'return',
+            produkId: item.produkId,
+            produkName: originalDetail.produk.nama,
+            quantity: item.kuantitas,
+            originalPrice: originalItemPrice,
+            effectivePrice: discountedPrice,
+            discount: {
+              percentage: originalDetail.discountPercentage,
+              amount: originalDetail.discountAmount,
+              promotionTitle: originalDetail.promotionTitle
+            }
+          });
           
           // Update the detailPenjualan record to reflect the actual quantity after return
-          const newQuantity = originalProduct.kuantitas - item.kuantitas;
-          const newSubtotal = newQuantity * originalProduct.produk.harga;
+          const newQuantity = originalDetail.kuantitas - item.kuantitas;
+          const newSubtotal = Math.round(newQuantity * discountedPrice);
           
           if (newQuantity <= 0) {
             // If all items are returned, delete the record
             await tx.detailPenjualan.delete({
-              where: { detailId: originalProduct.detailId }
+              where: { detailId: originalDetail.detailId }
             });
           } else {
             // Update the quantity and subtotal in detailPenjualan
             await tx.detailPenjualan.update({
-              where: { detailId: originalProduct.detailId },
+              where: { detailId: originalDetail.detailId },
               data: {
                 kuantitas: newQuantity,
                 subtotal: newSubtotal
@@ -2462,7 +2518,7 @@ export async function processReturn(returnData: {
         }
       }
       
-      // Calculate total modal for replacement items
+      // Process replacement items with current promotions
       let replacementModalTotal = 0;
       for (const item of replacementItems) {
         const product = await tx.produk.findUnique({
@@ -2470,7 +2526,56 @@ export async function processReturn(returnData: {
         });
         
         if (product) {
+          // Check for active promotions for this product
+          const currentDate = new Date();
+          const activePromotion = await tx.promotionProduct.findFirst({
+            where: {
+              produkId: item.produkId,
+              promotion: {
+                startDate: { lte: currentDate },
+                endDate: { gte: currentDate }
+              }
+            },
+            include: {
+              promotion: true
+            }
+          });
+          
+          let discountPercentage = item.discountPercentage;
+          let discountAmount = item.discountAmount;
+          let promotionTitle = null;
+          
+          // Apply promotion if it exists and wasn't already specified in item data
+          if (activePromotion && !discountPercentage && !discountAmount) {
+            discountPercentage = activePromotion.promotion.discountPercentage || null;
+            discountAmount = activePromotion.promotion.discountAmount || null;
+            promotionTitle = activePromotion.promotion.title;
+          }
+          
+          // Calculate actual price after discount
+          let effectivePrice = product.harga;
+          if (discountPercentage) {
+            effectivePrice = Math.round(effectivePrice * (1 - (discountPercentage / 100)));
+          } else if (discountAmount) {
+            effectivePrice = Math.round(effectivePrice - discountAmount);
+          }
+          
           replacementModalTotal += product.hargaModal * item.kuantitas;
+          
+          // Track replacement history
+          returnHistory.push({
+            type: 'replacement',
+            produkId: item.produkId,
+            produkName: product.nama,
+            quantity: item.kuantitas,
+            originalPrice: product.harga,
+            effectivePrice: effectivePrice,
+            discount: {
+              percentage: discountPercentage,
+              amount: discountAmount,
+              promotionTitle: promotionTitle
+            }
+          });
           
           // Check if product already exists in original transaction
           const existingDetail = originalTransaction.detailPenjualan.find(
@@ -2480,13 +2585,16 @@ export async function processReturn(returnData: {
           if (existingDetail) {
             // Update existing product quantity and subtotal
             const newQuantity = existingDetail.kuantitas + item.kuantitas;
-            const newSubtotal = newQuantity * product.harga;
+            const newSubtotal = Math.round(newQuantity * effectivePrice);
             
             await tx.detailPenjualan.update({
               where: { detailId: existingDetail.detailId },
               data: {
                 kuantitas: newQuantity,
-                subtotal: newSubtotal
+                subtotal: newSubtotal,
+                promotionTitle: promotionTitle,
+                discountPercentage: discountPercentage,
+                discountAmount: discountAmount
               }
             });
           } else {
@@ -2496,15 +2604,21 @@ export async function processReturn(returnData: {
                 penjualanId,
                 produkId: item.produkId,
                 kuantitas: item.kuantitas,
-                subtotal: item.kuantitas * product.harga
+                subtotal: Math.round(item.kuantitas * effectivePrice),
+                promotionTitle: promotionTitle,
+                discountPercentage: discountPercentage,
+                discountAmount: discountAmount
               }
             });
           }
         }
       }
       
-      // 1. Create return record (stored in Refund model)
-      await tx.refund.create({
+      // Store detailed return history as JSON in the refund record
+      const returnHistoryJSON = JSON.stringify(returnHistory);
+      
+      // Create return record (stored in Refund model)
+      const refund = await tx.refund.create({
         data: {
           penjualanId,
           userId,
@@ -2515,10 +2629,12 @@ export async function processReturn(returnData: {
               kuantitas: item.kuantitas,
             })),
           },
+          // Add new column to store detailed return history
+          returnHistoryData: returnHistoryJSON,
         },
       });
       
-      // 2. Update stock for returned products
+      // Update stock for returned products
       for (const item of returnedItems) {
         await tx.produk.update({
           where: { produkId: item.produkId },
@@ -2526,7 +2642,7 @@ export async function processReturn(returnData: {
         });
       }
       
-      // 3. Update stock for replacement products
+      // Update stock for replacement products
       for (const item of replacementItems) {
         await tx.produk.update({
           where: { produkId: item.produkId },
@@ -2534,10 +2650,10 @@ export async function processReturn(returnData: {
         });
       }
       
-      // 4. Calculate difference between replacement total and return total
+      // Calculate difference between replacement total and return total
       const difference = totalReplacement - totalReturn;
       
-      // 5. Calculate net changes for modal and profit
+      // Calculate net changes for modal and profit
       const netModalChange = replacementModalTotal - returnedModalTotal;
       const netProfitChange = (totalReplacement - replacementModalTotal) - (totalReturn - returnedModalTotal);
       
@@ -2546,20 +2662,24 @@ export async function processReturn(returnData: {
       const currentTotalModal = originalTransaction.total_modal || 0;
       const currentKeuntungan = originalTransaction.keuntungan || 0;
       
-      // 6. Update original transaction with return information, including modal and profit adjustments
+      // Calculate updated diskonPoin after removing returned items' proportion
+      const updatedDiskonPoin = pointsDiscount - returnedPointsDiscount;
+      
+      // Update original transaction with return information, including modal and profit adjustments
       await tx.penjualan.update({
         where: { penjualanId },
         data: {
           total_harga: currentTotalHarga + difference,
           total_modal: currentTotalModal + netModalChange,
           keuntungan: currentKeuntungan + netProfitChange,
+          diskonPoin: updatedDiskonPoin > 0 ? updatedDiskonPoin : 0,
           uangMasuk: additionalPayment > 0 ? 
             (originalTransaction.uangMasuk || 0) + additionalPayment : 
             undefined,
         },
       });
       
-      // 7. If there's additional payment and separate transaction is needed
+      // If there's additional payment and separate transaction is needed
       if (additionalPayment > 0 && replacementItems.length > 0 && difference > 0) {
         // Calculate modal and profit for the new transaction
         const newTransactionModal = replacementItems.reduce((total, item) => {
@@ -2579,14 +2699,27 @@ export async function processReturn(returnData: {
             total_modal: newTransactionModal,
             keuntungan: newTransactionProfit,
             uangMasuk: additionalPayment,
-            pelangganId: null,
-            guestId: null,
+            pelangganId: originalTransaction.pelangganId,
+            guestId: originalTransaction.guestId,
             detailPenjualan: {
-              create: replacementItems.map((item) => ({
-                produkId: item.produkId,
-                kuantitas: item.kuantitas,
-                subtotal: Math.round(item.harga * item.kuantitas),
-              })),
+              create: replacementItems.map((item) => {
+                // Calculate effective price with discount
+                let effectivePrice = item.harga;
+                if (item.discountPercentage) {
+                  effectivePrice = Math.round(effectivePrice * (1 - (item.discountPercentage / 100)));
+                } else if (item.discountAmount) {
+                  effectivePrice = Math.round(effectivePrice - item.discountAmount);
+                }
+                
+                return {
+                  produkId: item.produkId,
+                  kuantitas: item.kuantitas,
+                  subtotal: Math.round(item.kuantitas * effectivePrice),
+                  promotionTitle: item.promotionTitle,
+                  discountPercentage: item.discountPercentage,
+                  discountAmount: item.discountAmount
+                };
+              }),
             },
           },
         });
@@ -2596,6 +2729,8 @@ export async function processReturn(returnData: {
         status: "Success",
         message: "Return processed successfully",
         additionalPaymentProcessed: additionalPayment > 0,
+        refundId: refund.refundId,
+        returnHistory: returnHistory
       };
     });
   } catch (error) {
@@ -2788,9 +2923,7 @@ export async function updatePromotion(promotionId: number, input: CreatePromotio
       const productsToAdd = productIds 
         ? productIds.filter(id => !currentProductIds.includes(id)) 
         : [];
-        
-      // Identify products to remove (products that were in the current list but not in the new list)
-      const productsToRemove = currentProductIds.filter(id => !productIds?.includes(id));
+      
       
       // VALIDATION: Check if products to be added already have active promotions
       if (productsToAdd.length > 0) {
@@ -3041,7 +3174,7 @@ export async function getProductsForPromotions(promotionIdToEdit = null) {
             kategori: produk.kategori,
             hasActivePromotion: false, // Not important since it's already in this promotion
             activePromotions: [{
-              promotionId: parseInt(promotionIdToEdit),
+              promotionId: promotionIdToEdit !== null ? parseInt(promotionIdToEdit) : -1,
               title: promotionBeingEdited.title,
               endDate: promotionBeingEdited.endDate
             }]
@@ -3495,39 +3628,62 @@ export async function getPetugasById(id: number) {
 }
 
 
-// Function to check for potential quantity-based promotions
-export async function getActivePromotions(productIds: number) {
-  const currentDate = new Date();
-  
+export async function getActivePromotions() {
   try {
-    const promotions = await prisma.promotionProduct.findMany({
+    const currentDate = new Date();
+    
+    // First, get all active promotions
+    const activePromotions = await prisma.promotion.findMany({
       where: {
-        produkId: { in: [productIds] },
-        promotion: {
-          type: 'QUANTITY_BASED',
-          startDate: { lte: currentDate },
-          endDate: { gte: currentDate }
-        },
-        // Check if there's an activeUntil date and it's in the future
-        OR: [
-          { activeUntil: null },
-          { activeUntil: { gte: currentDate } }
-        ]
+        startDate: { lte: currentDate },
+        endDate: { gte: currentDate }
       },
       include: {
-        promotion: true,
-        produk: {
-          select: {
-            produkId: true,
-            nama: true
+        promotionProducts: {
+          include: {
+            produk: true
           }
         }
       }
     });
     
-    return promotions;
+    // Format the data for frontend use
+    return activePromotions.map(promotion => ({
+      promotionId: promotion.promotionId,
+      title: promotion.title,
+      description: promotion.description,
+      discountPercentage: promotion.discountPercentage,
+      discountAmount: promotion.discountAmount,
+      produkIds: promotion.promotionProducts.map(pp => pp.produkId)
+    }));
   } catch (error) {
-    console.error("Error fetching promotions:", error);
-    return [];
+    console.error("Error fetching active promotions:", error);
+    throw error;
   }
 }
+
+export async function searchProducts(query: string) {
+  try {
+    const products = await prisma.produk.findMany({
+      where: {
+        AND: [
+          { isDeleted: false },
+          { stok: { gt: 0 } },
+          {
+            OR: [
+              { nama: { contains: query, mode: 'insensitive' } },
+              // Add additional search fields if needed
+            ]
+          }
+        ]
+      },
+      take: 10, // Limit results
+    });
+    
+    return products;
+  } catch (error) {
+    console.error("Error searching products:", error);
+    throw error;
+  }
+}
+
