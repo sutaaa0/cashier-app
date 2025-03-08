@@ -8,7 +8,7 @@ import { ReplacementItems } from "./ReplacementItems"
 import { RefundSummary } from "./RefundSummary"
 import { RefundReceiptModal } from "./RefundReceiptModal"
 import { toast } from "@/hooks/use-toast"
-import { processReturn, getTransactionDetails } from "@/server/actions"
+import { processReturn, getTransactionDetails, getActivePromotions } from "@/server/actions"
 
 interface TransactionDetail {
   produkId: number;
@@ -16,8 +16,14 @@ interface TransactionDetail {
     nama: string;
     harga: number;
     image: string;
+    hargaModal: number;
   };
   kuantitas: number;
+  subtotal: number;
+  promotionId?: number;
+  promotionTitle?: string;
+  discountPercentage?: number;
+  discountAmount?: number;
 }
 
 interface TransactionDetailsType {
@@ -27,11 +33,13 @@ interface TransactionDetailsType {
   total_harga: number;
   uangMasuk: number;
   kembalian: number;
+  diskonPoin?: number;
   user?: {
     username: string;
   };
   pelanggan?: {
     nama: string;
+    points?: number;
   };
 }
 
@@ -39,28 +47,46 @@ interface ReturnedItem {
   produkId: number;
   nama: string;
   kuantitas: number;
-  harga: number;
+  harga: number; // Original price
+  effectivePrice: number; // Price after discounts
   image: string;
   maxKuantitas: number;
+  promotionTitle?: string;
+  discountPercentage?: number;
+  discountAmount?: number;
+}
+
+interface Promotion {
+  promotionId: number;
+  title: string;
+  discountPercentage?: number;
+  discountAmount?: number;
+  produkIds: number[];
 }
 
 interface ReplacementItem {
   produkId: number;
   nama: string;
   kuantitas: number;
-  harga: number;
+  harga: number; // Original price
+  effectivePrice: number; // Price after discounts
   image: string;
+  promotionTitle?: string;
+  discountPercentage?: number;
+  discountAmount?: number;
 }
 
 interface RefundDetails {
   transactionDetails: {
     penjualanId: number;
     tanggalPenjualan: string;
+    diskonPoin?: number;
     user?: {
       username: string;
     };
     pelanggan?: {
       nama: string;
+      points?: number;
     };
   };
   returnedItems: ReturnedItem[];
@@ -68,6 +94,7 @@ interface RefundDetails {
   totalReturn: number;
   totalReplacement: number;
   additionalPayment: number;
+  returnHistory?: any[];
 }
 
 export function ReturnsPage() {
@@ -76,6 +103,7 @@ export function ReturnsPage() {
   const [transactionDetails, setTransactionDetails] = useState<TransactionDetailsType | null>(null)
   const [returnedItems, setReturnedItems] = useState<ReturnedItem[]>([])
   const [replacementItems, setReplacementItems] = useState<ReplacementItem[]>([])
+  const [activePromotions, setActivePromotions] = useState<Promotion[]>([])
   const [totalReturn, setTotalReturn] = useState(0)
   const [totalReplacement, setTotalReplacement] = useState(0)
   const [additionalPayment, setAdditionalPayment] = useState(0)
@@ -94,6 +122,11 @@ export function ReturnsPage() {
         })
         return
       }
+      
+      // Also fetch active promotions for replacement items
+      const promotions = await getActivePromotions()
+      setActivePromotions(promotions || [])
+      
       setTransactionDetails({
         penjualanId: details.penjualanId,
         tanggalPenjualan: details.tanggalPenjualan.toString(),
@@ -101,18 +134,38 @@ export function ReturnsPage() {
         total_harga: details.total_harga,
         uangMasuk: details.uangMasuk ?? 0,
         kembalian: details.kembalian ?? 0,
+        diskonPoin: details.diskonPoin ?? 0,
         user: { username: details.user.username },
-        pelanggan: details.pelanggan ? { nama: details.pelanggan.nama } : undefined
+        pelanggan: details.pelanggan ? { 
+          nama: details.pelanggan.nama,
+          points: details.pelanggan.points 
+        } : undefined
       })
+      
+      // Calculate effective price for each item based on discounts
       setReturnedItems(
-        details.detailPenjualan.map((item: TransactionDetail) => ({
-          produkId: item.produkId,
-          nama: item.produk.nama,
-          kuantitas: 0,
-          harga: item.produk.harga,
-          image: item.produk.image,
-          maxKuantitas: item.kuantitas,
-        })),
+        details.detailPenjualan.map((item: TransactionDetail) => {
+          // Calculate effective price after discounts
+          let effectivePrice = item.produk.harga
+          if (item.discountPercentage) {
+            effectivePrice = Math.round(effectivePrice * (1 - (item.discountPercentage / 100)))
+          } else if (item.discountAmount) {
+            effectivePrice = Math.round(effectivePrice - (item.discountAmount || 0))
+          }
+          
+          return {
+            produkId: item.produkId,
+            nama: item.produk.nama,
+            kuantitas: 0,
+            harga: item.produk.harga, // Original price
+            effectivePrice: effectivePrice, // Price after discounts
+            image: item.produk.image,
+            maxKuantitas: item.kuantitas,
+            promotionTitle: item.promotionTitle,
+            discountPercentage: item.discountPercentage,
+            discountAmount: item.discountAmount,
+          }
+        }),
       )
     } catch (error) {
       console.error("Error fetching transaction details:", error)
@@ -153,11 +206,33 @@ export function ReturnsPage() {
 
     setIsLoading(true)
     try {
-      await processReturn({
+      // Format returned items with discount information
+      const returnItems = returnedItems
+        .filter((item) => item.kuantitas > 0)
+        .map(item => ({
+          produkId: item.produkId,
+          kuantitas: item.kuantitas,
+          harga: item.effectivePrice, // Use the effective (discounted) price
+          discountPercentage: item.discountPercentage,
+          discountAmount: item.discountAmount,
+          promotionTitle: item.promotionTitle
+        }))
+        
+      // Format replacement items with discount information
+      const replaceItems = replacementItems.map(item => ({
+        produkId: item.produkId,
+        kuantitas: item.kuantitas,
+        harga: item.effectivePrice, // Use the effective (discounted) price
+        discountPercentage: item.discountPercentage,
+        discountAmount: item.discountAmount,
+        promotionTitle: item.promotionTitle
+      }))
+      
+      const result = await processReturn({
         penjualanId: Number(penjualanId),
         userId: 1, // Replace with actual user ID
-        returnedItems: returnedItems.filter((item) => item.kuantitas > 0),
-        replacementItems,
+        returnedItems: returnItems,
+        replacementItems: replaceItems,
         totalReturn,
         totalReplacement,
         additionalPayment,
@@ -169,6 +244,7 @@ export function ReturnsPage() {
         transactionDetails: {
           penjualanId: transactionDetails.penjualanId,
           tanggalPenjualan: transactionDetails.tanggalPenjualan,
+          diskonPoin: transactionDetails.diskonPoin,
           user: transactionDetails.user,
           pelanggan: transactionDetails.pelanggan
         },
@@ -177,6 +253,7 @@ export function ReturnsPage() {
         totalReturn,
         totalReplacement,
         additionalPayment,
+        returnHistory: result.returnHistory
       })
 
       setShowRefundReceipt(true)
@@ -215,11 +292,16 @@ export function ReturnsPage() {
           />
         </div>
         <div className="space-y-8">
-          <ReturnedItems items={returnedItems} setItems={setReturnedItems} setTotalReturn={setTotalReturn} />
+          <ReturnedItems 
+            items={returnedItems} 
+            setItems={setReturnedItems} 
+            setTotalReturn={setTotalReturn} 
+          />
           <ReplacementItems
             items={replacementItems}
             setItems={setReplacementItems}
             setTotalReplacement={setTotalReplacement}
+            activePromotions={activePromotions}
           />
         </div>
       </div>
@@ -229,6 +311,7 @@ export function ReturnsPage() {
         totalReplacement={totalReplacement}
         additionalPayment={additionalPayment}
         setAdditionalPayment={setAdditionalPayment}
+        diskonPoin={transactionDetails?.diskonPoin}
       />
 
       <div className="mt-8 flex justify-end">
