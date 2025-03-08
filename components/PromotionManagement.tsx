@@ -10,7 +10,7 @@ import { AddPromotionModal } from "./AddPromotionModal";
 import { EditPromotionModal } from "./EditPromotionModal";
 import { PromotionCard } from "./PromotionCard";
 import { useQuery } from "@tanstack/react-query";
-import { Promotion, Product, ServerResponse } from "@/types/promotion";
+import { Promotion, ServerResponse } from "@/types/promotion";
 
 export function PromotionManagement(): React.ReactElement {
   // State for modals with proper types
@@ -20,19 +20,7 @@ export function PromotionManagement(): React.ReactElement {
   const [isEditModalOpen, setIsEditModalOpen] = useState<boolean>(false);
   const [isPending, startTransition] = useTransition();
 
-  // Query for products with types
-  const { 
-    data: products = [] as Product[], 
-    isLoading: isProductsLoading 
-  } = useQuery<Product[], Error, Product[]>({
-    queryKey: ['products'],
-    queryFn: async () => {
-      const res = await getProductsForPromotions() as ServerResponse<Product[]>;
-      return (res.data || []) as Product[];
-    }
-  });
-
-  // Query for promotions with types
+  // Query for promotions with types - fetching this first to get the current state
   const { 
     data: promotionsData = [] as Promotion[], 
     isLoading: isPromotionsLoading,
@@ -42,9 +30,10 @@ export function PromotionManagement(): React.ReactElement {
     queryFn: async () => {
       const res = await getPromotions() as ServerResponse<Promotion[]>;
       if (res.data) {
+        // Process promotion data to ensure products are properly formatted
         return res.data.map((promo) => ({
           ...promo,
-          products: promo.promotionProducts.map((pp: {produk: Product}) => pp.produk),
+          products: promo.promotionProducts?.map((pp: any) => pp.produk) || [],
         })) as Promotion[];
       }
       return [] as Promotion[];
@@ -53,18 +42,51 @@ export function PromotionManagement(): React.ReactElement {
     refetchInterval: 60 * 1000 // polling every minute
   });
 
+  // Query for products with proper handling for the selected promotion
+  const { 
+    data: productsData,
+    refetch: refetchProducts,
+    isLoading: isProductsLoading 
+  } = useQuery({
+    queryKey: ['products', selectedPromotion?.promotionId],
+    queryFn: async () => {
+      // If we're editing, include the promotion ID to get the right products
+      const res = await getProductsForPromotions(
+        selectedPromotion ? selectedPromotion.promotionId : null
+      );
+      
+      console.log("Products fetched for promotion management:", res);
+      
+      if (res.status === "success") {
+        return {
+          products: res.data || [],
+          editInfo: res.editInfo || null
+        };
+      }
+      return { products: [], editInfo: null };
+    },
+    enabled: isEditModalOpen || isAddModalOpen // Only fetch when a modal is open
+  });
+
   const isLoading = isProductsLoading || isPromotionsLoading;
+  const products = productsData?.products || [];
 
   // Handle opening add modal
   const handleAddPromotion = (): void => {
+    setSelectedPromotion(null);
     setIsAddModalOpen(true);
+    // Refetch products to get the latest available ones
+    refetchProducts();
   };
 
   // Handle opening edit modal
   const handleEditPromotion = useCallback((promotion: Promotion): void => {
     setSelectedPromotion(promotion);
-    setIsEditModalOpen(true);
-  }, []);
+    // Refetch products specifically for this promotion before opening the modal
+    refetchProducts().then(() => {
+      setIsEditModalOpen(true);
+    });
+  }, [refetchProducts]);
 
   // Handle delete click
   const handleDeleteClick = useCallback((promotion: Promotion): void => {
