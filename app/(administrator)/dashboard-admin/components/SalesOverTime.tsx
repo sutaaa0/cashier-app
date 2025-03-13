@@ -2,41 +2,13 @@
 
 import React, { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import {
-  ArrowUp,
-  ArrowDown,
-  DollarSign,
-  TrendingUp,
-  Sparkles,
-  LineChart as LineChartIcon,
-  Calendar,
-} from "lucide-react";
-import {
-  ResponsiveContainer,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Area,
-  AreaChart,
-} from "recharts";
-import { 
-  getProfitData,  
-} from "@/server/actions";
+import { ArrowUp, ArrowDown, DollarSign, TrendingUp, Sparkles, LineChart as LineChartIcon, Calendar } from "lucide-react";
+import { ResponsiveContainer, XAxis, YAxis, CartesianGrid, Tooltip, Area, AreaChart } from "recharts";
+import { getProfitData } from "@/server/actions";
 import type { ProfitData, TimeRange } from "@/server/actions";
 import SalesOverTimeLoading from "./SalesOverTimeLoading";
 
-const StatCard = ({
-  title,
-  value,
-  increase,
-  icon: Icon,
-}: {
-  title: string;
-  value: string;
-  increase: number;
-  icon: React.FC<React.SVGProps<SVGSVGElement>>;
-}) => (
+const StatCard = ({ title, value, increase, icon: Icon }: { title: string; value: string; increase: number; icon: React.FC<React.SVGProps<SVGSVGElement>> }) => (
   <div className="relative group">
     <div className="absolute -inset-1 bg-gradient-to-r from-pink-600 to-purple-600 rounded-lg blur opacity-25 group-hover:opacity-100 transition duration-1000 group-hover:duration-200" />
     <div className="relative bg-white border-4 border-black p-4 transform hover:-translate-y-1 transition-all duration-300">
@@ -45,20 +17,12 @@ const StatCard = ({
           <h3 className="text-sm font-black uppercase">{title}</h3>
           <p className="text-2xl font-bold mt-1">{value}</p>
         </div>
-        <div
-          className={`p-2 ${
-            increase >= 0 ? "bg-green-300" : "bg-red-300"
-          } border-2 border-black transform rotate-3 hover:rotate-6 transition-transform`}
-        >
+        <div className={`p-2 ${increase >= 0 ? "bg-green-300" : "bg-red-300"} border-2 border-black transform rotate-3 hover:rotate-6 transition-transform`}>
           <Icon className="w-6 h-6" />
         </div>
       </div>
       <div className="mt-2 flex items-center">
-        {increase >= 0 ? (
-          <ArrowUp className="w-4 h-4 text-green-600" />
-        ) : (
-          <ArrowDown className="w-4 h-4 text-red-600" />
-        )}
+        {increase >= 0 ? <ArrowUp className="w-4 h-4 text-green-600" /> : <ArrowDown className="w-4 h-4 text-red-600" />}
         <span className="ml-1 font-bold">{Math.abs(increase).toFixed(1)}%</span>
       </div>
       <div className="absolute inset-0 border-2 border-black transform translate-x-1 translate-y-1 -z-10" />
@@ -66,15 +30,7 @@ const StatCard = ({
   </div>
 );
 
-const CustomTooltip = ({
-  active,
-  payload,
-  label,
-}: {
-  active?: boolean;
-  payload?: { name: string; value: number }[];
-  label?: string;
-}) => {
+const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?: { name: string; value: number }[]; label?: string }) => {
   if (active && payload && payload.length) {
     return (
       <div className="relative group">
@@ -82,18 +38,11 @@ const CustomTooltip = ({
         <div className="relative bg-white border-4 border-black p-4 transform -rotate-2 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]">
           <div className="flex items-center gap-2 mb-2">
             <Sparkles className="text-yellow-400" size={20} />
-            <h3 className="font-black text-xl">
-              {label || ""}
-            </h3>
+            <h3 className="font-black text-xl">{label || ""}</h3>
           </div>
           {payload.map((entry, index) => (
-            <div
-              key={index}
-              className="font-mono bg-black text-white p-2 transform rotate-1 mt-2"
-            >
-              {entry.name === "sales" ? "Penjualan" : 
-               entry.name === "profit" ? "Keuntungan" : 
-               entry.name === "traffic" ? "Transaksi" : entry.name}:{" "}
+            <div key={index} className="font-mono bg-black text-white p-2 transform rotate-1 mt-2">
+              {entry.name === "sales" ? "Sales" : entry.name === "profit" ? "Profit" : entry.name === "traffic" ? "Traffic" : entry.name}:{" "}
               {["sales", "profit"].includes(entry.name)
                 ? new Intl.NumberFormat("id-ID", {
                     style: "currency",
@@ -109,18 +58,12 @@ const CustomTooltip = ({
   return null;
 };
 
-const TimeRangeSelector = ({
-  activeRange,
-  onChange,
-}: {
-  activeRange: TimeRange;
-  onChange: (range: TimeRange) => void;
-}) => {
+const TimeRangeSelector = ({ activeRange, onChange }: { activeRange: TimeRange; onChange: (range: TimeRange) => void }) => {
   const ranges: { label: string; value: TimeRange }[] = [
-    { label: "Harian", value: "daily" },
-    { label: "Mingguan", value: "weekly" },
-    { label: "Bulanan", value: "monthly" },
-    { label: "Tahunan", value: "yearly" },
+    { label: "Daily", value: "daily" },
+    { label: "Weekly", value: "weekly" },
+    { label: "Monthly", value: "monthly" },
+    { label: "Yearly", value: "yearly" },
   ];
 
   return (
@@ -132,19 +75,11 @@ const TimeRangeSelector = ({
           className={`
             relative px-4 py-2 border-2 border-black font-bold 
             transform transition-all duration-300 hover:-translate-y-1
-            ${
-              activeRange === range.value
-                ? "bg-black text-white"
-                : "bg-white text-black"
-            }
+            ${activeRange === range.value ? "bg-black text-white" : "bg-white text-black"}
           `}
         >
           {range.label}
-          <div
-            className={`absolute inset-0 border-2 border-black transform translate-x-1 translate-y-1 -z-10 ${
-              activeRange === range.value ? "bg-pink-400" : "bg-yellow-300"
-            }`}
-          />
+          <div className={`absolute inset-0 border-2 border-black transform translate-x-1 translate-y-1 -z-10 ${activeRange === range.value ? "bg-pink-400" : "bg-yellow-300"}`} />
         </button>
       ))}
     </div>
@@ -157,34 +92,63 @@ export default function ProfitAnalytics() {
 
   // Fetch data using TanStack Query
   const { data, isLoading } = useQuery({
-    queryKey: ['profit-data', timeRange],
+    queryKey: ["profit-data", timeRange],
     queryFn: () => getProfitData(timeRange),
     refetchInterval: 3000, // Refresh data every 3 seconds
     staleTime: 2000,
   });
 
+  console.log("data dari server", data)
+
   // Set default empty data array if data is not available yet
   const profitData: ProfitData[] = data || [];
 
-  // Calculate current period stats (latest item in the array)
-  const currentPeriodStats = profitData.length > 0 
-    ? {
-        sales: profitData[profitData.length - 1].sales,
-        profit: profitData[profitData.length - 1].profit,
-        transactions: profitData[profitData.length - 1].transactions
-      }
-    : { sales: 0, profit: 0, transactions: 0 };
+  /**
+ * Menghitung statistik untuk periode saat ini (data terbaru).
+ * Jika terdapat data dalam profitData, ambil elemen terakhir (data terbaru)
+ * untuk mendapatkan nilai sales, profit, dan transactions.
+ * Jika tidak ada data, kembalikan nilai default (0) untuk semua metrik.
+ */
 
-  // Calculate previous period stats (second to last item in the array)
-  const previousPeriodStats = profitData.length > 1
-    ? {
-        sales: profitData[profitData.length - 2].sales,
-        profit: profitData[profitData.length - 2].profit,
-        transactions: profitData[profitData.length - 2].transactions
-      }
-    : { sales: 0, profit: 0, transactions: 0 };
+  const currentPeriodStats =
+    profitData.length > 0
+      ? {
+          sales: profitData[profitData.length - 1].sales,
+          profit: profitData[profitData.length - 1].profit,
+          transactions: profitData[profitData.length - 1].transactions,
+        }
+      : { sales: 0, profit: 0, transactions: 0 };
 
-  // Function to calculate percentage increase/decrease
+/**
+ * Menghitung statistik untuk periode sebelumnya.
+ * Jika profitData memiliki lebih dari satu data, ambil elemen kedua dari terakhir
+ * yang merepresentasikan data periode sebelumnya.
+ * Jika tidak ada data yang cukup, kembalikan nilai default (0) untuk semua metrik.
+ */
+
+  const previousPeriodStats =
+    profitData.length > 1
+      ? {
+          sales: profitData[profitData.length - 2].sales,
+          profit: profitData[profitData.length - 2].profit,
+          transactions: profitData[profitData.length - 2].transactions,
+        }
+      : { sales: 0, profit: 0, transactions: 0 };
+
+  /**
+ * Fungsi untuk menghitung persentase kenaikan atau penurunan dari dua nilai.
+ * @param {number} current - Nilai periode saat ini.
+ * @param {number} previous - Nilai periode sebelumnya.
+ * @returns {number} - Persentase perubahan antara nilai current dan previous.
+ *
+ * Penjelasan:
+ * - Jika nilai previous adalah 0:
+ *   - Jika current juga 0, maka tidak ada perubahan (0%).
+ *   - Jika current tidak 0, dianggap terjadi peningkatan 100% untuk menghindari pembagian dengan nol.
+ * - Jika previous tidak 0, hitung persentase perubahan menggunakan rumus:
+ *   ((current - previous) / previous) * 100.
+ */
+
   const calculateIncrease = (current: number, previous: number) => {
     if (previous === 0) return current === 0 ? 0 : 100;
     return ((current - previous) / previous) * 100;
@@ -204,15 +168,15 @@ export default function ProfitAnalytics() {
   const getTimeRangeLabel = () => {
     switch (timeRange) {
       case "daily":
-        return "Harian";
+        return "Daily";
       case "weekly":
-        return "Mingguan";
+        return "Weekly";
       case "monthly":
-        return "Bulanan";
+        return "Monthly";
       case "yearly":
-        return "Tahunan";
+        return "Yearly";
       default:
-        return "Harian";
+        return "Daily";
     }
   };
 
@@ -237,16 +201,16 @@ export default function ProfitAnalytics() {
     if (profitData.length === 0) return "";
     const latestDate = profitData[profitData.length - 1]?.date;
     if (!latestDate) return "";
-    
+
     switch (timeRange) {
       case "daily":
-        return `Hari Ini (${formatDate(latestDate)})`;
+        return `Today (${formatDate(latestDate)})`;
       case "weekly":
-        return `Minggu Ini (${formatDate(latestDate)})`;
+        return `This Week (${formatDate(latestDate)})`;
       case "monthly":
-        return `Bulan Ini (${formatDate(latestDate)})`;
+        return `This Month (${formatDate(latestDate)})`;
       case "yearly":
-        return `Tahun Ini (${formatDate(latestDate)})`;
+        return `This Year (${formatDate(latestDate)})`;
       default:
         return formatDate(latestDate);
     }
@@ -278,9 +242,7 @@ export default function ProfitAnalytics() {
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div className="transform -rotate-2 bg-gradient-to-r from-yellow-300 to-yellow-400 border-4 border-black p-3 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-            <h2 className="text-2xl font-black tracking-tighter">
-              ANALISIS KEUNTUNGAN
-            </h2>
+            <h2 className="text-2xl font-black tracking-tighter">PROFIT ANALYSIS</h2>
           </div>
           <div className="bg-black text-white p-3 transform rotate-3 hover:rotate-6 transition-transform">
             <LineChartIcon size={28} />
@@ -294,24 +256,9 @@ export default function ProfitAnalytics() {
           {/* Stats Grid */}
           {profitData.length > 0 && (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-              <StatCard
-                title={`Penjualan ${getTimePeriodLabel()}`}
-                value={formatCurrency(currentPeriodStats.sales)}
-                increase={calculateIncrease(currentPeriodStats.sales, previousPeriodStats.sales)}
-                icon={DollarSign}
-              />
-              <StatCard
-                title={`Keuntungan ${getTimePeriodLabel()}`}
-                value={formatCurrency(currentPeriodStats.profit)}
-                increase={calculateIncrease(currentPeriodStats.profit, previousPeriodStats.profit)}
-                icon={Sparkles}
-              />
-              <StatCard
-                title={`Transaksi ${getTimePeriodLabel()}`}
-                value={currentPeriodStats.transactions.toString()}
-                increase={calculateIncrease(currentPeriodStats.transactions, previousPeriodStats.transactions)}
-                icon={TrendingUp}
-              />
+              <StatCard title={`Sales ${getTimePeriodLabel()}`} value={formatCurrency(currentPeriodStats.sales)} increase={calculateIncrease(currentPeriodStats.sales, previousPeriodStats.sales)} icon={DollarSign} />
+              <StatCard title={`Profit ${getTimePeriodLabel()}`} value={formatCurrency(currentPeriodStats.profit)} increase={calculateIncrease(currentPeriodStats.profit, previousPeriodStats.profit)} icon={Sparkles} />
+              <StatCard title={`Transactions ${getTimePeriodLabel()}`} value={currentPeriodStats.transactions.toString()} increase={calculateIncrease(currentPeriodStats.transactions, previousPeriodStats.transactions)} icon={TrendingUp} />
             </div>
           )}
 
@@ -321,7 +268,7 @@ export default function ProfitAnalytics() {
               <h3 className="font-black text-lg transform -rotate-1 bg-white border-2 border-black p-2 inline-block">
                 <span className="inline-flex items-center gap-2">
                   <Calendar className="w-5 h-5" />
-                  Laporan {getTimeRangeLabel()}
+                  Report  {getTimeRangeLabel()}
                 </span>
               </h3>
             </div>
@@ -340,32 +287,16 @@ export default function ProfitAnalytics() {
                     <stop offset="5%" stopColor="#FF6B6B" stopOpacity={0.8} />
                     <stop offset="95%" stopColor="#FF6B6B" stopOpacity={0.1} />
                   </linearGradient>
-                  <linearGradient
-                    id="profitGradient"
-                    x1="0"
-                    y1="0"
-                    x2="0"
-                    y2="1"
-                  >
+                  <linearGradient id="profitGradient" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="#4ECDC4" stopOpacity={0.8} />
                     <stop offset="95%" stopColor="#4ECDC4" stopOpacity={0.1} />
                   </linearGradient>
-                  <linearGradient
-                    id="transactionsGradient"
-                    x1="0"
-                    y1="0"
-                    x2="0"
-                    y2="1"
-                  >
+                  <linearGradient id="transactionsGradient" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="#FFD166" stopOpacity={0.8} />
                     <stop offset="95%" stopColor="#FFD166" stopOpacity={0.1} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid
-                  strokeDasharray="3 3"
-                  stroke="#000"
-                  strokeWidth={2}
-                />
+                <CartesianGrid strokeDasharray="3 3" stroke="#000" strokeWidth={2} />
                 <XAxis
                   dataKey="date"
                   stroke="#000"
@@ -455,57 +386,42 @@ export default function ProfitAnalytics() {
           {profitData.length > 0 && (
             <div className="mt-6">
               <div className="mb-4 transform -rotate-1 bg-white border-4 border-black p-3 inline-block shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-                <h3 className="font-black text-xl">RINGKASAN STATISTIK</h3>
+                <h3 className="font-black text-xl">SUMMARY STATISTICS</h3>
               </div>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                 <div className="bg-white border-4 border-black p-4">
-                  <h4 className="text-lg font-bold mb-2">Analisis Keuntungan</h4>
+                  <h4 className="text-lg font-bold mb-2">Profit Analysis</h4>
                   <ul className="space-y-2">
                     <li className="flex justify-between">
-                      <span>Total Penjualan:</span>
+                      <span>Total Sales:</span>
                       <span className="font-mono font-bold">{formatCurrency(profitData.reduce((sum, item) => sum + item.sales, 0))}</span>
                     </li>
                     <li className="flex justify-between">
-                      <span>Total Keuntungan:</span>
+                      <span>Total Profit:</span>
                       <span className="font-mono font-bold">{formatCurrency(profitData.reduce((sum, item) => sum + item.profit, 0))}</span>
                     </li>
                     <li className="flex justify-between">
-                      <span>Margin Keuntungan:</span>
-                      <span className="font-mono font-bold">
-                        {(
-                          profitData.reduce((sum, item) => sum + item.profit, 0) / 
-                          profitData.reduce((sum, item) => sum + item.sales, 0) * 100
-                        ).toFixed(2)}%
-                      </span>
+                      <span>Profit Margin:</span>
+                      <span className="font-mono font-bold">{((profitData.reduce((sum, item) => sum + item.profit, 0) / profitData.reduce((sum, item) => sum + item.sales, 0)) * 100).toFixed(2)}%</span>
                     </li>
                   </ul>
                 </div>
-                
+
                 <div className="bg-white border-4 border-black p-4">
-                  <h4 className="text-lg font-bold mb-2">Analisis Transaksi</h4>
+                  <h4 className="text-lg font-bold mb-2">Transaction Analysis</h4>
                   <ul className="space-y-2">
                     <li className="flex justify-between">
-                      <span>Total Transaksi:</span>
+                      <span>Total Transactions:</span>
                       <span className="font-mono font-bold">{profitData.reduce((sum, item) => sum + item.transactions, 0)}</span>
                     </li>
                     <li className="flex justify-between">
-                      <span>Rata-rata Nilai Transaksi:</span>
-                      <span className="font-mono font-bold">
-                        {formatCurrency(
-                          profitData.reduce((sum, item) => sum + item.sales, 0) / 
-                          profitData.reduce((sum, item) => sum + item.transactions, 0)
-                        )}
-                      </span>
+                      <span>Average Transaction Value:</span>
+                      <span className="font-mono font-bold">{formatCurrency(profitData.reduce((sum, item) => sum + item.sales, 0) / profitData.reduce((sum, item) => sum + item.transactions, 0))}</span>
                     </li>
                     <li className="flex justify-between">
-                      <span>Keuntungan per Transaksi:</span>
-                      <span className="font-mono font-bold">
-                        {formatCurrency(
-                          profitData.reduce((sum, item) => sum + item.profit, 0) / 
-                          profitData.reduce((sum, item) => sum + item.transactions, 0)
-                        )}
-                      </span>
+                      <span>Profit per Transaction:</span>
+                      <span className="font-mono font-bold">{formatCurrency(profitData.reduce((sum, item) => sum + item.profit, 0) / profitData.reduce((sum, item) => sum + item.transactions, 0))}</span>
                     </li>
                   </ul>
                 </div>
@@ -516,47 +432,30 @@ export default function ProfitAnalytics() {
           {/* Highlighted Data */}
           {profitData.length > 0 && (
             <div className="mt-6 grid grid-cols-3 gap-4">
-              {(["sales", "profit", "transactions"] as const).map(
-                (metric, index) => (
-                  <div
-                    key={`metric-${index}`}
-                    className={`
+              {(["sales", "profit", "transactions"] as const).map((metric, index) => (
+                <div
+                  key={`metric-${index}`}
+                  className={`
                       relative group/item border-3 border-black p-3
                       transform transition-all duration-300 hover:-translate-y-1
                       ${activeIndex === index ? "bg-black text-white" : "bg-white"}
                     `}
-                  >
-                    <div className="flex items-center gap-3">
-                      <div
-                        className="w-8 h-8 border-3 border-black transform rotate-45 transition-transform group-hover/item:rotate-0"
-                        style={{
-                          backgroundColor:
-                            index === 0
-                              ? "#FF6B6B"
-                              : index === 1
-                              ? "#4ECDC4"
-                              : "#FFD166",
-                        }}
-                      />
-                      <span className="font-bold text-lg capitalize">
-                        {metric === "sales"
-                          ? "Penjualan"
-                          : metric === "profit"
-                          ? "Keuntungan"
-                          : "Transaksi"}
-                      </span>
-                      <span className="ml-auto font-mono bg-white text-black px-2 py-1 border-2 border-black">
-                        {["sales", "profit"].includes(metric)
-                          ? formatCurrency(
-                              profitData[activeIndex]?.[metric] || 0
-                            )
-                          : profitData[activeIndex]?.[metric]}
-                      </span>
-                    </div>
-                    <div className="absolute inset-0 border-2 border-black transform translate-x-1 translate-y-1 -z-10" />
+                >
+                  <div className="flex items-center gap-3">
+                    <div
+                      className="w-8 h-8 border-3 border-black transform rotate-45 transition-transform group-hover/item:rotate-0"
+                      style={{
+                        backgroundColor: index === 0 ? "#FF6B6B" : index === 1 ? "#4ECDC4" : "#FFD166",
+                      }}
+                    />
+                    <span className="font-bold text-lg capitalize">{metric === "sales" ? "Sales" : metric === "profit" ? "Profit" : "Transactions"}</span>
+                    <span className="ml-auto font-mono bg-white text-black px-2 py-1 border-2 border-black">
+                      {["sales", "profit"].includes(metric) ? formatCurrency(profitData[activeIndex]?.[metric] || 0) : profitData[activeIndex]?.[metric]}
+                    </span>
                   </div>
-                )
-              )}
+                  <div className="absolute inset-0 border-2 border-black transform translate-x-1 translate-y-1 -z-10" />
+                </div>
+              ))}
             </div>
           )}
         </div>
