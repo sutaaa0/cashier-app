@@ -182,7 +182,7 @@ export function TransactionManagement() {
                       {new Date(transaction.tanggalPenjualan).toLocaleDateString()}
                     </span>
                     <span className="flex items-center text-sm font-bold">{formatRupiah(transaction.total_harga)}</span>
-                    {transaction.diskonPoin && transaction.diskonPoin > 0 && (
+                    {(transaction.diskonPoin ?? 0) > 0 && (
                       <span className="flex items-center text-sm text-green-600">
                         <CreditCard size={16} className="mr-1" />
                         Points: -{formatRupiah(transaction.diskonPoin)}
