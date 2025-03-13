@@ -7,7 +7,7 @@ import { DetailPenjualan, Pelanggan, Produk, Prisma } from "@prisma/client";
 import { CreateOrderDetail, CustomerTransactionData } from "@/types/types";
 import { revalidatePath } from "next/cache";
 import { v2 as cloudinary } from "cloudinary";
-import { startOfWeek, subWeeks, format, addDays } from "date-fns";
+import { startOfWeek, subWeeks, format, addDays, endOfWeek, endOfMonth, endOfYear, startOfYear, startOfMonth, subDays } from "date-fns";
 import { fromZonedTime, toZonedTime, formatInTimeZone } from "date-fns-tz";
 
 export type Penjualan = {
@@ -1235,6 +1235,30 @@ export interface ReportData {
   data: Record<string, unknown>[];
 }
 
+// New interface for profit reports
+export interface ProfitReportData {
+  id: number;
+  name: string;
+  period: string;
+  periodType: "weekly" | "monthly" | "yearly";
+  generatedDate: string;
+  totalAmount: number;
+  totalProfit: number;
+  profitMargin: number;
+  data: ProfitPeriodData[];
+}
+
+interface ProfitPeriodData {
+  periodDate: string;
+  periodLabel: string;
+  totalSales: number;
+  totalModal: number;
+  profit: number;
+  profitMargin: number;
+  totalOrders: number;
+}
+
+// Existing generateReport function
 export async function generateReport(type: string): Promise<ReportData> {
   const currentDate = new Date();
   const firstDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
@@ -1294,6 +1318,208 @@ export async function generateReport(type: string): Promise<ReportData> {
     generatedDate: new Date().toISOString(),
   };
 }
+
+// New function for generating profit reports
+export async function generateProfitReport(periodType: "weekly" | "monthly" | "yearly"): Promise<ProfitReportData> {
+  const currentDate = new Date();
+  let endDate: Date = new Date();
+  let periodFormat: string;
+  let reportName: string;
+  let periodLabel: string;
+  let periodSegments: ProfitPeriodData[] = [];
+
+  // Find the first transaction date
+  const firstTransaction = await prisma.penjualan.findFirst({
+    orderBy: {
+      tanggalPenjualan: 'asc'
+    }
+  });
+
+  // If no transactions exist, use current date minus one period as fallback
+  const firstTransactionDate = firstTransaction 
+    ? new Date(firstTransaction.tanggalPenjualan) 
+    : new Date(currentDate.setMonth(currentDate.getMonth() - 1));
+
+  // Configure date ranges and formats based on period type
+  switch (periodType) {
+    case "weekly": {
+      reportName = "Weekly Profit Report";
+      
+      // Calculate number of weeks between first transaction and now
+      const startDate = startOfWeek(firstTransactionDate);
+      const endDateWeek = endOfWeek(endDate);
+      
+      // Calculate the difference in weeks
+      const diffTime = Math.abs(endDateWeek.getTime() - startDate.getTime());
+      const diffWeeks = Math.ceil(diffTime / (7 * 24 * 60 * 60 * 1000)) + 1;
+      
+      periodLabel = `${format(startDate, "dd MMM yyyy")} - ${format(endDate, "dd MMM yyyy")}`;
+      
+      // Create segments for each week (limit to max 52 weeks/1 year to prevent too many segments)
+      const weeksToShow = Math.min(diffWeeks, 52);
+      
+      for (let i = 0; i < weeksToShow; i++) {
+        const weekEnd = new Date(endDateWeek);
+        weekEnd.setDate(weekEnd.getDate() - (7 * i));
+        const weekStart = startOfWeek(weekEnd);
+        
+        // Don't go earlier than the first transaction
+        if (weekStart < startDate) {
+          break;
+        }
+        
+        const weekData = await getProfitDataForRange(
+          weekStart,
+          i === 0 ? endDate : endOfWeek(weekEnd)
+        );
+        
+        // Skip weeks with no transactions
+        if (weekData.totalOrders === 0) {
+          continue;
+        }
+        
+        const weekLabel = `Week ${format(weekStart, "w")} (${format(weekStart, "dd MMM")}-${format(endOfWeek(weekEnd), "dd MMM")})`;
+        periodSegments.unshift({
+          ...weekData,
+          periodDate: weekStart.toISOString(),
+          periodLabel: weekLabel
+        });
+      }
+      break;
+    }
+    
+    case "monthly": {
+      reportName = "Monthly Profit Report";
+      
+      // Use the start of the month for the first transaction
+      const startDate = startOfMonth(firstTransactionDate);
+      
+      // Calculate number of months between first transaction and now
+      const monthDiff = 
+        (endDate.getFullYear() - startDate.getFullYear()) * 12 + 
+        (endDate.getMonth() - startDate.getMonth()) + 1;
+      
+      periodLabel = `${format(startDate, "MMM yyyy")} - ${format(endDate, "MMM yyyy")}`;
+      
+      // Create segments for each month (limit to max 36 months/3 years to prevent too many segments)
+      const monthsToShow = Math.min(monthDiff, 36);
+      
+      for (let i = 0; i < monthsToShow; i++) {
+        const monthDate = new Date(endDate);
+        monthDate.setMonth(monthDate.getMonth() - i);
+        
+        const monthStart = startOfMonth(monthDate);
+        
+        // Don't go earlier than the first transaction month
+        if (monthStart < startDate) {
+          break;
+        }
+        
+        const monthEnd = i === 0 ? endDate : endOfMonth(monthDate);
+        
+        const monthData = await getProfitDataForRange(monthStart, monthEnd);
+        
+        // Skip months with no transactions
+        if (monthData.totalOrders === 0) {
+          continue;
+        }
+        
+        periodSegments.unshift({
+          ...monthData,
+          periodDate: monthStart.toISOString(),
+          periodLabel: format(monthStart, "MMMM yyyy")
+        });
+      }
+      break;
+    }
+    
+    case "yearly": {
+      reportName = "Annual Profit Report";
+      
+      // Use the start of the year for the first transaction
+      const startDate = startOfYear(firstTransactionDate);
+      
+      // Calculate number of years between first transaction and now
+      const yearDiff = endDate.getFullYear() - startDate.getFullYear() + 1;
+      
+      periodLabel = `${format(startDate, "yyyy")} - ${format(endDate, "yyyy")}`;
+      
+      // Create segments for each year
+      for (let i = 0; i < yearDiff; i++) {
+        const yearDate = new Date(endDate);
+        yearDate.setFullYear(yearDate.getFullYear() - i);
+        
+        const yearStart = startOfYear(yearDate);
+        
+        // Don't go earlier than the first transaction year
+        if (yearStart < startDate) {
+          break;
+        }
+        
+        const yearEnd = i === 0 ? endDate : endOfYear(yearDate);
+        
+        const yearData = await getProfitDataForRange(yearStart, yearEnd);
+        
+        // Skip years with no transactions
+        if (yearData.totalOrders === 0) {
+          continue;
+        }
+        
+        periodSegments.unshift({
+          ...yearData,
+          periodDate: yearStart.toISOString(),
+          periodLabel: format(yearStart, "yyyy")
+        });
+      }
+      break;
+    }
+  }
+
+  // Calculate overall totals
+  const totalAmount = periodSegments.reduce((sum, segment) => sum + segment.totalSales, 0);
+  const totalProfit = periodSegments.reduce((sum, segment) => sum + segment.profit, 0);
+  const profitMargin = totalAmount > 0 ? totalProfit / totalAmount : 0;
+
+  return {
+    id: Date.now(),
+    name: reportName,
+    period: periodLabel,
+    periodType,
+    generatedDate: new Date().toISOString(),
+    totalAmount,
+    totalProfit,
+    profitMargin,
+    data: periodSegments,
+  };
+}
+
+// Helper function to get profit data for a date range
+async function getProfitDataForRange(startDate: Date, endDate: Date): Promise<Omit<ProfitPeriodData, "periodDate" | "periodLabel">> {
+  const sales = await prisma.penjualan.findMany({
+    where: {
+      tanggalPenjualan: {
+        gte: startDate,
+        lte: endDate
+      }
+    }
+  });
+
+  const totalSales = sales.reduce((sum, sale) => sum + sale.total_harga, 0);
+  const totalModal = sales.reduce((sum, sale) => sum + (sale.total_modal || 0), 0);
+  const profit = totalSales - totalModal;
+  const profitMargin = totalSales > 0 ? profit / totalSales : 0;
+
+  return {
+    totalSales,
+    totalModal,
+    profit,
+    profitMargin,
+    totalOrders: sales.length
+  };
+}
+
+// Add this type export
+export type { ProfitPeriodData };
 
 export const getRevenue = async () => {
   try {
