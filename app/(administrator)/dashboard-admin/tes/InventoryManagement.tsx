@@ -62,7 +62,7 @@ export function InventoryManagement() {
 
   return (
     <div className="relative bg-white border-4 h-[600px] overflow-y-scroll overflow-x-hidden border-black p-6 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] transform -rotate-1">
-      <h2 className="text-2xl font-bold mb-4">Manajemen Inventaris</h2>
+      <h2 className="text-2xl font-bold mb-4">Inventory Management</h2>
       <div className="space-y-4">
         {stockProducts.map((product) => (
           <div 
@@ -81,11 +81,11 @@ export function InventoryManagement() {
               <Package size={20} className="mr-2" />
               <div>
                 <p className="font-bold">{product.name}</p>
-                <p className="text-sm">Stok: {product.currentStock}</p>
+                <p className="text-sm">Stock: {product.currentStock}</p>
                 {expandedProductId === product.id && (
                   <div className="mt-2 text-sm">
-                    <p>Kategori: {product.category}</p>
-                    <p>Terakhir Diperbarui: {product.lastUpdated}</p>
+                    <p>Category: {product.category}</p>
+                    <p>Last Updated: {product.lastUpdated}</p>
                   </div>
                 )}
               </div>
