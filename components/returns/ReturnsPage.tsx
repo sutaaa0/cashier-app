@@ -9,6 +9,7 @@ import { RefundSummary } from "./RefundSummary"
 import { RefundReceiptModal } from "./RefundReceiptModal"
 import { toast } from "@/hooks/use-toast"
 import { processReturn, getTransactionDetails, getActivePromotions } from "@/server/actions"
+import { Button } from "../ui/button"
 
 interface TransactionDetail {
   produkId: number;
@@ -133,7 +134,7 @@ export function ReturnsPage() {
       if (!details) {
         toast({
           title: "Error",
-          description: "Transaksi tidak ditemukan",
+          description: "Transaction not found",
           variant: "destructive",
         })
         return
@@ -197,7 +198,7 @@ export function ReturnsPage() {
       console.error("Error fetching transaction details:", error)
       toast({
         title: "Error",
-        description: "Gagal mengambil detail transaksi",
+        description: "Failed to retrieve transaction details",
         variant: "destructive",
       })
     } finally {
@@ -214,7 +215,7 @@ export function ReturnsPage() {
     if (returnedItems.every((item) => item.kuantitas === 0)) {
       toast({
         title: "Error",
-        description: "Silakan pilih produk yang ingin dikembalikan",
+        description: "Please select the product you want to return",
         variant: "destructive",
       })
       return
@@ -224,7 +225,7 @@ export function ReturnsPage() {
     if (difference > 0 && additionalPayment < difference) {
       toast({
         title: "Error",
-        description: "Pembayaran tambahan tidak mencukupi",
+        description: "Insufficient additional payment",
         variant: "destructive",
       })
       return
@@ -287,8 +288,8 @@ export function ReturnsPage() {
       setShowRefundReceipt(true)
 
       toast({
-        title: "Berhasil",
-        description: "Pengembalian berhasil diproses",
+        title: "Success",
+        description: "Return processed successfully",
       })
 
       // Reset the form
@@ -303,7 +304,7 @@ export function ReturnsPage() {
       console.error("Error processing return:", error)
       toast({
         title: "Error",
-        description: "Gagal memproses pengembalian",
+        description: "Failed to process the return",
         variant: "destructive",
       })
     } finally {
@@ -314,7 +315,7 @@ export function ReturnsPage() {
   return (
     <div className="container mx-auto p-4 font-mono">
       <h1 className="text-4xl font-black mb-8 transform -rotate-2 inline-block relative">
-        PENGEMBALIAN BARANG
+      RETURN OF PRODUCTS
         <div className="absolute -bottom-1 left-0 w-full h-3 bg-[#FFD700] -z-10 transform -rotate-1"></div>
       </h1>
 
@@ -352,13 +353,13 @@ export function ReturnsPage() {
       />
 
       <div className="mt-8 flex justify-end">
-        <button
+        <Button
           onClick={handleReturn}
           disabled={isLoading || (totalReplacement > totalReturn && additionalPayment < totalReplacement - totalReturn)}
-          className="px-6 py-3 bg-[#FFD700] text-black font-bold text-lg border-4 border-black hover:bg-black hover:text-[#FFD700] transition-colors disabled:opacity-50 disabled:cursor-not-allowed transform hover:-translate-y-1 hover:shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]"
+          className="px-6 py-3 bg-[#FFD700] text-black font-bold"
         >
-          {isLoading ? "Memproses..." : "Proses Pengembalian"}
-        </button>
+          {isLoading ? "Processing..." : "Return Process"}
+        </Button>
       </div>
 
       {showRefundReceipt && refundDetails && (

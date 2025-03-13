@@ -21,12 +21,12 @@ import { Button } from "@/components/ui/button"
 
 // Define the form schema with Zod
 const customerFormSchema = z.object({
-  name: z.string().min(1, { message: "Nama harus diisi" }),
-  address: z.string().min(1, { message: "Alamat harus diisi" }),
+  name: z.string().min(1, { message: "Name required" }),
+  address: z.string().min(1, { message: "Address required" }),
   phoneNumber: z.string()
-    .min(1, { message: "Nomor telepon harus diisi" })
-    .regex(/^(\+62|0)[0-9]{9,12}$/, { 
-      message: "Format nomor telepon tidak valid (gunakan format: 08xxxxxxxxxx atau +62xxxxxxxxxx)" 
+    .min(1, { message: "Phone number required" })
+    .regex(/^08[0-9]{8,10}$/, { 
+      message: "Invalid phone number format (use format: 08xxxxxxxxxx)" 
     })
 })
 
@@ -56,8 +56,8 @@ export function CustomerInputForm({ onSubmit, onCancel }: CustomerInputProps) {
   const handleSearch = async () => {
     if (!searchQuery.trim()) {
       toast({
-        title: "Peringatan",
-        description: "Masukkan kata kunci pencarian terlebih dahulu",
+        title: "Warning",
+        description: "Enter search keywords first ",
         variant: "destructive",
       })
       return
@@ -71,14 +71,14 @@ export function CustomerInputForm({ onSubmit, onCancel }: CustomerInputProps) {
       if (result.length === 0) {
         toast({
           title: "Info",
-          description: "Tidak ada pelanggan yang ditemukan",
+          description: "No customer found",
         })
       }
     } catch (error) {
       console.log(error)
       toast({
         title: "Error",
-        description: "Gagal mencari pelanggan",
+        description: "Failure to find customers",
         variant: "destructive",
       })
     } finally {
@@ -103,15 +103,15 @@ export function CustomerInputForm({ onSubmit, onCancel }: CustomerInputProps) {
 
       if (result.status === "Success") {
         toast({
-          title: "Berhasil",
-          description: "Data pelanggan berhasil disimpan",
+          title: "Success",
+          description: "Customer data saved successfully",
         })
         if (result.data) {
           onSubmit(result.data)
         } else {
           toast({
             title: "Warning",
-            description: "Data pelanggan tersimpan tetapi ada informasi yang tidak lengkap",
+            description: "Customer data is saved but there is incomplete information",
             variant: "destructive",
           })
           onSubmit({ nama: data.name, alamat: data.address, nomorTelepon: data.phoneNumber })
@@ -124,18 +124,18 @@ export function CustomerInputForm({ onSubmit, onCancel }: CustomerInputProps) {
         if (result.message && result.message.includes("duplicate")) {
           toast({
             title: "Error",
-            description: "Nomor telepon sudah terdaftar",
+            description: "Phone number already registered ",
             variant: "destructive",
           })
           form.setError("phoneNumber", { 
             type: "manual", 
-            message: "Nomor telepon sudah digunakan" 
+            message: "Phone number already in use" 
           })
         } else {
           // Handle other error types
           toast({
             title: "Error",
-            description: result.message || "Gagal menyimpan data pelanggan",
+            description: result.message || "Failed to save customer data",
             variant: "destructive",
           })
         }
@@ -144,7 +144,7 @@ export function CustomerInputForm({ onSubmit, onCancel }: CustomerInputProps) {
       console.error("Error in form submission:", error);
       
       // Improved error handling with more specific messages
-      const errorMessage = "Gagal menyimpan data member"
+      const errorMessage = "Failed to save member data"
       
       toast({
         title: "Error",
@@ -163,13 +163,13 @@ export function CustomerInputForm({ onSubmit, onCancel }: CustomerInputProps) {
   return (
     <div className="bg-white border-4 border-black p-4 font-mono">
       <div className="mb-4">
-        <label htmlFor="search" className="block mb-2 font-bold">Cari Member</label>
+        <label htmlFor="search" className="block mb-2 font-bold">Search Members</label>
         <div className="flex gap-2">
           <Input
             id="search"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Masukkan nama atau nomor telepon"
+            placeholder="Enter name or phone number "
             disabled={isLoading}
             className="flex-1 px-4 py-2 border-2 border-black focus:outline-none focus:ring-2 focus:ring-[#FFD700]"
           />
@@ -178,14 +178,14 @@ export function CustomerInputForm({ onSubmit, onCancel }: CustomerInputProps) {
             disabled={isLoading}
             className="px-4 py-2 bg-[#FFD700] text-black font-bold border-2 border-black hover:bg-black hover:text-[#FFD700] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {isLoading ? "Mencari..." : "Cari"}
+            {isLoading ? "Search..." : "Search"}
           </Button>
         </div>
       </div>
 
       {customers.length > 0 && (
         <div className="mb-4 border-2 border-black p-2">
-          <h3 className="text-lg font-bold mb-2">Hasil Pencarian</h3>
+          <h3 className="text-lg font-bold mb-2">Search Results</h3>
           <ul className="space-y-2">
             {customers.map((customer) => (
               <li 
@@ -213,7 +213,7 @@ export function CustomerInputForm({ onSubmit, onCancel }: CustomerInputProps) {
                 <FormControl>
                   <Input
                     {...field}
-                    placeholder="Masukkan nama"
+                    placeholder="Enter name"
                     disabled={isLoading}
                     className="w-full px-4 py-2 border-2 border-black focus:outline-none focus:ring-2 focus:ring-[#FFD700]"
                   />
@@ -234,7 +234,7 @@ export function CustomerInputForm({ onSubmit, onCancel }: CustomerInputProps) {
                 <FormControl>
                   <Input
                     {...field}
-                    placeholder="Masukkan alamat"
+                    placeholder="Enter address"
                     disabled={isLoading}
                     className="w-full px-4 py-2 border-2 border-black focus:outline-none focus:ring-2 focus:ring-[#FFD700]"
                   />
@@ -250,18 +250,18 @@ export function CustomerInputForm({ onSubmit, onCancel }: CustomerInputProps) {
             render={({ field }) => (
               <FormItem>
                 <FormLabel className="font-bold">
-                  Nomor Telepon <span className="text-red-500">*</span>
+                 Phone Number <span className="text-red-500">*</span>
                 </FormLabel>
                 <FormControl>
                   <Input
                     {...field}
-                    placeholder="Format: 08xxxxxxxxxx atau +62xxxxxxxxxx"
+                    placeholder="Format: 08xxxxxxxxxx"
                     disabled={isLoading}
                     className="w-full px-4 py-2 border-2 border-black focus:outline-none focus:ring-2 focus:ring-[#FFD700]"
                   />
                 </FormControl>
                 <FormDescription>
-                  Masukkan nomor telepon dengan format 08xxxxxxxxxx atau +62xxxxxxxxxx
+                Enter the phone number with the format 08xxxxxxxxxx 
                 </FormDescription>
                 <FormMessage />
               </FormItem>
@@ -276,14 +276,14 @@ export function CustomerInputForm({ onSubmit, onCancel }: CustomerInputProps) {
               variant="default"
               className="px-4 py-2 bg-white text-black font-bold border-2 border-black hover:bg-[#FFD700] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Batal
+              Cancel 
             </Button>
             <Button 
               type="submit" 
               disabled={isLoading}
               className="px-4 py-2 bg-[#FFD700] text-black font-bold border-2 border-black hover:bg-black hover:text-[#FFD700] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isLoading ? "Menyimpan..." : "Simpan"}
+              {isLoading ? "Keeping..." : "Save"}
             </Button>
           </div>
         </form>
@@ -294,7 +294,7 @@ export function CustomerInputForm({ onSubmit, onCancel }: CustomerInputProps) {
           onClick={handleGuestPurchase} 
           className="w-full px-4 py-2 bg-white text-black font-bold border-2 border-black hover:bg-[#FFD700] transition-colors"
         >
-          Lanjutkan sebagai Guest
+          Continue as Guest 
         </Button>
       </div>
     </div>

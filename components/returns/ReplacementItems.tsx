@@ -5,6 +5,7 @@ import Image from "next/image"
 import { Search, Minus, Plus, Tag, X } from "lucide-react"
 import { formatRupiah } from "@/lib/formatIdr"
 import { searchProducts } from "@/server/actions"
+import { Button } from "../ui/button"
 
 interface ReplacementItem {
   produkId: number;
@@ -169,8 +170,8 @@ export function ReplacementItems({
   }
 
   return (
-    <div className="border-4 border-black p-4 bg-white">
-      <h2 className="text-2xl font-bold mb-4 transform -rotate-1 inline-block">Produk Pengganti</h2>
+    <div className="text-text border-2 border-border dark:border-darkBorder shadow-light dark:shadow-dark hover:translate-x-boxShadowX hover:translate-y-boxShadowY hover:shadow-none dark:hover:shadow-none transition-all p-3">
+      <h2 className="text-2xl font-bold mb-4 transform -rotate-1 inline-block">Replacement Products</h2>
       
       <div className="mb-4 flex">
         <input
@@ -181,12 +182,12 @@ export function ReplacementItems({
           placeholder="Cari produk pengganti..."
           className="flex-1 px-4 py-2 border-2 border-black focus:outline-none focus:ring-2 focus:ring-[#FFD700]"
         />
-        <button
+        <Button
           onClick={handleSearch}
-          className="px-4 py-2 bg-[#FFD700] text-black font-bold border-2 border-black border-l-0 hover:bg-black hover:text-[#FFD700] transition-colors"
+          className="ms-3 px-4 py-2 bg-[#FFD700] text-black font-bold "
         >
           {isSearching ? "..." : <Search className="h-5 w-5" />}
-        </button>
+        </Button>
       </div>
       
       {searchResults.length > 0 && (
@@ -272,7 +273,7 @@ export function ReplacementItems({
         ))}
         
         {items.length === 0 && (
-          <p className="text-center text-gray-500 py-4">Belum ada produk pengganti. Cari produk di atas untuk menambahkan.</p>
+          <p className="text-center text-gray-500 py-4">There is no replacement product yet. Search the above products to add.</p>
         )}
       </div>
     </div>

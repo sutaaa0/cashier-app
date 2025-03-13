@@ -30,7 +30,7 @@ const TopSellingProducts = () => {
   if (isLoading) {
     return (
       <div className="bg-white border-4 border-black p-6 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] transform rotate-1">
-        <p>Memuat data...</p>
+        <p>Loading data...</p>
       </div>
     );
   }
@@ -38,7 +38,7 @@ const TopSellingProducts = () => {
   if (error) {
     return (
       <div className="bg-white border-4 border-black p-6 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] transform rotate-1">
-        <p className="text-red-500">Gagal mengambil data produk terlaris</p>
+        <p className="text-red-500">Failed to retrieve best-selling product data</p>
       </div>
     );
   }
@@ -46,10 +46,10 @@ const TopSellingProducts = () => {
   return (
     <div className="h-[650px] bg-white border-4 border-black p-6 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] transform rotate-1">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-2xl font-bold">Produk Terlaris</h2>
+        <h2 className="text-2xl font-bold">Best Selling Products</h2>
         <TrendingUp size={24} className="text-green-500" />
       </div>
-      <div className="space-y-4 overflow-y-auto max-h-[400px]">
+      <div className="space-y-4 overflow-y-auto h-full">
         {topSellingProducts.map((product) => (
           <div 
             key={product.name} 
@@ -57,7 +57,7 @@ const TopSellingProducts = () => {
           >
             <div>
               <p className="font-bold">{product.name}</p>
-              <p className="text-sm">Terjual: {product.sold} unit</p>
+              <p className="text-sm">Sold out: {product.sold} unit</p>
               <p className="text-sm">{formatRupiah(product.revenue)}</p>
             </div>
             <div

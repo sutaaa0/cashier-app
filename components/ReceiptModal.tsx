@@ -38,7 +38,7 @@ interface ReceiptModalProps {
 export const ReceiptModal: React.FC<ReceiptModalProps> = ({ receiptData, onClose }) => {
   const [customerName, setCustomerName] = useState<string>(receiptData.customerName || "Guest");
   const [petugasName, setPetugasName] = useState<string>("");
-  const [storeName] = useState<string>("Toko Cita Rasa");
+  const [storeName] = useState<string>("Cita Rasa Store");
   const [storeAddress] = useState<string>("Jl. Manunggal No. IV, Sukatali");
   const [storePhone] = useState<string>("0831-2422-7215");
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -100,7 +100,7 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ receiptData, onClose
       return total + discount;
     }, 0);
   };
-  
+
   // Calculate total savings including points
   const calculateTotalSavingsWithPoints = () => {
     return calculateTotalSavings() + (receiptData.redeemedPoints || 0);
@@ -298,18 +298,18 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ receiptData, onClose
     // Member points information
     if (receiptData.customerId) {
       const earnedPoints = calculateEarnedPoints();
-      
+
       // Only show points earned if greater than 0
       if (earnedPoints > 0) {
         leftRightText("Poin Didapat:", `${earnedPoints} poin`, yPos);
         yPos += lineHeight;
       }
-      
+
       if (receiptData.redeemedPoints && receiptData.redeemedPoints > 0) {
         leftRightText("Poin Ditukarkan:", `${receiptData.redeemedPoints} poin`, yPos);
         yPos += lineHeight;
       }
-      
+
       // Add member points information
       doc.setFontSize(7);
       doc.setFont("helvetica", "italic");
@@ -319,7 +319,7 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ receiptData, onClose
       yPos += lineHeight;
       centerText("1 poin = Rp1 untuk penukaran", yPos);
       yPos += lineHeight;
-      centerText("Minimal penukaran 1.000 poin", yPos);
+      centerText("Minimal penukaran 5.000 poin", yPos);
       yPos += lineHeight;
       doc.setFontSize(8);
       doc.setFont("helvetica", "normal");
@@ -356,36 +356,22 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ receiptData, onClose
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60 backdrop-blur-sm p-4"
-    >
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60 backdrop-blur-sm p-4">
       {isLoading ? (
         <div className="bg-white p-8 rounded-xl flex flex-col items-center justify-center">
           <div className="w-12 h-12 border-4 border-green-500 border-t-transparent rounded-full animate-spin"></div>
-          <p className="mt-4 text-gray-600">Memuat data struk...</p>
+          <p className="mt-4 text-gray-600">Loading receipt data...</p>
         </div>
       ) : (
-        <motion.div
-          initial={{ scale: 0.7, y: 50 }}
-          animate={{ scale: 1, y: 0 }}
-          className="bg-white w-full max-w-md rounded-xl shadow-2xl border-2 border-green-500 flex flex-col max-h-[90vh]"
-        >
+        <motion.div initial={{ scale: 0.7, y: 50 }} animate={{ scale: 1, y: 0 }} className="bg-white w-full max-w-md rounded-xl shadow-2xl border-2 border-green-500 flex flex-col max-h-[90vh]">
           {/* Fixed header */}
           <div className="px-6 pt-6 pb-2">
             <div className="flex flex-col items-center mb-4">
-              <motion.div
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
-                className="bg-green-100 p-4 rounded-full"
-              >
+              <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: 0.2, type: "spring", stiffness: 200 }} className="bg-green-100 p-4 rounded-full">
                 <CheckCircle2 className="text-green-500 w-16 h-16" />
               </motion.div>
-              <h2 className="text-2xl font-bold mt-4 text-center text-green-700">Transaksi Berhasil!</h2>
-              <p className="text-sm text-gray-500 mt-1">No. Transaksi: #{receiptData.PenjualanId}</p>
+              <h2 className="text-2xl font-bold mt-4 text-center text-green-700">Transaction Successful!</h2>
+              <p className="text-sm text-gray-500 mt-1">No. Transaction: #{receiptData.PenjualanId}</p>
             </div>
           </div>
 
@@ -393,7 +379,7 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ receiptData, onClose
           <div className="flex-grow overflow-y-auto px-6 pb-2 min-h-[300px] flex flex-col">
             {/* Transaction Information */}
             <div className="bg-green-50 rounded-lg p-4 mb-4">
-              <h3 className="font-semibold text-green-800 mb-2">Informasi Transaksi</h3>
+              <h3 className="font-semibold text-green-800 mb-2">Transaction Information</h3>
               <div className="grid grid-cols-2 gap-2">
                 <div className="flex items-center text-sm text-gray-700">
                   <Calendar className="w-4 h-4 mr-2 text-green-600" />
@@ -416,37 +402,36 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ receiptData, onClose
                 </div>
                 <div className="flex items-center text-sm text-gray-700">
                   <User className="w-4 h-4 mr-2 text-green-600" />
-                  <span>Pelanggan: {customerName}</span>
+                  <span>Customer: {customerName}</span>
                 </div>
                 <div className="flex items-center text-sm text-gray-700">
                   <CreditCard className="w-4 h-4 mr-2 text-green-600" />
-                  <span>Kasir: {petugasName}</span>
+                  <span>Cashier: {petugasName}</span>
                 </div>
                 <div className="flex items-center text-sm text-gray-700 col-span-2">
                   <ShoppingBag className="w-4 h-4 mr-2 text-green-600" />
-                  <span>Total Item: {calculateTotalItems()} item</span>
+                  <span>Total Items: {calculateTotalItems()} item</span>
                 </div>
 
                 {/* Show points information if customer is a member */}
                 {receiptData.customerId && calculateEarnedPoints() > 0 && (
                   <div className="flex items-center text-sm text-green-700 col-span-2">
                     <Coins className="w-4 h-4 mr-2 text-green-600" />
-                    <span>Poin Didapat: {calculateEarnedPoints()} poin</span>
+                    <span>Points Earned: {calculateEarnedPoints()} poin</span>
                   </div>
                 )}
-                
-                {/* Show redeemed points if any */}
-                {receiptData.redeemedPoints && receiptData.redeemedPoints > 0 && (
+
+                {(receiptData.redeemedPoints || 0) > 0 && (
                   <div className="flex items-center text-sm text-green-700 col-span-2">
                     <Coins className="w-4 h-4 mr-2 text-green-600" />
-                    <span>Poin Ditukarkan: {receiptData.redeemedPoints} poin</span>
+                    <span>Points Redeemed: {receiptData.redeemedPoints} poin</span>
                   </div>
                 )}
-                
+
                 {/* Show total savings if any */}
                 {calculateTotalSavingsWithPoints() > 0 && (
                   <div className="flex items-center text-sm text-red-600 font-bold col-span-2 border-t pt-2 mt-1">
-                    <span>Total Penghematan: {formatCurrency(calculateTotalSavingsWithPoints())}</span>
+                    <span>Total Savings: {formatCurrency(calculateTotalSavingsWithPoints())}</span>
                   </div>
                 )}
               </div>
@@ -455,7 +440,7 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ receiptData, onClose
             {/* Debug Information - only show if no items in order */}
             {receiptData.orderItems.length === 0 && (
               <div className="bg-red-50 p-4 mb-4 rounded-lg">
-                <p className="text-red-600 font-medium">Tidak ada item dalam pesanan</p>
+                <p className="text-red-600 font-medium">No items in the order</p>
               </div>
             )}
 
@@ -463,14 +448,14 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ receiptData, onClose
             <div className="mb-4 border-2 border-gray-200 rounded-lg p-2 bg-white">
               <h3 className="font-semibold text-gray-800 mb-2 flex items-center bg-white py-2 border-b">
                 <ShoppingBag className="w-4 h-4 mr-2 text-green-600" />
-                Detail Pesanan ({receiptData.orderItems.length} items)
+                Order Details ({receiptData.orderItems.length} items)
               </h3>
               <div className="overflow-hidden">
                 <table className="w-full table-auto">
                   <thead className="bg-gray-50">
                     <tr className="border-b">
-                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Item</th>
-                      <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">Jumlah</th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Items</th>
+                      <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">Quantity</th>
                       <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">Subtotal</th>
                     </tr>
                   </thead>
@@ -507,44 +492,44 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ receiptData, onClose
               {/* Show promotion discount total if any */}
               {calculateTotalSavings() > 0 && (
                 <div className="flex justify-between mb-2 text-red-600">
-                  <span>Total Hemat dari Promosi:</span>
+                  <span>Total Savings from Promotions:</span>
                   <span className="font-medium">{formatCurrency(calculateTotalSavings())}</span>
                 </div>
               )}
 
               <div className="flex justify-between mb-2">
-                <span className="text-gray-600">Subtotal setelah promosi:</span>
+                <span className="text-gray-600">Subtotal After Promotions:</span>
                 <span className="font-medium">{formatCurrency(receiptData.totalBeforePointsDiscount || receiptData.finalTotal)}</span>
               </div>
 
               {/* Points redemption information */}
-              {receiptData.redeemedPoints && receiptData.redeemedPoints > 0 && (
+              {(receiptData.redeemedPoints || 0) > 0 && (
                 <div className="flex justify-between mb-2 text-green-600">
-                  <span>Potongan Poin Member:</span>
-                  <span className="font-medium">-{formatCurrency(receiptData.redeemedPoints)}</span>
+                  <span>Member Point Discount:</span>
+                  <span className="font-medium">-{formatCurrency(receiptData.redeemedPoints || 0)}</span>
                 </div>
               )}
-              
+
               {/* Show total savings (promo + points) if applicable */}
               {calculateTotalSavingsWithPoints() > 0 && (
                 <div className="flex justify-between my-2 pt-2 border-t border-dashed text-red-600 font-bold">
-                  <span>Total Penghematan:</span>
+                  <span>Total Savings:</span>
                   <span>{formatCurrency(calculateTotalSavingsWithPoints())}</span>
                 </div>
               )}
 
               <div className="flex justify-between mb-2 font-medium border-t border-dashed pt-2">
-                <span className="text-gray-800">Total Pembayaran:</span>
+                <span className="text-gray-800">Total Payment:</span>
                 <span>{formatCurrency(receiptData.finalTotal)}</span>
               </div>
 
               <div className="flex justify-between mb-2">
-                <span className="text-gray-600">Tunai:</span>
+                <span className="text-gray-600">Cash:</span>
                 <span>{formatCurrency(receiptData.amountReceived)}</span>
               </div>
 
               <div className="flex justify-between font-bold text-lg border-t pt-2 mt-2">
-                <span className="text-gray-800">Kembali:</span>
+                <span className="text-gray-800">Change:</span>
                 <span className="text-green-700">{formatCurrency(receiptData.change)}</span>
               </div>
 
@@ -553,25 +538,25 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ receiptData, onClose
                 <div className="mt-3 pt-3 border-t border-dashed">
                   {calculateEarnedPoints() > 0 && (
                     <div className="flex justify-between text-sm text-green-700">
-                      <span>Poin yang didapat:</span>
-                      <span className="font-medium">{calculateEarnedPoints()} poin</span>
+                      <span>Points Earned:</span>
+                      <span className="font-medium">{calculateEarnedPoints()} points</span>
                     </div>
                   )}
 
-                  {receiptData.redeemedPoints && receiptData.redeemedPoints > 0 && (
+                  {(receiptData.redeemedPoints ?? 0) > 0 && (
                     <div className="flex justify-between text-sm text-green-700 mt-1">
-                      <span>Poin yang ditukarkan:</span>
+                      <span>Points Redeemed:</span>
                       <span className="font-medium">{receiptData.redeemedPoints} poin</span>
                     </div>
                   )}
 
                   {/* Member points rules */}
                   <div className="mt-2 text-xs text-gray-500 border-t border-dashed pt-2">
-                    <p className="font-medium">Informasi Poin Member:</p>
+                    <p className="font-medium">Member Points Information:</p>
                     <ul className="mt-1 list-disc pl-4 space-y-0.5">
-                      <li>Setiap transaksi Rp200 = 1 poin</li>
-                      <li>1 poin = Rp1 untuk penukaran</li>
-                      <li>Minimal penukaran 1.000 poin</li>
+                      <li>Every Rp200 spent = 1 point</li>
+                      <li>1 point = Rp1 for redemption</li>
+                      <li>Minimum redemption is 5,000 points</li>
                     </ul>
                   </div>
                 </div>
@@ -582,15 +567,12 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ receiptData, onClose
           {/* Fixed footer */}
           <div className="px-6 pb-6 pt-2 border-t border-gray-200">
             <div className="grid grid-cols-2 gap-3 mb-3">
-              <button
-                onClick={handleDownloadPDF}
-                className="bg-green-500 text-white py-3 rounded-lg hover:bg-green-600 transition-colors flex items-center justify-center gap-2 font-medium"
-              >
+              <button onClick={handleDownloadPDF} className="bg-green-500 text-white py-3 rounded-lg hover:bg-green-600 transition-colors flex items-center justify-center gap-2 font-medium">
                 <Download className="w-5 h-5" />
-                Download Struk
+                Download Receipt
               </button>
               <button onClick={onClose} className="bg-gray-800 text-white py-3 rounded-lg hover:bg-black transition-colors font-medium">
-                Tutup
+                Close
               </button>
             </div>
 
@@ -598,7 +580,7 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ receiptData, onClose
               <p>
                 {storeName} | {storeAddress}
               </p>
-              <p className="mt-1">Terima kasih atas kunjungan Anda</p>
+              <p className="mt-1">Thank you for your visit!</p>
             </div>
           </div>
         </motion.div>

@@ -35,7 +35,7 @@ const LowStockAlert = () => {
   if (isLoading) {
     return (
       <div className="bg-white border-4 border-black p-6 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] transform rotate-1">
-        <p className="text-center">Memuat data...</p>
+        <p className="text-center">Loading data...</p>
       </div>
     );
   }
@@ -43,13 +43,13 @@ const LowStockAlert = () => {
   return (
     <div className="bg-white border-4 border-black p-6 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] transform rotate-1">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-2xl font-bold">Peringatan Stok Rendah</h2>
+        <h2 className="text-2xl font-bold">Low Stock Warning</h2>
         <AlertCircle size={24} className="text-red-500" />
       </div>
       <div className="space-y-4 overflow-y-auto max-h-[400px]">
         {lowStockProducts.length === 0 ? (
           <div className="p-3 border-2 border-black bg-green-100">
-            <p className="text-center">Semua stok dalam kondisi normal</p>
+            <p className="text-center">All stocks in normal condition</p>
           </div>
         ) : (
           lowStockProducts.map((product) => (
@@ -61,7 +61,7 @@ const LowStockAlert = () => {
             >
               <div>
                 <p className="font-bold">{product.nama}</p>
-                <p className="text-sm">Sisa {product.stok} item</p>
+                <p className="text-sm">Remaining {product.stok} items</p>
               </div>
               <div className="flex flex-col items-center">
                 <Package 

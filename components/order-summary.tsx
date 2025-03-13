@@ -6,7 +6,7 @@ import { Minus, Plus, Trash2, Tag } from "lucide-react";
 import type { Penjualan, DetailPenjualan, Promotion } from "@prisma/client";
 import { CustomerInputForm } from "./CustomerInput";
 import { toast } from "@/hooks/use-toast";
-import { getCurrentUser, getMemberPoints, redeemPoints } from "@/server/actions";
+import { getCurrentUser, getMemberPoints, redeemPoints, restoreRedeemedPoints } from "@/server/actions";
 import { Button } from "./ui/button";
 
 interface Produk {
@@ -239,8 +239,8 @@ export const NeoOrderSummary = forwardRef<{ resetCustomerData: () => void }, Ord
       setMemberPoints(points);
     }
     toast({
-      title: "Berhasil",
-      description: "Data pelanggan berhasil disimpan",
+      title: "Success",
+      description: "Customer data saved successfully",
     });
   };
 
@@ -248,7 +248,7 @@ export const NeoOrderSummary = forwardRef<{ resetCustomerData: () => void }, Ord
     if (!user) {
       toast({
         title: "Error",
-        description: "Silakan login terlebih dahulu",
+        description: "Please log in first",
         variant: "destructive",
       });
       return;
@@ -262,7 +262,7 @@ export const NeoOrderSummary = forwardRef<{ resetCustomerData: () => void }, Ord
     if (amountReceived < finalTotal) {
       toast({
         title: "Error",
-        description: "Uang masuk tidak mencukupi untuk pembayaran",
+        description: "Insufficient entry money for payment",
         variant: "destructive",
       });
       return;
@@ -304,10 +304,10 @@ export const NeoOrderSummary = forwardRef<{ resetCustomerData: () => void }, Ord
           // Pastikan tidak melebihi total transaksi
           const maxRedeemable = Math.min(pointsToUse, order.total_harga - totalDiscount);
 
-          if (maxRedeemable < 1000) {
+          if (maxRedeemable < 5000) {
             toast({
               title: "Error",
-              description: "Minimal redeem poin adalah 1000 poin",
+              description: "Minimum points redemption is 5000 points",
               variant: "destructive",
             });
             return;
@@ -318,13 +318,13 @@ export const NeoOrderSummary = forwardRef<{ resetCustomerData: () => void }, Ord
           setMemberPoints(points - redeemed);
           setPointsToRedeem(0); // Reset input setelah redeem
           toast({
-            title: "Berhasil",
-            description: `${redeemed} poin berhasil ditukarkan`,
+            title: "Success",
+            description: `${redeemed} points successfully redeemed`,
           });
         } else {
           toast({
             title: "Error",
-            description: "Poin tidak mencukupi",
+            description: "Insufficient points",
             variant: "destructive",
           });
         }
@@ -332,21 +332,37 @@ export const NeoOrderSummary = forwardRef<{ resetCustomerData: () => void }, Ord
         console.error("Error redeeming points:", error);
         toast({
           title: "Error",
-          description: "Gagal menukarkan poin",
+          description: "Failed to redeem points",
           variant: "destructive",
         });
       }
     }
   }, [customerData, order.total_harga, totalDiscount, pointsToRedeem]);
 
-  const handleCancelRedeemPoints = useCallback(() => {
-    setRedeemedPoints(0);
-    setMemberPoints((prevPoints) => prevPoints + redeemedPoints);
-    toast({
-      title: "Berhasil",
-      description: "Penukaran poin dibatalkan",
-    });
-  }, [redeemedPoints]);
+  const handleCancelRedeemPoints = useCallback(async () => {
+    if (customerData?.pelangganId && redeemedPoints > 0) {
+      try {
+        // Restore points in the database
+        await restoreRedeemedPoints(customerData.pelangganId, redeemedPoints);
+        
+        // Update UI state
+        setMemberPoints((prevPoints) => prevPoints + redeemedPoints);
+        setRedeemedPoints(0);
+        
+        toast({
+          title: "Success",
+          description: "Points redemption canceled",
+        });
+      } catch (error) {
+        console.error("Error restoring points:", error);
+        toast({
+          title: "Error",
+          description: "Failed to cancel points redemption",
+          variant: "destructive",
+        });
+      }
+    }
+  }, [customerData, redeemedPoints]);
 
   // Calculate profit margins for display
   const calculateProfitPercentage = () => {
@@ -496,6 +512,8 @@ export const NeoOrderSummary = forwardRef<{ resetCustomerData: () => void }, Ord
     return bestPromo.title || "Discount";
   };
 
+  console.log("member poin :",memberPoints)
+
   return (
     <div className="p-4 border-4 border-black w-[500px] flex flex-col h-[calc(100vh-100px)] bg-[#e8f1fe] font-mono overflow-y-scroll">
       {order.detailPenjualan.map((item) => (
@@ -543,30 +561,30 @@ export const NeoOrderSummary = forwardRef<{ resetCustomerData: () => void }, Ord
 
         {totalDiscount > 0 && (
           <div className="flex justify-between text-red-600 font-bold">
-            <span>Diskon Promosi</span>
+            <span>Promo Discounts</span>
             <span>-{formatTotal(totalDiscount)}</span>
           </div>
         )}
 
         {order.total_modal !== null && order.total_modal > 0 && (
           <div className="flex justify-between text-black">
-            <span>Modal</span>
+            <span>Capital</span>
             <span>{formatTotal(order.total_modal)}</span>
           </div>
         )}
 
-        {order.keuntungan !== null && order.keuntungan > 0 && (
+        {/* {order.keuntungan !== null && order.keuntungan > 0 && (
           <div className="flex justify-between text-green-600">
-            <span>Keuntungan</span>
+            <span>Profit</span>
             <span>
               {formatTotal(order.keuntungan - totalDiscount)} ({calculateProfitPercentage()}%)
             </span>
           </div>
-        )}
+        )} */}
 
         {redeemedPoints > 0 && (
           <div className="flex justify-between text-green-600 font-bold">
-            <span>Potongan Poin</span>
+            <span>Point Deductions</span>
             <span>-{formatTotal(redeemedPoints)}</span>
           </div>
         )}
@@ -578,7 +596,7 @@ export const NeoOrderSummary = forwardRef<{ resetCustomerData: () => void }, Ord
 
         {/* Input untuk Uang Masuk */}
         <div className="flex flex-col">
-          <label className="block mb-2 font-bold">Uang Masuk:</label>
+          <label className="block mb-2 font-bold">Paid Amount:</label>
           <input
             type="text"
             value={formattedAmount}
@@ -594,34 +612,34 @@ export const NeoOrderSummary = forwardRef<{ resetCustomerData: () => void }, Ord
                 setFormattedAmount("");
               }
             }}
-            placeholder="Masukkan jumlah uang masuk"
+            placeholder="Enter the amount of money received"
             className="p-2 border-2 border-black rounded w-full"
           />
         </div>
 
         {customerData && (
           <div className="bg-white border-2 border-black p-2 mt-2">
-            <h3 className="font-bold text-lg">Informasi Pelanggan:</h3>
+            <h3 className="font-bold text-lg">Customer Information:</h3>
             <p>{customerData.nama}</p>
             {customerData.pelangganId ? <p className="text-green-600">Member</p> : <p className="text-blue-600">Guest</p>}
-            {customerData.nomorTelepon && <p>No. Telp: {customerData.nomorTelepon}</p>}
+            {customerData.nomorTelepon && <p>Phone Number: {customerData.nomorTelepon}</p>}
           </div>
         )}
         {customerData?.pelangganId && (
           <div className="bg-white border-2 border-black p-2 mt-2">
             <div className="flex justify-between items-center">
-              <span className="font-bold">Poin Member: {memberPoints}</span>
+              <span className="font-bold">Member Points: {memberPoints}</span>
               <span className="text-sm text-gray-500">1 poin = Rp 1</span>
             </div>
 
             {redeemedPoints > 0 ? (
               <div className="mt-2">
                 <div className="flex justify-between items-center mb-2">
-                  <span>Poin Ditukarkan:</span>
-                  <span className="font-bold text-green-600">{redeemedPoints} poin</span>
+                  <span>Points Redeemed:</span>
+                  <span className="font-bold text-green-600">{redeemedPoints} points</span>
                 </div>
                 <button onClick={handleCancelRedeemPoints} className="w-full px-4 py-2 bg-red-500 text-white font-bold border-2 border-black hover:bg-white hover:text-red-500 transition-colors">
-                  Batal Tukar Poin
+                  Cancel Point Redemption
                 </button>
               </div>
             ) : (
@@ -640,22 +658,22 @@ export const NeoOrderSummary = forwardRef<{ resetCustomerData: () => void }, Ord
                 </div>
                 <button
                   onClick={handleRedeemPoints}
-                  disabled={memberPoints < 1000}
+                  disabled={memberPoints < 5000}
                   className="w-full px-4 py-2 bg-black text-white font-bold border-2 border-black hover:bg-white hover:text-black transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Tukar Poin
+                  Redeem Points
                 </button>
-                <p className="text-xs text-gray-500 mt-1">Minimal 1000 poin untuk penukaran</p>
+                <p className="text-xs text-gray-500 mt-1">A minimum of 5,000 points is required for redemption</p>
               </div>
             )}
           </div>
         )}
         <Button onClick={handlePlaceOrder} className="w-full" disabled={isLoading}>
-          {isLoading ? "Memproses..." : "Buat Pesanan & Bayar"}
+          {isLoading ? "Processing..." : "Pay"}
         </Button>
         {!showCustomerInput && (
           <Button onClick={() => setShowCustomerInput(true)} className="w-full">
-            {customerData ? "Ubah Data Pelanggan" : "Pilih Member"}
+            {customerData ? "Edit Customer Data" : "Select Member"}
           </Button>
         )}
         {showCustomerInput && <CustomerInputForm onSubmit={handleCustomerSubmit} onCancel={() => setShowCustomerInput(false)} />}

@@ -7,7 +7,7 @@ import { DeleteConfirmModal } from "./DeleteConfirmModal";
 import { deleteUser, getUsers } from "@/server/actions";
 import { toast } from "@/hooks/use-toast";
 import { NeoProgressIndicator } from "./NeoProgresIndicator";
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 interface UserData {
   id: number;
@@ -21,14 +21,19 @@ export function UserManagement() {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<UserData | null>(null);
   const [userToDelete, setUserToDelete] = useState<UserData | null>(null);
-  const [searchTerm, setSearchTerm] = useState('');
-  
+  const [searchTerm, setSearchTerm] = useState("");
+  const [loadingMessage, setLoadingMessage] = useState("Loading Users...");
+
   // Get QueryClient instance
   const queryClient = useQueryClient();
 
   // Fetch users with React Query and search
-  const { data: users = [], isLoading } = useQuery<UserData[]>({
-    queryKey: ['users', searchTerm],
+  const {
+    data: users = [],
+    isLoading,
+    refetch: refetchUsers,
+  } = useQuery<UserData[]>({
+    queryKey: ["users", searchTerm],
     queryFn: () => getUsers(searchTerm),
     staleTime: 5 * 60 * 1000, // Consider data fresh for 5 minutes
   });
@@ -42,8 +47,11 @@ export function UserManagement() {
           title: "Berhasil",
           description: "User berhasil dihapus",
         });
-        // Invalidate and refetch users query
-        queryClient.invalidateQueries({ queryKey: ['users'] });
+
+        setLoadingMessage("Deleting product...");
+        // Both invalidate and explicitly refetch
+        queryClient.invalidateQueries({ queryKey: ["users"] });
+        refetchUsers(); // Use the explicit refetch function
       } else {
         toast({
           title: "Error",
@@ -81,8 +89,8 @@ export function UserManagement() {
   };
 
   const handleModalClose = () => {
-    // Invalidate and refetch users data when modal closes
-    queryClient.invalidateQueries({ queryKey: ['users'] });
+    setLoadingMessage("Adding user...");
+    refetchUsers(); // Use the explicit refetch function
   };
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -111,10 +119,7 @@ export function UserManagement() {
           onChange={handleSearchChange}
           className="w-full px-4 py-2 border-[3px] border-black rounded shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] focus:outline-none focus:ring-2 focus:ring-[#93B8F3]"
         />
-        <Search 
-          size={20} 
-          className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500"
-        />
+        <Search size={20} className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500" />
       </div>
 
       <div className="grid gap-4">
@@ -148,15 +153,10 @@ export function UserManagement() {
             </div>
           </div>
         ))}
-        
+
         {users.length === 0 && !isLoading && (
           <div className="bg-white border-[3px] border-black p-4 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-            <p className="text-center text-gray-500">
-              {searchTerm 
-                ? `Tidak ada user ditemukan untuk "${searchTerm}"` 
-                : "Tidak ada user ditemukan"
-              }
-            </p>
+            <p className="text-center text-gray-500">{searchTerm ? `Tidak ada user ditemukan untuk "${searchTerm}"` : "Tidak ada user ditemukan"}</p>
           </div>
         )}
       </div>
@@ -184,15 +184,9 @@ export function UserManagement() {
       )}
 
       {/* Modal Konfirmasi Hapus */}
-      <DeleteConfirmModal 
-        isOpen={isDeleteModalOpen} 
-        onClose={() => setIsDeleteModalOpen(false)} 
-        onConfirm={handleDeleteConfirm} 
-        itemName={userToDelete?.username || ""} 
-        subject="User" 
-      />
+      <DeleteConfirmModal isOpen={isDeleteModalOpen} onClose={() => setIsDeleteModalOpen(false)} onConfirm={handleDeleteConfirm} itemName={userToDelete?.username || ""} subject="User" />
 
-      <NeoProgressIndicator isLoading={isLoading || deleteUserMutation.isPending}/>
+      <NeoProgressIndicator isLoading={isLoading || deleteUserMutation.isPending} message={loadingMessage} />
     </div>
   );
 }

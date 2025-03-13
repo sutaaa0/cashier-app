@@ -136,7 +136,7 @@ export function PromotionManagement(): React.ReactElement {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h2 className="text-3xl font-black transform -rotate-2">MANAJEMEN PROMOSI</h2>
+        <h2 className="text-3xl font-black transform -rotate-2">PROMOTION MANAGEMENT</h2>
         <Button
           onClick={handleAddPromotion}
           className="px-6 py-3 bg-[#FFD700] font-bold text-lg border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]
@@ -144,7 +144,7 @@ export function PromotionManagement(): React.ReactElement {
           disabled={isPending || isLoading}
         >
           <Plus className="mr-2" />
-          Tambah Promosi
+          Add Promotion 
         </Button>
       </div>
 
@@ -152,8 +152,8 @@ export function PromotionManagement(): React.ReactElement {
       <div className="grid gap-4">
         {promotionsData.length === 0 && !isLoading ? (
           <div className="text-center p-8 border-4 border-dashed border-black">
-            <p className="text-xl font-bold">Belum ada promosi</p>
-            <p className="text-gray-600">Klik &quot;Tambah Promosi&quot; untuk membuat promosi baru</p>
+            <p className="text-xl font-bold">No promotion yet</p>
+            <p className="text-gray-600">Click `&quot;Add Promotion&quot;` to create a new promotion.</p>
           </div>
         ) : (
           promotionsData.map((promotion) => (
@@ -193,10 +193,10 @@ export function PromotionManagement(): React.ReactElement {
       {selectedPromotion && (
         <DeleteConfirmModal
           isOpen={isDeleteModalOpen}
-          itemName={selectedPromotion.title || "Promosi"}
+          itemName={selectedPromotion.title || "Promotion"}
           onClose={() => setIsDeleteModalOpen(false)}
           onConfirm={handleDeleteConfirm}
-          subject="Promosi"
+          subject="Promotion "
         />
       )}
     </div>

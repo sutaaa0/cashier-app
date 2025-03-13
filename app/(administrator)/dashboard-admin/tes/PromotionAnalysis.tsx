@@ -43,6 +43,8 @@ export function PromotionAnalysis() {
     refetchInterval: 3000, // Refresh data every 30 seconds
     placeholderData: (previousData) => previousData, // Keep previous data during loading
   });
+
+  
   
   const [activeBar, setActiveBar] = useState<number | null>(null);
 
@@ -76,17 +78,17 @@ export function PromotionAnalysis() {
             <div className="space-y-2">
               <div className="font-mono bg-black text-white p-2 transform rotate-1">
                 {formatRupiah(revenue)}
-                <span className="ml-2 font-bold" style={{ color: COLORS[0] }}>Pendapatan</span>
+                <span className="ml-2 font-bold" style={{ color: COLORS[0] }}>Revenue</span>
               </div>
               
               <div className="font-mono bg-black text-white p-2 transform rotate-1">
                 {formatRupiah(profit)}
-                <span className="ml-2 font-bold" style={{ color: COLORS[1] }}>Keuntungan</span>
+                <span className="ml-2 font-bold" style={{ color: COLORS[1] }}>Profit</span>
               </div>
               
               <div className="font-mono bg-black text-white p-2 transform rotate-1">
                 {transactions}
-                <span className="ml-2 font-bold" style={{ color: COLORS[2] }}>Transaksi</span>
+                <span className="ml-2 font-bold" style={{ color: COLORS[2] }}>Transactions</span>
               </div>
             </div>
           </div>
@@ -138,7 +140,7 @@ export function PromotionAnalysis() {
           <div className="transform -rotate-2 bg-gradient-to-r from-purple-400 to-blue-400 border-4 border-black p-3 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
             <h2 className="text-2xl font-black tracking-tighter flex items-center gap-2">
               <Percent size={24} />
-              ANALISIS PROMOSI
+              PROMOTION ANALYSIS 
             </h2>
           </div>
           <div className="bg-black text-white p-3 transform rotate-3 hover:rotate-6 transition-transform">
@@ -148,7 +150,7 @@ export function PromotionAnalysis() {
 
         {/* Subtitle */}
         <div className="mb-6 font-mono text-sm transform -rotate-1 inline-block bg-black text-white px-4 py-2">
-          Performa promosi berdasarkan pendapatan & transaksi
+        Promotion performance based on revenue & transactions 
         </div>
 
         {/* Chart */}
@@ -194,7 +196,7 @@ export function PromotionAnalysis() {
               <Bar 
                 yAxisId="left" 
                 dataKey="revenue" 
-                name="Pendapatan" 
+                name="Revenue" 
                 radius={[4, 4, 0, 0]}
               >
                 {promotionData.map((entry, index) => (
@@ -212,7 +214,7 @@ export function PromotionAnalysis() {
               <Bar 
                 yAxisId="left" 
                 dataKey="profit" 
-                name="Keuntungan" 
+                name="Profit" 
                 radius={[4, 4, 0, 0]}
               >
                 {promotionData.map((entry, index) => (
@@ -230,7 +232,7 @@ export function PromotionAnalysis() {
               <Bar 
                 yAxisId="right" 
                 dataKey="transactions" 
-                name="Transaksi" 
+                name="Transactions" 
                 radius={[4, 4, 0, 0]}
               >
                 {promotionData.map((entry, index) => (
@@ -253,7 +255,7 @@ export function PromotionAnalysis() {
         <div className="mt-6 grid grid-cols-3 gap-4">
           <div className="relative group/item border-3 border-black p-3 bg-white hover:-translate-y-1 transition-all duration-300">
             <div className="flex flex-col">
-              <span className="font-bold">Promosi Terbaik</span>
+              <span className="font-bold">Best Promotion</span>
               <span className="font-mono bg-purple-100 text-black px-2 py-1 border-2 border-black mt-2">
                 {bestPromotion?.name || '-'}
               </span>
@@ -263,7 +265,7 @@ export function PromotionAnalysis() {
           
           <div className="relative group/item border-3 border-black p-3 bg-white hover:-translate-y-1 transition-all duration-300">
             <div className="flex flex-col">
-              <span className="font-bold">Total Pendapatan</span>
+              <span className="font-bold">Total Revenue</span>
               <span className="font-mono bg-green-100 text-black px-2 py-1 border-2 border-black mt-2">
                 {formatRupiah(totalRevenue)}
               </span>
@@ -273,7 +275,7 @@ export function PromotionAnalysis() {
           
           <div className="relative group/item border-3 border-black p-3 bg-white hover:-translate-y-1 transition-all duration-300">
             <div className="flex flex-col">
-              <span className="font-bold">Total Keuntungan</span>
+              <span className="font-bold">Total Profit</span>
               <span className="font-mono bg-blue-100 text-black px-2 py-1 border-2 border-black mt-2">
                 {formatRupiah(totalProfit)}
               </span>
@@ -285,9 +287,9 @@ export function PromotionAnalysis() {
         {/* Legend */}
         <div className="mt-6 grid grid-cols-3 gap-4">
           {[
-            { name: "Pendapatan", color: COLORS[0] },
-            { name: "Keuntungan", color: COLORS[1] },
-            { name: "Transaksi", color: COLORS[2] }
+            { name: "Revenue", color: COLORS[0] },
+            { name: "Profit", color: COLORS[1] },
+            { name: "Transactions", color: COLORS[2] }
           ].map((item, index) => (
             <div
               key={`legend-${index}`}

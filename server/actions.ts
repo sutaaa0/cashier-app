@@ -106,8 +106,16 @@ export async function Login(username: string, password: string) {
 
 export async function Logout() {
   try {
-    const cookieStore = await cookies();
-    cookieStore.delete("token");
+    // Menghapus cookie token dengan mengatur nilai kosong dan maxAge 0
+    (await cookies()).set({
+      name: "token",
+      value: "",
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      path: "/",
+      maxAge: 0, // Set maxAge 0 untuk segera menghapus cookie
+    });
 
     return {
       status: "Success",
@@ -115,10 +123,9 @@ export async function Logout() {
       code: 200,
     };
   } catch (error) {
-    console.error("Error saat logout:", `${error}`);
     return {
       status: "Failed",
-      message: "Gagal logout",
+      message: `${error}`,
       code: 500,
     };
   }
@@ -511,6 +518,27 @@ export async function redeemPoints(
   
   return effectiveRedeem;
 }
+
+export async function restoreRedeemedPoints(
+  pelangganId: number,
+  pointsToRestore: number
+) {
+  const member = await prisma.pelanggan.findUnique({
+    where: { pelangganId },
+  });
+
+  if (!member) {
+    throw new Error("Pelanggan tidak ditemukan");
+  }
+
+  await prisma.pelanggan.update({
+    where: { pelangganId },
+    data: { points: { increment: pointsToRestore } },
+  });
+
+  return pointsToRestore;
+}
+
 
 
 // Configure Cloudinary
@@ -1912,8 +1940,8 @@ export async function getTopSellingProducts() {
             produkId: item.produkId,
             penjualan: {
               tanggalPenjualan: {
-                gte: new Date(thirtyDaysAgo.getTime() - 30 * 24 * 60 * 60 * 1000),
-                lt: thirtyDaysAgo,
+                gte: new Date(thirtyDaysAgo.getTime() - 30 * 24 * 60 * 60 * 1000), //>= 30 hari sebelum periode saat ini
+                lt: thirtyDaysAgo, // < hari pertama periode saat ini
               },
             },
           },
@@ -2085,47 +2113,79 @@ export type ProfitStats = {
 };
 
 // Helper function to create date range based on time range
+// Helper function untuk mendapatkan tanggal dalam zona waktu WIB (+7)
+function getWIBDate(date: Date): Date {
+  // Salin objek Date untuk menghindari modifikasi objek asli
+  const wibDate = new Date(date);
+  
+  // Mendapatkan offset timezone browser lokal dalam menit
+  const localTimezoneOffset = date.getTimezoneOffset();
+  
+  // WIB adalah UTC+7, jadi offsetnya adalah -420 menit (-7 jam)
+  const wibOffset = -420;
+  
+  // Menghitung selisih dalam menit antara timezone lokal dan WIB
+  const offsetDiff = localTimezoneOffset - wibOffset;
+  
+  // Menerapkan selisih waktu ke tanggal
+  wibDate.setMinutes(wibDate.getMinutes() + offsetDiff);
+  
+  return wibDate;
+}
+
+// Helper function to create date range based on time range
 function getDateRanges(timeRange: TimeRange) {
+  // Gunakan tanggal saat ini dalam zona waktu WIB
   const currentDate = new Date();
+  const currentDateWIB = getWIBDate(currentDate);
+  
   let currentPeriodStart: Date;
   let previousPeriodStart: Date;
   
   switch (timeRange) {
     case "daily":
       // Current: Last 7 days, Previous: 7 days before that
-      currentPeriodStart = new Date(currentDate);
-      currentPeriodStart.setDate(currentDate.getDate() - 7);
+      currentPeriodStart = new Date(currentDateWIB);
+      currentPeriodStart.setDate(currentDateWIB.getDate() - 7);
       previousPeriodStart = new Date(currentPeriodStart);
       previousPeriodStart.setDate(previousPeriodStart.getDate() - 7);
       break;
     
     case "weekly":
       // Current: Last 4 weeks, Previous: 4 weeks before that
-      currentPeriodStart = new Date(currentDate);
-      currentPeriodStart.setDate(currentDate.getDate() - 28);
+      currentPeriodStart = new Date(currentDateWIB);
+      currentPeriodStart.setDate(currentDateWIB.getDate() - 28);
       previousPeriodStart = new Date(currentPeriodStart);
       previousPeriodStart.setDate(previousPeriodStart.getDate() - 28);
       break;
     
     case "monthly":
       // Current: Last 12 months, Previous: 12 months before that
-      currentPeriodStart = new Date(currentDate);
-      currentPeriodStart.setMonth(currentDate.getMonth() - 12);
+      currentPeriodStart = new Date(currentDateWIB);
+      currentPeriodStart.setMonth(currentDateWIB.getMonth() - 12);
       previousPeriodStart = new Date(currentPeriodStart);
       previousPeriodStart.setMonth(previousPeriodStart.getMonth() - 12);
       break;
     
     case "yearly":
       // Current: Last 5 years, Previous: 5 years before that
-      currentPeriodStart = new Date(currentDate);
-      currentPeriodStart.setFullYear(currentDate.getFullYear() - 5);
+      currentPeriodStart = new Date(currentDateWIB);
+      currentPeriodStart.setFullYear(currentDateWIB.getFullYear() - 5);
       previousPeriodStart = new Date(currentPeriodStart);
       previousPeriodStart.setFullYear(previousPeriodStart.getFullYear() - 5);
       break;
   }
   
-  const currentPeriodEnd = new Date(currentDate);
+  // Set waktu ke awal hari dalam UTC untuk konsistensi dengan format database
+  currentPeriodStart.setHours(0, 0, 0, 0);
+  previousPeriodStart.setHours(0, 0, 0, 0);
+  
+  const currentPeriodEnd = new Date(currentDateWIB);
+  currentPeriodEnd.setHours(23, 59, 59, 999); // Set ke akhir hari saat ini
+  
   const previousPeriodEnd = new Date(currentPeriodStart);
+  previousPeriodEnd.setHours(0, 0, 0, 0);
+  previousPeriodEnd.setMilliseconds(-1); // 1 milidetik sebelum currentPeriodStart
   
   return {
     currentPeriodStart,
@@ -2135,27 +2195,37 @@ function getDateRanges(timeRange: TimeRange) {
   };
 }
 
-// Format date for groupBy based on time range
+// Format date for groupBy based on time range with WIB timezone
 function getDateFormat(date: Date, timeRange: TimeRange): string {
+  // Konversi tanggal database (UTC) ke WIB
+  const dateWIB = getWIBDate(date);
+  
   switch (timeRange) {
     case "daily":
-      return date.toISOString().split('T')[0]; // YYYY-MM-DD
+      return `${dateWIB.getFullYear()}-${String(dateWIB.getMonth() + 1).padStart(2, '0')}-${String(dateWIB.getDate()).padStart(2, '0')}`; // YYYY-MM-DD
+    
     case "weekly":
-      const firstDayOfWeek = new Date(date);
-      firstDayOfWeek.setDate(date.getDate() - date.getDay()); // Get Sunday
-      return firstDayOfWeek.toISOString().split('T')[0];
+      const firstDayOfWeek = new Date(dateWIB);
+      // getDay() mengembalikan 0 untuk Minggu, 1 untuk Senin, dsb.
+      firstDayOfWeek.setDate(dateWIB.getDate() - dateWIB.getDay());
+      return `${firstDayOfWeek.getFullYear()}-${String(firstDayOfWeek.getMonth() + 1).padStart(2, '0')}-${String(firstDayOfWeek.getDate()).padStart(2, '0')}`;
+    
     case "monthly":
-      return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`; // YYYY-MM
+      return `${dateWIB.getFullYear()}-${String(dateWIB.getMonth() + 1).padStart(2, '0')}`; // YYYY-MM
+    
     case "yearly":
-      return date.getFullYear().toString(); // YYYY
+      return dateWIB.getFullYear().toString(); // YYYY
+    
     default:
-      return date.toISOString().split('T')[0];
+      return `${dateWIB.getFullYear()}-${String(dateWIB.getMonth() + 1).padStart(2, '0')}-${String(dateWIB.getDate()).padStart(2, '0')}`;
   }
 }
 
 export async function getProfitData(timeRange: TimeRange): Promise<ProfitData[]> {
   try {
     const { currentPeriodStart, currentPeriodEnd } = getDateRanges(timeRange);
+    
+    console.log(`Fetching data from ${currentPeriodStart.toISOString()} to ${currentPeriodEnd.toISOString()}`);
     
     // Get sales from database
     const salesData = await prisma.penjualan.findMany({
@@ -2175,6 +2245,8 @@ export async function getProfitData(timeRange: TimeRange): Promise<ProfitData[]>
         tanggalPenjualan: 'asc'
       }
     });
+    
+    console.log(`Found ${salesData.length} transactions`);
     
     // Group by time range
     const groupedData = new Map<string, { sales: number; profit: number; transactions: number }>();
@@ -2200,6 +2272,9 @@ export async function getProfitData(timeRange: TimeRange): Promise<ProfitData[]>
       profit: data.profit,
       transactions: data.transactions
     }));
+    
+    // Sort by date to ensure correct order
+    result.sort((a, b) => a.date.localeCompare(b.date));
     
     return result;
   } catch (error) {
@@ -3543,73 +3618,88 @@ interface PromotionAnalytics {
 
 export async function getPromotionAnalytics(): Promise<PromotionAnalytics[]> {
   try {
-    // Ambil semua promosi beserta data produk yang terkait melalui join table promotionProducts
-    const promotionsWithSales = await prisma.promotion.findMany({
+    // Query only detail penjualan that explicitly have a promotionId
+    const promotionSales = await prisma.detailPenjualan.findMany({
+      where: {
+        promotionId: {
+          not: null, // Only get sales with a promotion applied
+        },
+      },
       select: {
-        title: true,
-        promotionProducts: {
+        promotionId: true,
+        promotionTitle: true,
+        kuantitas: true,
+        subtotal: true,
+        penjualanId: true,
+        produk: {
           select: {
-            produk: {
-              select: {
-                hargaModal: true, // Added to calculate profit
-                detailPenjualan: {
-                  select: {
-                    kuantitas: true, // Added to calculate profit
-                    subtotal: true,
-                    penjualan: {
-                      select: {
-                        penjualanId: true,
-                        tanggalPenjualan: true,
-                      },
-                    },
-                  },
-                },
-              },
-            },
+            hargaModal: true,
+          },
+        },
+        penjualan: {
+          select: {
+            penjualanId: true,
           },
         },
       },
     });
 
-    // Proses dan agregasi data
-    const promotionAnalytics: PromotionAnalytics[] = promotionsWithSales.map(promotion => {
-      // Gabungkan semua detail penjualan dari semua produk yang terkait dengan promosi ini
-      const allSales = promotion.promotionProducts.flatMap(promoProd => {
-        return promoProd.produk.detailPenjualan.map(sale => ({
-          ...sale,
-          hargaModal: promoProd.produk.hargaModal
-        }));
-      });
-
-      // Hitung total revenue dari subtotal di setiap penjualan
-      const revenue = allSales.reduce((sum, sale) => sum + sale.subtotal, 0);
+    // Group sales by promotion
+    const salesByPromotion = promotionSales.reduce((acc, sale) => {
+      // Skip if no promotionId or promotionTitle - this should never happen due to our where clause
+      if (!sale.promotionId || !sale.promotionTitle) return acc;
       
-      // Hitung total profit (revenue - modal)
-      const profit = allSales.reduce((sum, sale) => {
+      const promotionId = sale.promotionId;
+      const promotionTitle = sale.promotionTitle;
+      
+      if (!acc[promotionId]) {
+        acc[promotionId] = {
+          name: promotionTitle,
+          sales: [],
+        };
+      }
+      
+      acc[promotionId].sales.push({
+        penjualanId: sale.penjualanId,
+        kuantitas: sale.kuantitas,
+        subtotal: sale.subtotal,
+        hargaModal: sale.produk.hargaModal,
+      });
+      
+      return acc;
+    }, {} as Record<number, { name: string; sales: Array<{ penjualanId: number; kuantitas: number; subtotal: number; hargaModal: number }> }>);
+
+    // Calculate metrics for each promotion
+    const promotionAnalytics: PromotionAnalytics[] = Object.values(salesByPromotion).map((promotion) => {
+      const revenue = promotion.sales.reduce((sum, sale) => sum + sale.subtotal, 0);
+      
+      const profit = promotion.sales.reduce((sum, sale) => {
         const modalForSale = sale.hargaModal * sale.kuantitas;
         return sum + (sale.subtotal - modalForSale);
       }, 0);
-
-      // Hitung jumlah transaksi unik berdasarkan penjualanId
-      const uniqueTransactions = new Set(
-        allSales.map(sale => sale.penjualan.penjualanId)
-      ).size;
-
+      
+      // Count unique transactions
+      const uniqueTransactionsSet = new Set(
+        promotion.sales.map(sale => sale.penjualanId)
+      );
+      const transactions = uniqueTransactionsSet.size;
+      
       return {
-        name: promotion.title,
+        name: promotion.name,
         revenue: revenue,
         profit: profit,
-        transactions: uniqueTransactions,
+        transactions: transactions,
       };
     });
 
-    // Urutkan berdasarkan revenue secara descending
+    // Sort by revenue (highest first)
     return promotionAnalytics.sort((a, b) => b.revenue - a.revenue);
   } catch (error) {
     console.error("Error fetching promotion analytics:", error);
     throw new Error("Failed to fetch promotion analytics");
   }
 }
+
 
 
 export async function getPetugasById(id: number) {

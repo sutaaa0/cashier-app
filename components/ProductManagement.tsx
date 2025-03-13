@@ -9,7 +9,7 @@ import { toast } from "@/hooks/use-toast";
 import { EditProductModal } from "./EditProductModal";
 import { DeleteConfirmModal } from "./DeleteConfirmModal";
 import { NeoProgressIndicator } from "./NeoProgresIndicator";
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 type ProductWithKategori = Produk & {
   kategori: {
@@ -25,27 +25,28 @@ export function ProductManagement() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<ProductWithKategori | null>(null);
-  const [loadingMessage, setLoadingMessage] = useState("");
+  const [loadingMessage, setLoadingMessage] = useState("Loading Products...");
   const [searchTerm, setSearchTerm] = useState("");
-  
+
   // Get QueryClient instance
   const queryClient = useQueryClient();
 
   // Fetch products with React Query
-  const { 
-    data: originalProduk = [] as ProductWithKategori[], 
-    isLoading: isLoadingProducts 
+  const {
+    data: originalProduk = [] as ProductWithKategori[],
+    isLoading: isLoadingProducts,
+    refetch: refetchProducts,
   } = useQuery<ProductWithKategori[]>({
-    queryKey: ['products'],
+    queryKey: ["products"],
     queryFn: async () => {
       const products = await getAdminProduct();
-      return products.map(product => ({
+      return products.map((product) => ({
         ...product,
         kategori: {
           ...product.kategori,
           isDeleted: false, // Add default value
-          icon: ''         // Add default value
-        }
+          icon: "", // Add default value
+        },
       }));
     },
     staleTime: 5 * 60 * 1000, // Consider data fresh for 5 minutes
@@ -54,21 +55,20 @@ export function ProductManagement() {
   // Filtered and searched products
   const produk = useMemo(() => {
     if (!searchTerm) return originalProduk;
-    
+
     const searchTermLower = searchTerm.toLowerCase();
-    return originalProduk.filter(product => 
-      product.nama.toLowerCase().includes(searchTermLower) ||
-      product.kategori.nama.toLowerCase().includes(searchTermLower) ||
-      product.statusStok.toLowerCase().includes(searchTermLower) ||
-      product.harga.toString().includes(searchTermLower)
+    return originalProduk.filter(
+      (product) =>
+        product.nama.toLowerCase().includes(searchTermLower) ||
+        product.kategori.nama.toLowerCase().includes(searchTermLower) ||
+        product.statusStok.toLowerCase().includes(searchTermLower) ||
+        product.harga.toString().includes(searchTermLower)
     );
   }, [originalProduk, searchTerm]);
 
   // Fetch categories with React Query
-  const { 
-    data: category = [] 
-  } = useQuery<Kategori[]>({
-    queryKey: ['categories'],
+  const { data: category = [] } = useQuery<Kategori[]>({
+    queryKey: ["categories"],
     queryFn: async () => {
       const result = await getCategory();
       return result ?? [];
@@ -89,7 +89,7 @@ export function ProductManagement() {
           description: "Product deleted successfully",
         });
         // Invalidate and refetch products query
-        queryClient.invalidateQueries({ queryKey: ['products'] });
+        queryClient.invalidateQueries({ queryKey: ["products"] });
       } else {
         toast({
           title: "Error",
@@ -109,21 +109,12 @@ export function ProductManagement() {
     onSettled: () => {
       setIsDeleteModalOpen(false);
       setSelectedProduct(null);
-    }
+    },
   });
 
   // Update product mutation
   const updateProductMutation = useMutation({
-    mutationFn: (updatedProduct: { 
-      id: number; 
-      name: string; 
-      price: number; 
-      costPrice: number; 
-      stock: number; 
-      minimumStok: number; 
-      category: string; 
-      imageUrl: string; 
-    }) => updateProduct(updatedProduct),
+    mutationFn: (updatedProduct: { id: number; name: string; price: number; costPrice: number; stock: number; minimumStok: number; category: string; imageUrl: string }) => updateProduct(updatedProduct),
     onMutate: () => {
       setLoadingMessage("Updating product...");
     },
@@ -134,7 +125,7 @@ export function ProductManagement() {
           description: "Product updated successfully",
         });
         // Invalidate and refetch products query
-        queryClient.invalidateQueries({ queryKey: ['products'] });
+        queryClient.invalidateQueries({ queryKey: ["products"] });
         setIsEditModalOpen(false);
       } else {
         toast({
@@ -151,7 +142,7 @@ export function ProductManagement() {
         description: "An error occurred while updating the product",
         variant: "destructive",
       });
-    }
+    },
   });
 
   const handleDeleteClick = (product: ProductWithKategori) => {
@@ -163,6 +154,11 @@ export function ProductManagement() {
     if (selectedProduct) {
       deleteProductMutation.mutate(selectedProduct.produkId);
     }
+
+    setLoadingMessage("Deleting product...");
+    // Both invalidate and explicitly refetch
+    await queryClient.invalidateQueries({ queryKey: ["products"] });
+    await refetchProducts(); // Use the explicit refetch function
   };
 
   const handleEditClick = (product: ProductWithKategori) => {
@@ -170,7 +166,7 @@ export function ProductManagement() {
     setIsEditModalOpen(true);
   };
 
-  const handleEditProduct = async (updatedProduct: { id: string; name: string; price: number; costPrice: number; stock: number; minimumStok: number; category: string; imageUrl: string; }) => {
+  const handleEditProduct = async (updatedProduct: { id: string; name: string; price: number; costPrice: number; stock: number; minimumStok: number; category: string; imageUrl: string }) => {
     updateProductMutation.mutate({
       id: Number(updatedProduct.id),
       name: updatedProduct.name,
@@ -181,12 +177,18 @@ export function ProductManagement() {
       category: updatedProduct.category,
       imageUrl: updatedProduct.imageUrl || "",
     });
+
+    setLoadingMessage("Updating new product...");
+    // Both invalidate and explicitly refetch
+    await queryClient.invalidateQueries({ queryKey: ["products"] });
+    await refetchProducts(); // Use the explicit refetch function
   };
 
-  const handleAddProduct = () => {
+  const handleAddProduct = async () => {
     setLoadingMessage("Adding new product...");
-    // After adding product, invalidate the products query
-    queryClient.invalidateQueries({ queryKey: ['products'] });
+    // Both invalidate and explicitly refetch
+    await queryClient.invalidateQueries({ queryKey: ["products"] });
+    await refetchProducts(); // Use the explicit refetch function
   };
 
   const getStockStatusColor = (status: string) => {
@@ -231,40 +233,22 @@ export function ProductManagement() {
           onChange={handleSearchChange}
           className="w-full px-4 py-2 border-[3px] border-black rounded shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] focus:outline-none focus:ring-2 focus:ring-[#93B8F3]"
         />
-        <Search 
-          size={20} 
-          className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500"
-        />
+        <Search size={20} className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500" />
       </div>
 
       <div className="grid gap-4">
         {produk.length === 0 && !isLoading && (
           <div className="bg-white border-[3px] border-black p-4 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-            <p className="text-center text-gray-500">
-              {searchTerm 
-                ? `No products found for "${searchTerm}"` 
-                : "No products found"
-              }
-            </p>
+            <p className="text-center text-gray-500">{searchTerm ? `No products found for "${searchTerm}"` : "No products found"}</p>
           </div>
         )}
-        
+
         {produk.map((product) => (
           <div key={product.produkId} className="bg-white border-[3px] border-black p-4 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-4">
                 <div className="w-16 h-16 bg-[#93B8F3] border-[3px] border-black flex items-center justify-center overflow-hidden">
-                  {product.image ? (
-                    <Image
-                      src={product.image || "/placeholder.svg"}
-                      alt={product.nama}
-                      width={100}
-                      height={100}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <Coffee size={32} />
-                  )}
+                  {product.image ? <Image src={product.image || "/placeholder.svg"} alt={product.nama} width={100} height={100} className="w-full h-full object-cover" /> : <Coffee size={32} />}
                 </div>
                 <div>
                   <h3 className="font-bold text-lg">{product.nama}</h3>
@@ -284,9 +268,7 @@ export function ProductManagement() {
                   </p>
                   <p className="text-sm">
                     Stock: {product.stok} | Min Stock: {product.minimumStok}
-                    <span className={`ml-2 font-medium ${getStockStatusColor(product.statusStok)}`}>
-                      ({product.statusStok})
-                    </span>
+                    <span className={`ml-2 font-medium ${getStockStatusColor(product.statusStok)}`}>({product.statusStok})</span>
                   </p>
                   <div className="flex items-center mt-1">
                     <Tag size={16} className="mr-1" />
@@ -314,27 +296,9 @@ export function ProductManagement() {
           </div>
         ))}
       </div>
-      <AddProductModal
-        isOpen={isAddModalOpen}
-        onClose={() => setIsAddModalOpen(false)}
-        onProductAdded={handleAddProduct}
-      />
-      {selectedProduct && (
-        <EditProductModal
-          categories={category}
-          isOpen={isEditModalOpen}
-          onClose={() => setIsEditModalOpen(false)}
-          product={selectedProduct}
-          onEditProduct={handleEditProduct}
-        />
-      )}
-      <DeleteConfirmModal
-        isOpen={isDeleteModalOpen}
-        onClose={() => setIsDeleteModalOpen(false)}
-        onConfirm={handleDeleteProduct}
-        itemName={selectedProduct?.nama || ""}
-        subject="Product"
-      />
+      <AddProductModal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} onProductAdded={handleAddProduct} />
+      {selectedProduct && <EditProductModal categories={category} isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} product={selectedProduct} onEditProduct={handleEditProduct} />}
+      <DeleteConfirmModal isOpen={isDeleteModalOpen} onClose={() => setIsDeleteModalOpen(false)} onConfirm={handleDeleteProduct} itemName={selectedProduct?.nama || ""} subject="Product" />
       <NeoProgressIndicator isLoading={isLoading} message={loadingMessage} />
     </div>
   );

@@ -50,8 +50,8 @@ export function ProductGrid({ products, onProductSelect, isLoading }: ProductGri
     return (
       <div className="flex items-center justify-center h-full">
         <div className="bg-white border-2 border-black p-6 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transform rotate-1">
-          <p className="text-xl font-bold font-mono">Tidak ada produk ditemukan</p>
-          <p className="font-mono">Silahkan coba pencarian lain atau ubah kategori</p>
+          <p className="text-xl font-bold font-mono">No product found </p>
+          <p className="font-mono">Please try another search or change category </p>
         </div>
       </div>
     );

@@ -200,8 +200,8 @@ export function EditPromotionModal({ promotion, products, onClose, onSuccess }: 
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-white border-4 border-black p-6 max-w-2xl w-full mx-4 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 h-screen">
+      <div className="bg-white border-4 border-black p-6 max-w-2xl w-full mx-4 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] overflow-y-auto h-[90%]">
         <h3 className="text-2xl font-bold mb-4 transform -rotate-2 inline-block relative">
           Edit Promosi
           <div className="absolute -bottom-1 left-0 w-full h-2 bg-[#FFD700] transform -rotate-2 -z-10"></div>

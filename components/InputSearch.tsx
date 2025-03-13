@@ -19,7 +19,7 @@ export function NeoSearchInput({ onSearch }: NeoSearchInputProps) {
     <form onSubmit={handleSearch} className="relative w-full max-w-md mx-auto mt-4">
       <input
         type="text"
-        placeholder="Cari produk..."
+        placeholder="Search product..."
         value={searchQuery}
         onChange={(e) => setSearchQuery(e.target.value)}
         className="w-full px-4 py-3 pl-12 pr-10 text-black placeholder-gray-500
@@ -40,7 +40,7 @@ export function NeoSearchInput({ onSearch }: NeoSearchInputProps) {
                    transition-colors duration-300
                    font-mono text-sm"
       >
-        Cari
+        Search
       </button>
     </form>
   )

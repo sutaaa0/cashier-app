@@ -5,7 +5,7 @@ const menuItems = [
   { id: 'users', label: 'Users', icon: Users },
   { id: 'products', label: 'Products', icon: ShoppingBag },
   { id: 'categories', label: 'Categories', icon: Tag },
-  { id: 'customers', label: 'Customers', icon: Customers },
+  { id: 'member', label: 'Member', icon: Customers },
   { id: 'transactions', label: 'Transactions', icon: FileText },
   { id: 'stock', label: 'Stock', icon: Package },
   { id: 'promotion', label: 'Promotion', icon:  CalendarRange },

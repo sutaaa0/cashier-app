@@ -40,8 +40,8 @@ export function EditUserModal({ isOpen, onClose, user }: EditUserModalProps) {
 
       if (response.status === "Success") {
         toast({
-          title: "Berhasil",
-          description: "User berhasil diupdate",
+          title: "Success",
+          description: "User successfully updated",
         });
         onClose();
       } else {
@@ -55,7 +55,7 @@ export function EditUserModal({ isOpen, onClose, user }: EditUserModalProps) {
       console.log(error);
       toast({
         title: "Error",
-        description: "Gagal mengupdate user",
+        description: "Failed to update user",
         variant: "destructive",
       });
     }
@@ -67,7 +67,7 @@ export function EditUserModal({ isOpen, onClose, user }: EditUserModalProps) {
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white border-[3px] border-black p-6 rounded-lg shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] w-full max-w-md">
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-2xl font-bold">Edit User</h2>
+          <h2 className="text-2xl font-bold">Update User</h2>
           <button onClick={onClose} className="p-1 hover:bg-gray-200 rounded">
             <X size={24} />
           </button>

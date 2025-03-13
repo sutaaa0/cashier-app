@@ -28,8 +28,8 @@ import {
 
 // Define the form schema with Zod
 const userFormSchema = z.object({
-  username: z.string().min(1, { message: "Username harus diisi" }),
-  password: z.string().min(8, { message: "Password harus minimal 8 karakter" }),
+  username: z.string().min(1, { message: "Username required " }),
+  password: z.string().min(8, { message: "Password must be at least 8 characters " }),
   level: z.enum(["PETUGAS", "ADMIN"], {
     required_error: "Level harus dipilih",
   }),
@@ -64,8 +64,8 @@ export function AddUserModal({ isOpen, onClose }: AddUserModalProps) {
 
       if (response.status === "Success") {
         toast({
-          title: "Berhasil",
-          description: "User berhasil ditambahkan",
+          title: "Success",
+          description: "User successfully added",
         });
         onClose();
         // Reset form
@@ -81,7 +81,7 @@ export function AddUserModal({ isOpen, onClose }: AddUserModalProps) {
       console.log(error)
       toast({
         title: "Error",
-        description: "Gagal menambahkan user",
+        description: "Failed to add user",
         variant: "destructive",
       });
     }
@@ -151,9 +151,9 @@ export function AddUserModal({ isOpen, onClose }: AddUserModalProps) {
                         <SelectValue placeholder="Select level" />
                       </SelectTrigger>
                     </FormControl>
-                    <SelectContent>
-                      <SelectItem value="PETUGAS">Petugas</SelectItem>
-                      <SelectItem value="ADMIN">Admin</SelectItem>
+                    <SelectContent className='w-full p-2 border-[3px] border-black bg-white rounded focus:outline-none focus:ring-2 focus:ring-[#93B8F3]'>
+                      <SelectItem value="PETUGAS" className='cursor-pointer'>Petugas</SelectItem>
+                      <SelectItem value="ADMIN" className='cursor-pointer'>Admin</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />

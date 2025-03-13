@@ -33,7 +33,7 @@ const PeakHoursAnalysis = () => {
   return (
     <div className="bg-white border-4 border-black p-6 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] mb-8">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-2xl font-bold">Analisis Waktu Puncak</h2>
+        <h2 className="text-2xl font-bold">Peak Time Analysis</h2>
         <Clock size={24} className="text-blue-500" />
       </div>
       <div className="h-[300px]">

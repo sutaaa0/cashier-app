@@ -65,7 +65,7 @@ const PromotionCard = memo(({ promotion, onEdit, onDelete, disabled }: Promotion
           {/* Display related products if any */}
           {promotion.products && promotion.products.length > 0 && (
             <div className="mt-2">
-              <p className="text-sm font-bold">Produk:</p>
+              <p className="text-sm font-bold">Products:</p>
               <div className="flex flex-wrap gap-2">
                 {promotion.products.map((product) => (
                   <span key={product.produkId} className="px-2 py-1 text-xs bg-gray-100 border-2 border-black font-bold transform -rotate-1">
@@ -114,18 +114,18 @@ function getPromotionStatus(startDate: string | Date, endDate: string | Date): s
   const start = new Date(startDate);
   const end = new Date(endDate);
 
-  if (now < start) return "AKAN DATANG";
-  if (now > end) return "BERAKHIR";
-  return "AKTIF";
+  if (now < start) return "WILL COME";
+  if (now > end) return "ENDED";
+  return "ACTIVE";
 }
 
 function getPromotionStatusColor(status: string): string {
   switch (status) {
-    case "AKTIF":
+    case "ACTIVE":
       return "bg-[#4ECDC4] text-black";
-    case "AKAN DATANG":
+    case "WILL COME":
       return "bg-[#FFD93D] text-black";
-    case "BERAKHIR":
+    case "ENDED":
       return "bg-gray-200 text-black";
     default:
       return "bg-gray-200 text-black";

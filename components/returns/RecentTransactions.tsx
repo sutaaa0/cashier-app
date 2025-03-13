@@ -32,8 +32,8 @@ export function RecentTransactions({ onSelectTransaction }: RecentTransactionsPr
   }, [])
 
   return (
-    <div className="border-4 border-black p-4 bg-white">
-      <h2 className="text-2xl font-bold mb-4 transform -rotate-1 inline-block">Transaksi Terbaru</h2>
+    <div className="text-text border-2 border-border dark:border-darkBorder shadow-light dark:shadow-dark hover:translate-x-boxShadowX hover:translate-y-boxShadowY hover:shadow-none dark:hover:shadow-none transition-all p-3">
+      <h2 className="text-2xl font-bold mb-4 transform -rotate-1 inline-block">Recent Transactions</h2>
       <div className="space-y-2 max-h-64 overflow-y-auto">
         {recentTransactions.map((transaction) => (
           <button
