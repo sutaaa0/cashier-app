@@ -42,11 +42,22 @@ export function RevenueByCategoryChart() {
     return <RevenueByCategoryLoading />;
   }
 
+  // Format currency dengan simbol mata uang dan satuan k/M untuk ribu/juta
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('id-ID', {
       style: 'currency',
       currency: 'IDR'
     }).format(value);
+  };
+
+  // Format angka untuk YAxis agar menggunakan k dan M
+  const formatAxisValue = (value: number) => {
+    if (value >= 1000000) {
+      return `${(value / 1000000).toFixed(1)}M`;
+    } else if (value >= 1000) {
+      return `${(value / 1000).toFixed(1)}k`;
+    }
+    return value.toString();
   };
 
   const CustomTooltip = ({ active, payload, label }: CustomTooltipProps) => {
@@ -138,7 +149,8 @@ export function RevenueByCategoryChart() {
                 stroke="#000" 
                 strokeWidth={2}
                 tick={{ fill: '#000', fontWeight: 'bold' }}
-                tickFormatter={formatCurrency}
+                tickFormatter={formatAxisValue}
+                width={50}
               />
               <Tooltip content={<CustomTooltip />} />
               <Bar 
