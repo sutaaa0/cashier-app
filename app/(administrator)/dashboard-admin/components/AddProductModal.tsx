@@ -20,7 +20,7 @@ interface Category {
 export function AddProductModal({ isOpen, onClose, onProductAdded }: AddProductModalProps) {
   const [productName, setProductName] = useState("");
   const [sellingPrice, setSellingPrice] = useState(""); // hargaJual
-  const [costPrice, setCostPrice] = useState("");       // hargaModal
+  const [costPrice, setCostPrice] = useState(""); // hargaModal
   const [stock, setStock] = useState("");
   const [minStock, setMinStock] = useState("");
   const [categories, setCategories] = useState<Category[]>([]);
@@ -39,6 +39,7 @@ export function AddProductModal({ isOpen, onClose, onProductAdded }: AddProductM
     };
     loadCategories();
   }, []);
+
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -118,14 +119,7 @@ export function AddProductModal({ isOpen, onClose, onProductAdded }: AddProductM
             <label htmlFor="productName" className="block mb-1 font-bold">
               Product Name
             </label>
-            <input
-              type="text"
-              id="productName"
-              value={productName}
-              onChange={(e) => setProductName(e.target.value)}
-              className="w-full p-2 border-[3px] border-black rounded focus:outline-none focus:ring-2 focus:ring-[#93B8F3]"
-              required
-            />
+            <input type="text" id="productName" value={productName} onChange={(e) => setProductName(e.target.value)} className="w-full p-2 border-[3px] border-black rounded focus:outline-none focus:ring-2 focus:ring-[#93B8F3]" required />
           </div>
 
           {/* Selling Price (Harga Jual) */}
@@ -165,15 +159,7 @@ export function AddProductModal({ isOpen, onClose, onProductAdded }: AddProductM
             <label htmlFor="stock" className="block mb-1 font-bold">
               Initial Stock
             </label>
-            <input
-              type="number"
-              id="stock"
-              value={stock}
-              onChange={(e) => setStock(e.target.value)}
-              min="0"
-              className="w-full p-2 border-[3px] border-black rounded focus:outline-none focus:ring-2 focus:ring-[#93B8F3]"
-              required
-            />
+            <input type="number" id="stock" value={stock} onChange={(e) => setStock(e.target.value)} min="0" className="w-full p-2 border-[3px] border-black rounded focus:outline-none focus:ring-2 focus:ring-[#93B8F3]" required />
           </div>
 
           {/* Minimum Stock */}
@@ -181,14 +167,7 @@ export function AddProductModal({ isOpen, onClose, onProductAdded }: AddProductM
             <label htmlFor="minStock" className="block mb-1 font-bold">
               Minimum Stock
             </label>
-            <input
-              type="number"
-              id="minStock"
-              value={minStock}
-              onChange={(e) => setMinStock(e.target.value)}
-              min="0"
-              className="w-full p-2 border-[3px] border-black rounded focus:outline-none focus:ring-2 focus:ring-[#93B8F3]"
-            />
+            <input type="number" id="minStock" value={minStock} onChange={(e) => setMinStock(e.target.value)} min="0" className="w-full p-2 border-[3px] border-black rounded focus:outline-none focus:ring-2 focus:ring-[#93B8F3]" />
           </div>
 
           {/* Category */}
