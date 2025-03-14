@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { BarChart, Download, Calendar, TrendingUp, Users, FileText, FileDown } from "lucide-react";
+import { BarChart, Calendar, TrendingUp, Users, FileText, FileDown } from "lucide-react";
 import { saveAs } from "file-saver";
 import * as XLSX from "xlsx";
 import { jsPDF } from "jspdf";
@@ -48,7 +48,7 @@ export function ReportManagement() {
             Product: product.nama,
             Price: product.harga,
             Stock: product.stok,
-            Category: product.kategori,
+            Category: product.kategori?.nama || "N/A",
           }));
           break;
   
@@ -134,7 +134,7 @@ export function ReportManagement() {
             product.nama,
             product.harga,
             product.stok,
-            product.kategori,
+            product.kategori?.nama ||"N/A",
           ]);
           break;
   
