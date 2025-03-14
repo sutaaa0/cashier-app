@@ -69,13 +69,13 @@ export async function Login(username: string, password: string) {
     });
 
     if (!user) {
-      return { status: "Failed", message: "User tidak ditemukan", code: 404 };
+      return { status: "Failed", message: "User not found", code: 404 };
     }
 
     const passwordMatch = await bcrypt.compare(password, user.password);
 
     if (!passwordMatch) {
-      return { status: "Failed", message: "Password salah", code: 401 };
+      return { status: "Failed", message: "Incorrect password ", code: 401 };
     }
 
     const token = await createToken({
@@ -1282,7 +1282,7 @@ export async function generateReport(type: string): Promise<ReportData> {
     }
 
     case "inventory": {
-      const products = await prisma.produk.findMany({ where: { isDeleted: false } });
+      const products = await prisma.produk.findMany({ where: { isDeleted: false }, include: { kategori: true }  });
       const lowStock = products.filter((p) => p.stok < 10).length;
       reportData = {
         name: "Inventory Status",
@@ -4002,4 +4002,6 @@ export async function searchProducts(query: string) {
     throw error;
   }
 }
+
+
 
