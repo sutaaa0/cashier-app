@@ -260,9 +260,10 @@ export const NeoOrderSummary = forwardRef<{ resetCustomerData: () => void }, Ord
 
     // Validasi uang masuk
     if (amountReceived < finalTotal) {
+      const shortage = finalTotal - amountReceived;
       toast({
         title: "Error",
-        description: "Insufficient entry money for payment",
+        description: `Insufficient entry money for payment. You are short by ${shortage.toLocaleString("id-ID", { style: "currency", currency: "IDR" })}`,
         variant: "destructive",
       });
       return;
@@ -344,11 +345,11 @@ export const NeoOrderSummary = forwardRef<{ resetCustomerData: () => void }, Ord
       try {
         // Restore points in the database
         await restoreRedeemedPoints(customerData.pelangganId, redeemedPoints);
-        
+
         // Update UI state
         setMemberPoints((prevPoints) => prevPoints + redeemedPoints);
         setRedeemedPoints(0);
-        
+
         toast({
           title: "Success",
           description: "Points redemption canceled",
@@ -512,7 +513,7 @@ export const NeoOrderSummary = forwardRef<{ resetCustomerData: () => void }, Ord
     return bestPromo.title || "Discount";
   };
 
-  console.log("member poin :",memberPoints)
+  console.log("member poin :", memberPoints);
 
   return (
     <div className="p-4 border-4 border-black w-[500px] flex flex-col h-[calc(100vh-100px)] bg-[#e8f1fe] font-mono overflow-y-scroll">
@@ -566,12 +567,12 @@ export const NeoOrderSummary = forwardRef<{ resetCustomerData: () => void }, Ord
           </div>
         )}
 
-        {order.total_modal !== null && order.total_modal > 0 && (
+        {/* {order.total_modal !== null && order.total_modal > 0 && (
           <div className="flex justify-between text-black">
             <span>Capital</span>
             <span>{formatTotal(order.total_modal)}</span>
           </div>
-        )}
+        )} */}
 
         {/* {order.keuntungan !== null && order.keuntungan > 0 && (
           <div className="flex justify-between text-green-600">
@@ -593,6 +594,14 @@ export const NeoOrderSummary = forwardRef<{ resetCustomerData: () => void }, Ord
           <span>TOTAL</span>
           <span>{formatTotal(order.total_harga - totalDiscount - redeemedPoints)}</span>
         </div>
+
+        {/* Change suggestion - show when amount received is greater than total */}
+        {amountReceived > 0 && (
+          <div className="flex justify-between font-bold text-lg text-green-600">
+            <span>Change:</span>
+            <span>{formatTotal(Math.max(0, amountReceived - (order.total_harga - totalDiscount - redeemedPoints)))}</span>
+          </div>
+        )}
 
         {/* Input untuk Uang Masuk */}
         <div className="flex flex-col">
