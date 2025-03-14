@@ -370,6 +370,12 @@ export const RefundReceiptModal: React.FC<RefundReceiptModalProps> = ({ isOpen, 
       alert('Gagal mencetak struk. Silakan coba lagi.');
     }
   };
+  
+  // Handle closing the modal and refreshing the page
+  const handleClose = () => {
+    onClose();
+    window.location.reload();
+  };
 
   if (!isOpen) return null;
 
@@ -541,7 +547,7 @@ export const RefundReceiptModal: React.FC<RefundReceiptModalProps> = ({ isOpen, 
             Download Struk
           </button>
           <button
-            onClick={onClose}
+            onClick={handleClose}
             className="w-full bg-black text-white py-2 rounded-lg hover:bg-gray-800 transition-colors"
           >
             Tutup
