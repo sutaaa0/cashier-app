@@ -6,15 +6,51 @@ import * as XLSX from "xlsx";
 import { jsPDF } from "jspdf";
 import "jspdf-autotable";
 import { generateReport, generateProfitReport, ReportData, ProfitReportData } from "@/server/actions";
-import { Penjualan, Produk, Pelanggan } from "@/types/types";
+import { Penjualan, Pelanggan } from "@/types/types";
+// Tambahkan import berikut di bagian atas ReportManagement.tsx
+import { generateProductPerformanceReport, ProductPerformanceReportData } from "@/server/actions";
+import ProductPerformanceDashboard from "./ProductPerformanceDashboard";
 
 // Period type for profit reports
 type PeriodType = "weekly" | "monthly" | "yearly";
+
+interface Kategori {
+  kategoriId: number;
+  nama: string;
+  icon: string;
+  isDeleted: boolean;
+}
+
+interface Produk {
+  produkId: number;
+  nama: string;
+  harga: number;
+  hargaModal: number;
+  stok: number;
+  image: string;
+  createdAt: Date;
+  updatedAt: Date;
+  isDeleted: boolean;
+  minimumStok: number;
+  statusStok: string;
+  kategoriId: number;
+  kategori: Kategori;
+}
+
 
 export function ReportManagement() {
   const [reports, setReports] = useState<ReportData[]>([]);
   const [profitReports, setProfitReports] = useState<ProfitReportData[]>([]);
   const [selectedPeriodType, setSelectedPeriodType] = useState<PeriodType>("monthly");
+  // Tambahkan state berikut di dalam function ReportManagement
+  const [productReports, setProductReports] = useState<ProductPerformanceReportData[]>([]);
+  const [selectedProductPeriodType, setSelectedProductPeriodType] = useState<PeriodType>("monthly");
+
+  // Tambahkan function handler berikut
+  const handleGenerateProductReport = async () => {
+    const newProductReport = await generateProductPerformanceReport(selectedProductPeriodType);
+    setProductReports((prevReports) => [newProductReport, ...prevReports]);
+  };
 
   const handleGenerateReport = async () => {
     const types = ["sales", "inventory", "customers"];
@@ -27,10 +63,12 @@ export function ReportManagement() {
     setProfitReports((prevReports) => [newProfitReport, ...prevReports]);
   };
 
+  // Handle Excel download for regular reports and profit reports only  
   const handleDownloadExcel = (report: ReportData | ProfitReportData) => {
     const wb = XLSX.utils.book_new();
     let wsData: Array<Record<string, string | number>> = [];
 
+    // Handle either regular reports or profit reports
     if ('type' in report) {
       // Handle regular reports
       switch (report.type) {
@@ -42,28 +80,28 @@ export function ReportManagement() {
             Items: sale.detailPenjualan.length,
           }));
           break;
-  
+
         case "inventory":
           wsData = ((report.data as unknown) as Produk[]).map((product) => ({
             Product: product.nama,
             Price: product.harga,
             Stock: product.stok,
-            Category: product.kategori?.nama || "N/A",
+            Category: product.kategori.nama,
           }));
           break;
-  
+
         case "customers":
           wsData = ((report.data as unknown) as Pelanggan[]).map((customer) => ({
             Name: customer.nama,
             Points: customer.points,
-            Phone: customer.nomorTelepon || "N/A",
+            Phone: customer.nomorTelepon || "",
             "Total Orders": customer.penjualan.length,
           }));
           break;
       }
-    } else {
+    } else if ('totalProfit' in report) {
       // Handle profit reports
-      wsData = (report.data as any[]).map((item) => {
+      wsData = (report.data as { periodDate: string; totalSales: number; totalModal: number; profit: number; profitMargin: number; totalOrders: number }[]).map((item) => {
         const date = new Date(item.periodDate).toLocaleDateString();
         return {
           "Period": date,
@@ -85,6 +123,7 @@ export function ReportManagement() {
     saveAs(data, `${report.name}-${report.period}.xlsx`);
   };
 
+  // Handle PDF download for regular reports and profit reports only
   const handleDownloadPDF = (report: ReportData | ProfitReportData) => {
     const doc = new jsPDF();
     
@@ -94,16 +133,11 @@ export function ReportManagement() {
     
     doc.setFontSize(12);
     doc.text(`Period: ${report.period}`, 14, 30);
-    doc.text(`Generated: ${new Date(report.generatedDate).toLocaleString()}`, 14, 38);
-    
-    // Add summary if available
-    if ('summary' in report) {
-      doc.text(`Summary: ${report.summary}`, 14, 46);
-    }
+    doc.text(`Created: ${new Date(report.generatedDate).toLocaleString()}`, 14, 38);
     
     // Prepare table data
-    let tableData: any[] = [];
-    let tableColumns: any[] = [];
+    let tableData: (string | number)[][] = [];
+    let tableColumns: { header: string; dataKey: string }[] = [];
     
     if ('type' in report) {
       // Handle regular reports
@@ -122,7 +156,7 @@ export function ReportManagement() {
             sale.detailPenjualan.length,
           ]);
           break;
-  
+
         case "inventory":
           tableColumns = [
             { header: 'Product', dataKey: 'product' },
@@ -134,10 +168,10 @@ export function ReportManagement() {
             product.nama,
             product.harga,
             product.stok,
-            product.kategori?.nama ||"N/A",
+            product.kategori.nama || "N/A",
           ]);
           break;
-  
+
         case "customers":
           tableColumns = [
             { header: 'Name', dataKey: 'name' },
@@ -153,7 +187,7 @@ export function ReportManagement() {
           ]);
           break;
       }
-    } else {
+    } else if ('totalProfit' in report) {
       // Handle profit reports
       tableColumns = [
         { header: 'Period', dataKey: 'period' },
@@ -164,7 +198,7 @@ export function ReportManagement() {
         { header: 'Orders', dataKey: 'orders' }
       ];
       
-      tableData = (report.data as any[]).map((item) => [
+      tableData = report.data.map((item) => [
         new Date(item.periodDate).toLocaleDateString(),
         new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR" }).format(item.totalSales),
         new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR" }).format(item.totalModal),
@@ -174,9 +208,9 @@ export function ReportManagement() {
       ]);
     }
     
-    // @ts-ignore: jspdf-autotable types
+    // Standard report content
     doc.autoTable({
-      startY: 'summary' in report ? 55 : 47,
+      startY: 47,
       head: [tableColumns.map(col => col.header)],
       body: tableData,
       theme: 'grid',
@@ -221,13 +255,10 @@ export function ReportManagement() {
         <h3 className="font-bold text-xl mb-4">Profit Reports</h3>
         <div className="flex items-center gap-4 mb-4">
           <div className="flex items-center gap-2">
-            <label htmlFor="periodType" className="font-medium">Period Type:</label>
-            <select
-              id="periodType"
-              value={selectedPeriodType}
-              onChange={(e) => setSelectedPeriodType(e.target.value as PeriodType)}
-              className="border-[2px] border-black p-2"
-            >
+            <label htmlFor="periodType" className="font-medium">
+              Period Type:
+            </label>
+            <select id="periodType" value={selectedPeriodType} onChange={(e) => setSelectedPeriodType(e.target.value as PeriodType)} className="border-[2px] border-black p-2">
               <option value="weekly">Weekly</option>
               <option value="monthly">Monthly</option>
               <option value="yearly">Yearly</option>
@@ -243,6 +274,107 @@ export function ReportManagement() {
           </button>
         </div>
       </div>
+
+      {/* Product Performance Report Section */}
+      <div className="bg-white border-[3px] border-black p-4 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+        <h3 className="font-bold text-xl mb-4">Product Performance Report</h3>
+        <div className="flex flex-wrap items-center gap-4 mb-4">
+          <div className="flex items-center gap-2">
+            <label htmlFor="productPeriodType" className="font-medium">
+              Period:
+            </label>
+            <select id="productPeriodType" value={selectedProductPeriodType} onChange={(e) => setSelectedProductPeriodType(e.target.value as PeriodType)} className="border-[2px] border-black p-2">
+              <option value="weekly">Weekly</option>
+              <option value="monthly">Monthly</option>
+              <option value="yearly">Yearly</option>
+            </select>
+          </div>
+
+          <button
+            onClick={handleGenerateProductReport}
+            className="px-4 py-2 bg-[#93B8F3] font-bold border-[3px] border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none transition-all flex items-center gap-2"
+          >
+            <TrendingUp size={20} />
+            Generate Product Report
+          </button>
+        </div>
+
+        <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
+          <p className="text-sm flex items-center">
+            <span className="flex-shrink-0 text-blue-500 mr-2">💡</span>
+            <span>
+              <strong>Product Performance Report</strong> provides comprehensive analysis of sales, profit margins, and growth by product and category. Ideal for evaluating product performance, identifying top products, and finding areas that need attention.
+            </span>
+          </p>
+        </div>
+      </div>
+
+
+      {/* Generated Product Reports */}
+      {productReports.length > 0 && (
+        <div className="mt-6">
+          <h3 className="font-bold text-xl mb-4">Product Performance Reports</h3>
+
+          {productReports.map((report, index) => (
+            <div key={`product-${index}`} className="mb-6">
+              <div className="bg-white border-[3px] border-black p-4 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] mb-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className="p-2 bg-[#93B8F3] border-[3px] border-black">
+                      <TrendingUp size={24} />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-lg">{report.name}</h3>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className="flex items-center text-sm">
+                          <Calendar size={16} className="mr-1" />
+                          Period: {report.period}
+                        </span>
+                      </div>
+                      <div className="flex flex-wrap gap-3 mt-1 text-sm">
+                        <span className="flex items-center">
+                          <span className="font-medium">Sales:</span>{" "}
+                          {new Intl.NumberFormat("id-ID", {
+                            style: "currency",
+                            currency: "IDR",
+                          }).format(report.totalSales)}
+                          {report.salesGrowth !== null && report.salesGrowth !== undefined && (
+                            <span className={`ml-1 ${report.salesGrowth >= 0 ? "text-green-600" : "text-red-600"}`}>
+                              {report.salesGrowth >= 0 ? "↑" : "↓"} {Math.abs(report.salesGrowth).toFixed(1)}%
+                            </span>
+                          )}
+                        </span>
+                        <span className="flex items-center">
+                          <span className="font-medium">Products Sold:</span> {report.totalProductsSold.toLocaleString()}
+                        </span>
+                        <span className="flex items-center">
+                          <span className="font-medium">Avg. Margin:</span> {report.avgProfitMargin.toFixed(1)}%
+                        </span>
+                        {report.productsWithNoSales.length > 0 && (
+                          <span className="flex items-center text-red-600">
+                            <span className="font-medium">Products Without Sales:</span> {report.productsWithNoSales.length}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  <div>
+                    {/* The download buttons are removed as they're now in the ProductPerformanceDashboard component */}
+                  </div>
+                </div>
+              </div>
+
+              {/* Interactive Dashboard Visualization for the latest report */}
+              {index === 0 && (
+                <div className="bg-white border-[3px] border-black p-6 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+                  <h3 className="font-bold text-xl mb-4">Product Performance Dashboard</h3>
+                  <ProductPerformanceDashboard report={report} />
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Generated Profit Reports */}
       {profitReports.length > 0 && (
@@ -262,15 +394,17 @@ export function ReportManagement() {
                       </span>
                     </div>
                     <p className="text-sm mt-1">
-                      Total Sales: {new Intl.NumberFormat("id-ID", {
+                      Total Sales:{" "}
+                      {new Intl.NumberFormat("id-ID", {
                         style: "currency",
-                        currency: "IDR"
-                      }).format(report.totalAmount)} | 
-                      Profit: {new Intl.NumberFormat("id-ID", {
+                        currency: "IDR",
+                      }).format(report.totalAmount)}{" "}
+                      | Profit:{" "}
+                      {new Intl.NumberFormat("id-ID", {
                         style: "currency",
-                        currency: "IDR"
-                      }).format(report.totalProfit)} |
-                      Margin: {(report.profitMargin * 100).toFixed(2)}%
+                        currency: "IDR",
+                      }).format(report.totalProfit)}{" "}
+                      | Margin: {(report.profitMargin * 100).toFixed(2)}%
                     </p>
                   </div>
                 </div>

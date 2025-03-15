@@ -1,7 +1,7 @@
 "use client";
-import { SalesTrend } from "@/app/(administrator)/dashboard-admin/tes/SalesTrand";
-import { InventoryManagement } from "@/app/(administrator)/dashboard-admin/tes/InventoryManagement";
-import { PromotionAnalysis } from "@/app/(administrator)/dashboard-admin/tes/PromotionAnalysis";
+import { SalesTrend } from "@/app/(administrator)/dashboard-admin/components/SalesTrand";
+import { InventoryManagement } from "@/app/(administrator)/dashboard-admin/components/InventoryManagement";
+import { PromotionAnalysis } from "@/app/(administrator)/dashboard-admin/components/PromotionAnalysis";
 import TopSellingProducts from "./TopSellingProducts";
 import LowStockAlert from "./LowStockAlert";
 import TopCustomers from "./TopCustomers";

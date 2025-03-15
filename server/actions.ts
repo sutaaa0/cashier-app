@@ -1322,11 +1322,10 @@ export async function generateReport(type: string): Promise<ReportData> {
 // New function for generating profit reports
 export async function generateProfitReport(periodType: "weekly" | "monthly" | "yearly"): Promise<ProfitReportData> {
   const currentDate = new Date();
-  let endDate: Date = new Date();
-  let periodFormat: string;
+  const endDate: Date = new Date();
   let reportName: string;
   let periodLabel: string;
-  let periodSegments: ProfitPeriodData[] = [];
+  const periodSegments: ProfitPeriodData[] = [];
 
   // Find the first transaction date
   const firstTransaction = await prisma.penjualan.findFirst({
@@ -4005,3 +4004,411 @@ export async function searchProducts(query: string) {
 
 
 
+
+
+
+
+// Interface for product performance report
+export interface ProductPerformanceReportData {
+  id: number;
+  name: string;
+  period: string;
+  periodType: "weekly" | "monthly" | "yearly";
+  generatedDate: string;
+  totalSales: number;
+  totalProductsSold: number;
+  prevPeriodSales?: number; // Previous period sales
+  salesGrowth?: number; // Sales growth in percentage
+  totalProfit: number; // Total profit
+  avgProfitMargin: number; // Average profit margin
+  productsWithNoSales: ProductPerformanceData[]; // Products without sales
+  data: ProductPerformanceData[];
+  categorySummary: CategorySalesData[];
+}
+
+interface ProductPerformanceData {
+  produkId: number;
+  productName: string;
+  category: string;
+  quantitySold: number;
+  totalSales: number;
+  salesContribution: number; // Percentage of total sales
+  profitMargin: number;
+  profitAmount: number;
+  stockLevel: number;
+  ranking: number;
+  stockTurnover: number; // Stock turnover
+  prevPeriodSales?: number; // Previous period sales
+  growthPercentage?: number; // Growth percentage
+  PriceSale: number; // Add selling price
+  PriceCapital: number; // Add modal (cost price)
+
+}
+
+interface CategorySalesData {
+  kategoriId: number;
+  categoryName: string;
+  quantitySold: number;
+  totalSales: number;
+  salesContribution: number; // Percentage of total sales
+  productCount: number;
+  bestSellingProduct: string;
+  prevPeriodSales?: number; // Previous period sales
+  growthPercentage?: number; // Growth percentage
+  avgProfitMargin: number; // Average profit margin for category
+  productCountWithNoSales: number; // Number of products without sales
+}
+
+// Function to generate product performance report
+export async function generateProductPerformanceReport(
+  periodType: "weekly" | "monthly" | "yearly"
+): Promise<ProductPerformanceReportData> {
+  const currentDate = new Date();
+  let startDate: Date;
+  let prevPeriodStartDate: Date;
+  let prevPeriodEndDate: Date;
+  let periodLabel: string;
+  let reportName: string;
+
+  // Determine date range based on period type
+  switch (periodType) {
+    case "weekly": {
+      // Set start date to beginning of this week
+      startDate = startOfWeek(currentDate);
+      periodLabel = `${format(startDate, "dd MMM yyyy")} - ${format(currentDate, "dd MMM yyyy")}`;
+      reportName = "Weekly Product Performance Report";
+      
+      // Previous period (last week)
+      prevPeriodEndDate = subDays(startDate, 1);
+      prevPeriodStartDate = startOfWeek(prevPeriodEndDate);
+      break;
+    }
+    case "monthly": {
+      // Set start date to beginning of this month
+      startDate = startOfMonth(currentDate);
+      periodLabel = format(startDate, "MMMM yyyy");
+      reportName = "Monthly Product Performance Report";
+      
+      // Previous period (last month)
+      prevPeriodEndDate = subDays(startDate, 1);
+      prevPeriodStartDate = startOfMonth(prevPeriodEndDate);
+      break;
+    }
+    case "yearly": {
+      // Set start date to beginning of this year
+      startDate = startOfYear(currentDate);
+      periodLabel = format(startDate, "yyyy");
+      reportName = "Yearly Product Performance Report";
+      
+      // Previous period (last year)
+      prevPeriodEndDate = subDays(startDate, 1);
+      prevPeriodStartDate = startOfYear(prevPeriodEndDate);
+      break;
+    }
+  }
+
+  // Get sales data for the period
+  const sales = await prisma.penjualan.findMany({
+    where: {
+      tanggalPenjualan: {
+        gte: startDate,
+        lte: currentDate
+      }
+    },
+    include: {
+      detailPenjualan: {
+        include: {
+          produk: {
+            include: {
+              kategori: true
+            }
+          }
+        }
+      }
+    }
+  });
+  
+  // Get sales data for previous period (for comparison)
+  const prevPeriodSales = await prisma.penjualan.findMany({
+    where: {
+      tanggalPenjualan: {
+        gte: prevPeriodStartDate,
+        lte: prevPeriodEndDate
+      }
+    },
+    include: {
+      detailPenjualan: {
+        include: {
+          produk: {
+            include: {
+              kategori: true
+            }
+          }
+        }
+      }
+    }
+  });
+
+  // Get current stock data for all products
+  const currentProducts = await prisma.produk.findMany({
+    where: { isDeleted: false },
+    include: { kategori: true }
+  });
+
+  // Map current product stocks
+  const productStockMap = new Map<number, number>();
+  currentProducts.forEach(product => {
+    productStockMap.set(product.produkId, product.stok);
+  });
+  
+  // Map to store previous period sales
+  const prevPeriodProductMap = new Map<number, { sales: number, quantity: number }>();
+  const prevPeriodCategoryMap = new Map<number, { sales: number, quantity: number }>();
+  
+  // Calculate total sales for previous period
+  let prevPeriodTotalSales = 0;
+  
+  // Process previous period sales data
+  prevPeriodSales.forEach(sale => {
+    sale.detailPenjualan.forEach(detail => {
+      const productId = detail.produkId;
+      const categoryId = detail.produk.kategoriId;
+      const salesAmount = detail.subtotal;
+      const quantity = detail.kuantitas;
+      
+      prevPeriodTotalSales += salesAmount;
+      
+      // Update previous period product data
+      if (!prevPeriodProductMap.has(productId)) {
+        prevPeriodProductMap.set(productId, { sales: 0, quantity: 0 });
+      }
+      const productData = prevPeriodProductMap.get(productId)!;
+      productData.sales += salesAmount;
+      productData.quantity += quantity;
+      
+      // Update previous period category data
+      if (!prevPeriodCategoryMap.has(categoryId)) {
+        prevPeriodCategoryMap.set(categoryId, { sales: 0, quantity: 0 });
+      }
+      const categoryData = prevPeriodCategoryMap.get(categoryId)!;
+      categoryData.sales += salesAmount;
+      categoryData.quantity += quantity;
+    });
+  });
+
+  // Calculate product performance data
+  const productMap = new Map<number, ProductPerformanceData>();
+  const categoryMap = new Map<number, CategorySalesData>();
+  let totalSales = 0;
+  let totalProductsSold = 0;
+  let totalProfit = 0;
+
+  // Process sales data
+  sales.forEach(sale => {
+    sale.detailPenjualan.forEach(detail => {
+      const product = detail.produk;
+      const category = product.kategori;
+      const salesAmount = detail.subtotal;
+      const quantity = detail.kuantitas;
+      
+      totalSales += salesAmount;
+      totalProductsSold += quantity;
+
+      // Update product data
+      if (!productMap.has(product.produkId)) {
+        // Get previous period sales data if available
+        const prevProductData = prevPeriodProductMap.get(product.produkId);
+        const prevSales = prevProductData?.sales || 0;
+        
+        // Calculate stock turnover
+        // Formula: Sales / Average inventory
+        const currentStock = productStockMap.get(product.produkId) || 0;
+        // This is just an estimate since we don't have beginning of period stock
+        const estimatedStockAtStart = currentStock + quantity;
+        const avgStock = (currentStock + estimatedStockAtStart) / 2;
+        const stockTurnover = avgStock > 0 ? quantity / avgStock : 0;
+        
+        productMap.set(product.produkId, {
+          produkId: product.produkId,
+          productName: product.nama,
+          category: category.nama,
+          quantitySold: 0,
+          totalSales: 0,
+          salesContribution: 0,
+          profitMargin: 0,
+          profitAmount: 0,
+          stockLevel: currentStock,
+          ranking: 0,
+          stockTurnover: stockTurnover,
+          prevPeriodSales: prevSales,
+          growthPercentage: prevSales > 0 ? ((salesAmount - prevSales) / prevSales) * 100 : undefined,
+          PriceSale: product.harga,     // Add the selling price
+          PriceCapital: product.hargaModal // Add the modal (cost price)
+
+        });
+      }
+      
+      const productData = productMap.get(product.produkId)!;
+      productData.quantitySold += quantity;
+      productData.totalSales += salesAmount;
+      
+      // Calculate profit margin
+      const costPerItem = product.hargaModal;
+      const revenuePerItem = salesAmount / quantity;
+      const profitPerItem = revenuePerItem - costPerItem;
+      const profitAmount = profitPerItem * quantity;
+      
+      productData.profitMargin = ((revenuePerItem - costPerItem) / revenuePerItem) * 100;
+      productData.profitAmount += profitAmount;
+      
+      // Add to total profit
+      totalProfit += profitAmount;
+
+      // Update category data
+      if (!categoryMap.has(category.kategoriId)) {
+        // Get previous period category data if available
+        const prevCategoryData = prevPeriodCategoryMap.get(category.kategoriId);
+        const prevSales = prevCategoryData?.sales || 0;
+        
+        categoryMap.set(category.kategoriId, {
+          kategoriId: category.kategoriId,
+          categoryName: category.nama,
+          quantitySold: 0,
+          totalSales: 0,
+          salesContribution: 0,
+          productCount: 0,
+          bestSellingProduct: "",
+          prevPeriodSales: prevSales,
+          growthPercentage: prevSales > 0 ? ((salesAmount - prevSales) / prevSales) * 100 : undefined,
+          avgProfitMargin: 0, // Will be calculated later
+          productCountWithNoSales: 0 // Will be calculated later
+        });
+      }
+      
+      const categoryData = categoryMap.get(category.kategoriId)!;
+      categoryData.quantitySold += quantity;
+      categoryData.totalSales += salesAmount;
+      
+      // Increment product count only once per product
+      if (productData.quantitySold === quantity) {
+        categoryData.productCount++;
+      }
+    });
+  });
+
+  // Calculate sales contribution percentage
+  productMap.forEach(product => {
+    product.salesContribution = (product.totalSales / totalSales) * 100;
+  });
+  
+  categoryMap.forEach(category => {
+    category.salesContribution = (category.totalSales / totalSales) * 100;
+  });
+
+  // Add all products with no sales in this period
+  const productsWithNoSales: ProductPerformanceData[] = [];
+  
+  currentProducts.forEach(product => {
+    if (!productMap.has(product.produkId)) {
+      // Get previous period sales data if available
+      const prevProductData = prevPeriodProductMap.get(product.produkId);
+      const prevSales = prevProductData?.sales || 0;
+      
+      const noSalesProduct: ProductPerformanceData = {
+        produkId: product.produkId,
+        productName: product.nama,
+        category: product.kategori.nama,
+        quantitySold: 0,
+        totalSales: 0,
+        salesContribution: 0,
+        profitMargin: 0,
+        profitAmount: 0,
+        stockLevel: product.stok,
+        ranking: 0,
+        stockTurnover: 0,
+        prevPeriodSales: prevSales,
+        PriceSale: product.harga,     // Add the selling price
+        PriceCapital: product.hargaModal, // Add the modal (cost price)
+        growthPercentage: prevSales > 0 ? -100 : 0 // -100% if there were sales previously
+      };
+      
+      productMap.set(product.produkId, noSalesProduct);
+      productsWithNoSales.push(noSalesProduct);
+      
+      // Update category for products with no sales
+      if (categoryMap.has(product.kategoriId)) {
+        const categoryData = categoryMap.get(product.kategoriId);
+        if (categoryData) {
+          categoryData.productCountWithNoSales++;
+        }
+      } else {
+        // If category doesn't exist in map yet, add it
+        categoryMap.set(product.kategoriId, {
+          kategoriId: product.kategoriId,
+          categoryName: product.kategori.nama,
+          quantitySold: 0,
+          totalSales: 0,
+          salesContribution: 0,
+          productCount: 0,
+          productCountWithNoSales: 1,
+          bestSellingProduct: "",
+          prevPeriodSales: 0,
+          growthPercentage: 0,
+          avgProfitMargin: 0
+        });
+      }
+    }
+  });
+
+  // Sort products by total sales and assign rankings
+  const sortedProducts = Array.from(productMap.values())
+    .sort((a, b) => b.totalSales - a.totalSales)
+    .map((product, index) => {
+      product.ranking = index + 1;
+      return product;
+    });
+
+  // Determine best-selling product for each category and calculate average profit margin
+  categoryMap.forEach((category) => {
+    const categoryProducts = sortedProducts.filter(
+      product => product.category === category.categoryName && product.quantitySold > 0
+    );
+    
+    if (categoryProducts.length > 0) {
+      category.bestSellingProduct = categoryProducts[0].productName;
+      
+      // Calculate average profit margin for category
+      const totalMargin = categoryProducts.reduce((sum, product) => sum + product.profitMargin, 0);
+      category.avgProfitMargin = totalMargin / categoryProducts.length;
+    }
+  });
+
+  // Create additional analysis
+  const categorySummary = Array.from(categoryMap.values())
+    .sort((a, b) => b.totalSales - a.totalSales);
+    
+  // Calculate average profit margin across all products
+  const productsWithSales = sortedProducts.filter(p => p.quantitySold > 0);
+  const avgProfitMargin = productsWithSales.length > 0
+    ? productsWithSales.reduce((sum, product) => sum + product.profitMargin, 0) / productsWithSales.length
+    : 0;
+
+  return {
+    id: Date.now(),
+    name: reportName,
+    period: periodLabel,
+    periodType,
+    generatedDate: new Date().toISOString(),
+    totalSales,
+    totalProductsSold,
+    prevPeriodSales: prevPeriodTotalSales,
+    salesGrowth: prevPeriodTotalSales > 0 
+      ? ((totalSales - prevPeriodTotalSales) / prevPeriodTotalSales) * 100 
+      : undefined,
+    totalProfit,
+    avgProfitMargin,
+    productsWithNoSales,
+    data: sortedProducts,
+    categorySummary
+  };
+};

@@ -365,13 +365,6 @@ export const NeoOrderSummary = forwardRef<{ resetCustomerData: () => void }, Ord
     }
   }, [customerData, redeemedPoints]);
 
-  // Calculate profit margins for display
-  const calculateProfitPercentage = () => {
-    const totalAfterDiscount = order.total_harga - totalDiscount;
-    if (!totalAfterDiscount || !order.total_modal || totalAfterDiscount === 0) return 0;
-    const adjustedProfit = (order.keuntungan || 0) - totalDiscount;
-    return ((adjustedProfit / totalAfterDiscount) * 100).toFixed(1);
-  };
 
   // Replace the existing hasQuantityPromotion function with this more general function
   const hasActivePromotion = (item: DetailPenjualan & { produk: Produk }) => {
@@ -566,22 +559,6 @@ export const NeoOrderSummary = forwardRef<{ resetCustomerData: () => void }, Ord
             <span>-{formatTotal(totalDiscount)}</span>
           </div>
         )}
-
-        {/* {order.total_modal !== null && order.total_modal > 0 && (
-          <div className="flex justify-between text-black">
-            <span>Capital</span>
-            <span>{formatTotal(order.total_modal)}</span>
-          </div>
-        )} */}
-
-        {/* {order.keuntungan !== null && order.keuntungan > 0 && (
-          <div className="flex justify-between text-green-600">
-            <span>Profit</span>
-            <span>
-              {formatTotal(order.keuntungan - totalDiscount)} ({calculateProfitPercentage()}%)
-            </span>
-          </div>
-        )} */}
 
         {redeemedPoints > 0 && (
           <div className="flex justify-between text-green-600 font-bold">
