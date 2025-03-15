@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff, ShoppingCart, Receipt, CreditCard } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -11,6 +11,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "./ui/button";
 import { useEffect, useState } from "react";
 import { NeoProgressIndicator } from "./NeoProgresIndicator";
+import Image from "next/image";
 
 const FormSchema = z.object({
   username: z.string().min(2, {
@@ -39,7 +40,7 @@ export default function LoginPage() {
     const checkAuthStatus = async () => {
       try {
         const user = await getCurrentUser();
-        
+
         // If user is already logged in, redirect based on role
         if (user) {
           if (user.level === "ADMIN") {
@@ -112,19 +113,49 @@ export default function LoginPage() {
 
   // If still checking authentication status, show loading
   if (isAuthChecking) {
-    return (
-      <NeoProgressIndicator isLoading={isAuthChecking} message="Checking authentication..." />
-    );
+    return <NeoProgressIndicator isLoading={isAuthChecking} message="Checking authentication..." />;
   }
 
   return (
-    <div className="min-h-screen bg-white flex flex-col">
+    <div className="min-h-screen bg-[#f6f6f6] flex flex-col">
+      {/* Header with POS Elements */}
+      <div className="w-full p-4">
+        <div className="max-w-7xl mx-auto flex items-center justify-between">
+          <h1 className="text-3xl font-black font-mono text-black transform rotate-1 shadow-lg">CASHIER SYSTEM</h1>
+          <div className="flex space-x-4 shadow-lg">
+            <CreditCard size={32} className="text-black transform -rotate-3" />
+            <Receipt size={32} className="text-black transform rotate-6" />
+            <ShoppingCart size={32} className="text-black transform -rotate-2" />
+          </div>
+        </div>
+      </div>
+
       {/* Main Content */}
-      <div className="flex-1 flex items-center justify-center px-4">
-        <div className="w-full max-w-[400px] space-y-8">
+      <div className="flex-1 flex items-center justify-center px-4 relative">
+        {/* Decorative Elements */}
+        <div className="absolute top-8 left-8 w-36 h-36 bg-[#f6f6f6] rounded-sm transform rotate-12 shadow-lg hidden md:block">
+          <Image alt="contoh" src="/decorate5.png" fill />
+        </div>
+        <div className="absolute bottom-8 right-8 w-36 h-36 rounded-sm transform -rotate-6 shadow-lg hidden md:block">
+          <Image alt="contoh" src="/decorate2.png" fill />
+        </div>
+        <div className="absolute top-1/3 right-16 w-36 h-36 rounded-sm transform rotate-45 shadow-lg hidden md:block">
+          <Image alt="contoh" src="/decorate3.png" fill />
+        </div>
+
+        <div className="absolute top-[60%] left-20 w-36 h-36 rounded-sm transform rotate-45 shadow-lg hidden md:block">
+          <Image alt="contoh" src="/decorate4.png" fill />
+        </div>
+
+        <div className="w-full max-w-[500px] space-y-8 bg-white p-8 border-4 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] transform rotate-1">
           <div className="text-center space-y-4">
-            <h1 className="text-4xl font-black font-mono">WELCOME BACK</h1>
-            <p className="text-lg">Please enter your details</p>
+            <div className="flex justify-center mb-6">
+              <div className="relative w-24 h-24 bg-[#4ECDC4] rounded-full border-4 border-black overflow-hidden shadow-lg">
+              <Image alt="money" src="/money.png" fill />
+              </div>
+            </div>
+            <h1 className="text-4xl font-black font-mono text-black">CASHIER LOGIN</h1>
+            <p className="text-lg font-mono border-b-4 border-[#FF6B35] pb-2 inline-block">Enter credentials to access POS system</p>
           </div>
 
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
@@ -140,12 +171,12 @@ export default function LoginPage() {
                   {...form.register("username")}
                   placeholder="Username"
                   className={`
-                    w-full h-12 p-4 text-lg font-mono text-text bg-main 
-                    border-2 border-border dark:border-darkBorder 
-                    shadow-light dark:shadow-dark 
-                    transform rotate-2 transition-all duration-200
-                    hover:translate-y-1 hover:shadow-none dark:hover:shadow-none
-                    focus:outline-none focus:border-[#4400FF]
+                    w-full h-12 p-4 text-lg font-mono text-black bg-[#FFE66D] 
+                    border-4 border-black
+                    shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]
+                    transform rotate-1 transition-all duration-200
+                    hover:translate-y-1 hover:shadow-none
+                    focus:outline-none focus:bg-white
                   `}
                   onKeyDown={() => handleKeyDown("username")}
                   onFocus={() => setActiveField("username")}
@@ -154,13 +185,13 @@ export default function LoginPage() {
                 <div
                   className={`
                   absolute -z-10 bg-black opacity-10 w-full h-full top-2 left-2 
-                  transform rotate-2 transition-all duration-200
+                  transform rotate-1 transition-all duration-200
                   ${activeField === "username" ? "top-1 left-1 opacity-5" : ""}
                   ${activeField === "username" && typing ? "top-0 left-0" : ""}
                 `}
                 ></div>
               </div>
-              {form.formState.errors.username && <p className="text-red-600 font-mono text-sm transform rotate-2">{form.formState.errors.username.message}</p>}
+              {form.formState.errors.username && <p className="text-red-600 font-mono text-sm transform rotate-1">{form.formState.errors.username.message}</p>}
             </div>
 
             {/* Password Input */}
@@ -176,47 +207,49 @@ export default function LoginPage() {
                   type={showPassword ? "text" : "password"}
                   placeholder="Password"
                   className={`
-                    w-full h-12 p-4 text-lg font-mono text-text bg-main 
-                    border-2 border-border dark:border-darkBorder 
-                    shadow-light dark:shadow-dark 
-                    transform -rotate-2 transition-all duration-200
-                    hover:translate-y-1 hover:shadow-none dark:hover:shadow-none
-                    focus:outline-none focus:border-[#4400FF]
+                    w-full h-12 p-4 text-lg font-mono text-black bg-[#4ECDC4]
+                    border-4 border-black
+                    shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]
+                    transform -rotate-1 transition-all duration-200
+                    hover:translate-y-1 hover:shadow-none
+                    focus:outline-none focus:bg-white
                   `}
                   onKeyDown={() => handleKeyDown("password")}
                   onFocus={() => setActiveField("password")}
                   onBlur={() => setActiveField(null)}
                 />
                 <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 transition-transform hover:scale-110">
-                  {showPassword ? <EyeOff size={24} className="transform -rotate-2 mb-2" /> : <Eye size={24} className="transform -rotate-2 mb-2" />}
+                  {showPassword ? <EyeOff size={24} className="transform -rotate-1 text-black" /> : <Eye size={24} className="transform -rotate-1 text-black" />}
                 </button>
                 <div
                   className={`
                   absolute -z-10 bg-black opacity-10 w-full h-full top-2 left-2 
-                  transform -rotate-2 transition-all duration-200
+                  transform -rotate-1 transition-all duration-200
                   ${activeField === "password" ? "top-1 left-1 opacity-5" : ""}
                   ${activeField === "password" && typing ? "top-0 left-0" : ""}
                 `}
                 ></div>
               </div>
-              {form.formState.errors.password && <p className="text-red-600 font-mono text-sm transform -rotate-2">{form.formState.errors.password.message}</p>}
+              {form.formState.errors.password && <p className="text-red-600 font-mono text-sm transform -rotate-1">{form.formState.errors.password.message}</p>}
             </div>
 
             {/* Submit Button */}
             <div className="relative">
               <Button
                 type="submit"
-                className="w-full h-12 transition-all duration-200 bg-[#4400FF] text-white p-4 text-lg font-bold font-mono
-                       hover:bg-[#3300CC] hover:translate-y-1 relative z-10"
+                className="w-full h-14 transition-all duration-200 bg-[#88aaee] text-white p-4 text-lg font-bold font-mono
+                       border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]
+                       hover:translate-y-1 hover:shadow-none relative z-10"
               >
-                Sign In
+                OPEN REGISTER
               </Button>
-              <div
-                className="absolute -z-10 bg-[#3300CC] opacity-40 w-full h-full top-2 left-0 
-                transition-all duration-200 group-hover:top-0"
-              ></div>
             </div>
           </form>
+
+          {/* Receipt-like footer */}
+          <div className="mt-8 pt-4 border-t-4 border-dashed border-black">
+            <p className="font-mono text-center text-sm">SYSTEM v2.5 • SECURE POS • {new Date().toLocaleDateString()}</p>
+          </div>
         </div>
       </div>
     </div>
