@@ -1,17 +1,18 @@
 "use client";
 import { useState } from "react";
-import { BarChart, Calendar, TrendingUp, Users, FileText, FileDown } from "lucide-react";
+import { BarChart, Calendar, TrendingUp, Users, FileText, FileDown, PackageOpen } from "lucide-react";
 import { saveAs } from "file-saver";
 import * as XLSX from "xlsx";
 import { jsPDF } from "jspdf";
 import "jspdf-autotable";
-import { generateReport, generateProfitReport, ReportData, ProfitReportData } from "@/server/actions";
+import { generateProfitReport, ProfitReportData } from "@/server/actions";
 import { Penjualan, Pelanggan } from "@/types/types";
-// Tambahkan import berikut di bagian atas ReportManagement.tsx
 import { generateProductPerformanceReport, ProductPerformanceReportData } from "@/server/actions";
 import ProductPerformanceDashboard from "./ProductPerformanceDashboard";
+import { generateInventoryStockReport, InventoryReportData } from "@/server/actions";
+import InventoryStockDashboard from "./InventoryStockDashboard";
 
-// Period type for profit reports
+// Period type for reports
 type PeriodType = "weekly" | "monthly" | "yearly";
 
 interface Kategori {
@@ -39,23 +40,25 @@ interface Produk {
 
 
 export function ReportManagement() {
-  const [reports, setReports] = useState<ReportData[]>([]);
   const [profitReports, setProfitReports] = useState<ProfitReportData[]>([]);
   const [selectedPeriodType, setSelectedPeriodType] = useState<PeriodType>("monthly");
-  // Tambahkan state berikut di dalam function ReportManagement
+  // Product report states
   const [productReports, setProductReports] = useState<ProductPerformanceReportData[]>([]);
   const [selectedProductPeriodType, setSelectedProductPeriodType] = useState<PeriodType>("monthly");
+  // Inventory report states
+  const [inventoryReports, setInventoryReports] = useState<InventoryReportData[]>([]);
+  const [selectedInventoryPeriodType, setSelectedInventoryPeriodType] = useState<PeriodType>("monthly");
 
-  // Tambahkan function handler berikut
+  // Function handlers for product reports
   const handleGenerateProductReport = async () => {
     const newProductReport = await generateProductPerformanceReport(selectedProductPeriodType);
     setProductReports((prevReports) => [newProductReport, ...prevReports]);
   };
 
-  const handleGenerateReport = async () => {
-    const types = ["sales", "inventory", "customers"];
-    const newReports = await Promise.all(types.map((type) => generateReport(type)));
-    setReports((prevReports) => [...newReports, ...prevReports]);
+  // Function handler for inventory reports
+  const handleGenerateInventoryReport = async () => {
+    const newInventoryReport = await generateInventoryStockReport(selectedInventoryPeriodType);
+    setInventoryReports((prevReports) => [newInventoryReport, ...prevReports]);
   };
 
   const handleGenerateProfitReport = async () => {
@@ -64,7 +67,7 @@ export function ReportManagement() {
   };
 
   // Handle Excel download for regular reports and profit reports only  
-  const handleDownloadExcel = (report: ReportData | ProfitReportData) => {
+  const handleDownloadExcel = (report:ProfitReportData) => {
     const wb = XLSX.utils.book_new();
     let wsData: Array<Record<string, string | number>> = [];
 
@@ -124,7 +127,7 @@ export function ReportManagement() {
   };
 
   // Handle PDF download for regular reports and profit reports only
-  const handleDownloadPDF = (report: ReportData | ProfitReportData) => {
+  const handleDownloadPDF = (report: ProfitReportData) => {
     const doc = new jsPDF();
     
     // Add title and period
@@ -239,15 +242,6 @@ export function ReportManagement() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="text-3xl font-black">REPORTS & ANALYTICS</h2>
-        <div className="flex gap-2">
-          <button
-            onClick={handleGenerateReport}
-            className="px-4 py-2 bg-[#93B8F3] font-bold border-[3px] border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none transition-all flex items-center gap-2"
-          >
-            <BarChart size={20} />
-            Generate Report
-          </button>
-        </div>
       </div>
 
       {/* Profit Report Section */}
@@ -309,6 +303,108 @@ export function ReportManagement() {
         </div>
       </div>
 
+      {/* Inventory Stock Report Section */}
+      <div className="bg-white border-[3px] border-black p-4 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+        <h3 className="font-bold text-xl mb-4">Inventory Stock Report</h3>
+        <div className="flex flex-wrap items-center gap-4 mb-4">
+          <div className="flex items-center gap-2">
+            <label htmlFor="inventoryPeriodType" className="font-medium">
+              Period:
+            </label>
+            <select 
+              id="inventoryPeriodType" 
+              value={selectedInventoryPeriodType} 
+              onChange={(e) => setSelectedInventoryPeriodType(e.target.value as PeriodType)} 
+              className="border-[2px] border-black p-2"
+            >
+              <option value="weekly">Weekly</option>
+              <option value="monthly">Monthly</option>
+              <option value="yearly">Yearly</option>
+            </select>
+          </div>
+
+          <button
+            onClick={handleGenerateInventoryReport}
+            className="px-4 py-2 bg-[#4DB6AC] font-bold border-[3px] border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none transition-all flex items-center gap-2"
+          >
+            <PackageOpen size={20} />
+            Generate Inventory Report
+          </button>
+        </div>
+
+        <div className="mt-4 p-3 bg-teal-50 border border-teal-200 rounded-md">
+          <p className="text-sm flex items-center">
+            <span className="flex-shrink-0 text-teal-500 mr-2">💡</span>
+            <span>
+              <strong>Inventory Stock Report</strong> provides detailed analysis of your current inventory status, highlighting items that need attention, optimal reorder points, and stock value distribution. Perfect for inventory management and preventing stockouts or excess inventory.
+            </span>
+          </p>
+        </div>
+      </div>
+
+
+      {/* Generated Inventory Reports */}
+      {inventoryReports.length > 0 && (
+        <div className="mt-6">
+          <h3 className="font-bold text-xl mb-4">Inventory Stock Reports</h3>
+
+          {inventoryReports.map((report, index) => (
+            <div key={`inventory-${index}`} className="mb-6">
+              <div className="bg-white border-[3px] border-black p-4 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] mb-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className="p-2 bg-[#4DB6AC] border-[3px] border-black">
+                      <PackageOpen size={24} />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-lg">{report.name}</h3>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className="flex items-center text-sm">
+                          <Calendar size={16} className="mr-1" />
+                          Period: {report.period}
+                        </span>
+                      </div>
+                      <div className="flex flex-wrap gap-3 mt-1 text-sm">
+                        <span className="flex items-center">
+                          <span className="font-medium">Total Value:</span>{" "}
+                          {new Intl.NumberFormat("id-ID", {
+                            style: "currency",
+                            currency: "IDR",
+                          }).format(report.totalStockValue)}
+                        </span>
+                        <span className="flex items-center">
+                          <span className="font-medium">Products:</span> {report.totalProducts.toLocaleString()}
+                        </span>
+                        <span className="flex items-center">
+                          <span className="font-medium">Turnover Rate:</span> {report.avgStockTurnover.toFixed(2)}
+                        </span>
+                        {report.alerts.outOfStockCount > 0 && (
+                          <span className="flex items-center text-red-600">
+                            <span className="font-medium">Out of Stock:</span> {report.alerts.outOfStockCount}
+                          </span>
+                        )}
+                        {report.alerts.lowStockCount > 0 && (
+                          <span className="flex items-center text-orange-600">
+                            <span className="font-medium">Low Stock:</span> {report.alerts.lowStockCount}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Interactive Dashboard Visualization for the latest report */}
+              {index === 0 && (
+                <div className="bg-white border-[3px] border-black p-6 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+                  <h3 className="font-bold text-xl mb-4">Inventory Stock Dashboard</h3>
+                  <InventoryStockDashboard report={report} />
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Generated Product Reports */}
       {productReports.length > 0 && (
@@ -358,13 +454,10 @@ export function ReportManagement() {
                       </div>
                     </div>
                   </div>
-                  <div>
-                    {/* The download buttons are removed as they're now in the ProductPerformanceDashboard component */}
-                  </div>
                 </div>
               </div>
 
-              {/* Interactive Dashboard Visualization for the latest report */}
+              {/* Interactive Dashboard for the latest report */}
               {index === 0 && (
                 <div className="bg-white border-[3px] border-black p-6 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
                   <h3 className="font-bold text-xl mb-4">Product Performance Dashboard</h3>
@@ -429,45 +522,6 @@ export function ReportManagement() {
           ))}
         </div>
       )}
-
-      {/* Regular Reports Section */}
-      <div className="grid gap-4">
-        {reports.map((report) => (
-          <div key={report.id} className="bg-white border-[3px] border-black p-4 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="p-2 bg-[#93B8F3] border-[3px] border-black">{getReportIcon(report.type)}</div>
-                <div>
-                  <h3 className="font-bold text-lg">{report.name}</h3>
-                  <div className="flex items-center gap-2 mt-1">
-                    <span className="flex items-center text-sm">
-                      <Calendar size={16} className="mr-1" />
-                      Period: {report.period}
-                    </span>
-                  </div>
-                  <p className="text-sm mt-1">{report.summary}</p>
-                </div>
-              </div>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => handleDownloadExcel(report)}
-                  className="p-2 bg-[#93B8F3] border-[3px] border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none transition-all"
-                  title="Download Excel"
-                >
-                  <FileText size={20} />
-                </button>
-                <button
-                  onClick={() => handleDownloadPDF(report)}
-                  className="p-2 bg-[#93B8F3] border-[3px] border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none transition-all"
-                  title="Download PDF"
-                >
-                  <FileDown size={20} />
-                </button>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
     </div>
   );
 }
