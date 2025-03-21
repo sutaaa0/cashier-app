@@ -199,7 +199,6 @@ export async function getProducts(category: string) {
   }
 }
 
-
 export async function getAdminProduct() {
   try {
     const products = await prisma.produk.findMany({
@@ -259,37 +258,39 @@ export async function deleteProduct(productId: number) {
   };
 }
 
-export async function createOrder(orderData: Penjualan & { 
-  redeemedPoints?: number;
-  promotionDiscounts?: { [produkId: number]: number };
-  customerName?: string;
-  totalBeforePromotionDiscount?: number;
-  totalAfterPromotionDiscount?: number;
-}): Promise<
-  CategoryCount | 
-  (Penjualan & {
-    detailPenjualan: DetailPenjualan[];
-    pointsAwarded: number;
-    pointsRedeemed: number;
-    originalTotal: number;
-    finalTotal: number;
-  }) | 
-  null
+export async function createOrder(
+  orderData: Penjualan & {
+    redeemedPoints?: number;
+    promotionDiscounts?: { [produkId: number]: number };
+    customerName?: string;
+    totalBeforePromotionDiscount?: number;
+    totalAfterPromotionDiscount?: number;
+  }
+): Promise<
+  | CategoryCount
+  | (Penjualan & {
+      detailPenjualan: DetailPenjualan[];
+      pointsAwarded: number;
+      pointsRedeemed: number;
+      originalTotal: number;
+      finalTotal: number;
+    })
+  | null
 > {
   try {
-    console.log("data order :", orderData)
+    console.log("data order :", orderData);
     return await prisma.$transaction(async (tx) => {
       // Jika pembeli bukan member (guest), pastikan guestId ada
       if (!orderData.pelangganId && !orderData.guestId) {
         const guest = await tx.guest.create({ data: {} });
         orderData.guestId = guest.guestId;
       }
-      
+
       // Berikan poin kepada member (berdasarkan total setelah diskon)
       if (orderData.pelangganId) {
         const totalAfterAllDiscounts = orderData.total_harga;
         const poinAfterDiscount = Math.floor(totalAfterAllDiscounts / 200);
-        
+
         await tx.pelanggan.update({
           where: { pelangganId: orderData.pelangganId },
           data: { points: { increment: poinAfterDiscount } },
@@ -305,27 +306,27 @@ export async function createOrder(orderData: Penjualan & {
             include: {
               promotionProducts: {
                 include: {
-                  promotion: true
+                  promotion: true,
                 },
                 where: {
                   promotion: {
                     startDate: { lte: new Date() },
-                    endDate: { gte: new Date() }
-                  }
-                }
-              }
-            }
+                    endDate: { gte: new Date() },
+                  },
+                },
+              },
+            },
           });
 
           // Dapatkan diskon promosi untuk produk ini (jika ada)
           const discountAmount = orderData.promotionDiscounts?.[detail.produkId] || 0;
-          
+
           // Cari promosi yang aktif (untuk menyimpan informasi)
           let promotionId = null;
           let promotionTitle = null;
           let discountPercentage = null;
           // let discountAmountValue = null;
-          
+
           if (product?.promotionProducts && product.promotionProducts.length > 0 && discountAmount > 0) {
             // Ambil promosi aktif pertama (yang memberikan diskon)
             const activePromotion = product.promotionProducts[0].promotion;
@@ -343,14 +344,14 @@ export async function createOrder(orderData: Penjualan & {
             promotionId,
             promotionTitle,
             discountPercentage,
-            discountAmount: discountAmount > 0 ? discountAmount : null
+            discountAmount: discountAmount > 0 ? discountAmount : null,
           };
         })
       );
-      
+
       // Tambah informasi poin yang ditukarkan (akan disimpan di tabel Penjualan)
       const redeemedPoints = orderData.redeemedPoints || 0;
-      
+
       // Siapkan payload pembuatan penjualan
       const penjualanData = {
         tanggalPenjualan: new Date(),
@@ -413,7 +414,6 @@ export async function createOrder(orderData: Penjualan & {
   }
 }
 
-
 export async function getCustomers(query: string) {
   const customers = await prisma.pelanggan.findMany({
     where: {
@@ -423,41 +423,36 @@ export async function getCustomers(query: string) {
   return customers;
 }
 
-
-export async function createCustomer(customerData: { 
-  nama: string; 
-  alamat: string; 
-  nomorTelepon: string 
-}) {
+export async function createCustomer(customerData: { nama: string; alamat: string; nomorTelepon: string }) {
   try {
     // Validate that all required fields are present
     if (!customerData.nama || !customerData.alamat || !customerData.nomorTelepon) {
-      return { 
-        status: "Error", 
-        message: "Semua field harus diisi" 
+      return {
+        status: "Error",
+        message: "Semua field harus diisi",
       };
     }
 
     // Validate phone number format (Indonesian format)
     const phoneRegex = /^(\+62|0)[0-9]{9,12}$/;
     if (!phoneRegex.test(customerData.nomorTelepon)) {
-      return { 
-        status: "Error", 
-        message: "Format nomor telepon tidak valid" 
+      return {
+        status: "Error",
+        message: "Format nomor telepon tidak valid",
       };
     }
 
     // Check if phone number already exists
     const existingCustomer = await prisma.pelanggan.findFirst({
       where: {
-        nomorTelepon: customerData.nomorTelepon
-      }
+        nomorTelepon: customerData.nomorTelepon,
+      },
     });
 
     if (existingCustomer) {
-      return { 
-        status: "Error", 
-        message: "duplicate: Nomor telepon sudah terdaftar" 
+      return {
+        status: "Error",
+        message: "duplicate: Nomor telepon sudah terdaftar",
       };
     }
 
@@ -469,20 +464,20 @@ export async function createCustomer(customerData: {
     return { status: "Success", data: customer };
   } catch (error) {
     console.error("Error creating customer:", error);
-    
+
     // Check for Prisma unique constraint error
     if (error instanceof Prisma.PrismaClientKnownRequestError) {
-      if (error.code === 'P2002') {
-        return { 
-          status: "Error", 
-          message: "duplicate: Nomor telepon sudah terdaftar" 
+      if (error.code === "P2002") {
+        return {
+          status: "Error",
+          message: "duplicate: Nomor telepon sudah terdaftar",
         };
       }
     }
-    
-    return { 
-      status: "Error", 
-      message: "Failed to create customer" 
+
+    return {
+      status: "Error",
+      message: "Failed to create customer",
     };
   }
 }
@@ -495,11 +490,7 @@ export async function getMemberPoints(pelangganId: number) {
   return member?.points || 0;
 }
 
-export async function redeemPoints(
-  pelangganId: number, 
-  pointsToRedeem: number, 
-  harga: number
-) {
+export async function redeemPoints(pelangganId: number, pointsToRedeem: number, harga: number) {
   const member = await prisma.pelanggan.findUnique({
     where: { pelangganId },
   });
@@ -515,14 +506,11 @@ export async function redeemPoints(
     where: { pelangganId },
     data: { points: { decrement: effectiveRedeem } },
   });
-  
+
   return effectiveRedeem;
 }
 
-export async function restoreRedeemedPoints(
-  pelangganId: number,
-  pointsToRestore: number
-) {
+export async function restoreRedeemedPoints(pelangganId: number, pointsToRestore: number) {
   const member = await prisma.pelanggan.findUnique({
     where: { pelangganId },
   });
@@ -538,8 +526,6 @@ export async function restoreRedeemedPoints(
 
   return pointsToRestore;
 }
-
-
 
 // Configure Cloudinary
 cloudinary.config({
@@ -561,33 +547,50 @@ interface Category {
   nama: string;
 }
 
-
-export async function addProduct(formData: {
-  name: string;
-  harga: number;
-  hargaModal: number;
-  stock: number;
-  minimumStok: number;
-  categoryId: number;
-  imageUrl: string;
+export async function addProduct(formData: { 
+  name: string; 
+  harga: number; 
+  hargaModal: number; 
+  stock: number; 
+  minimumStok: number; 
+  categoryId: number; 
+  imageUrl: string 
 }): Promise<{ status: string; message: string; data?: Produk | null }> {
   try {
     const { name, harga, hargaModal, stock, minimumStok, categoryId, imageUrl } = formData;
     
+    // Validasi data yang diperlukan
     if (!name || !harga || !hargaModal || !stock || !minimumStok || !categoryId || !imageUrl) {
       return {
         status: "Error",
-        message: "Semua data produk harus diisi",
+        message: "All product data must be filled in",
       };
     }
     
+    // Validasi nilai-nilai numerik
     if (harga <= 0 || hargaModal < 0 || stock < 0 || minimumStok < 0) {
       return {
         status: "Error",
-        message: "Harga jual, harga modal, stok, dan minimum stok harus bernilai positif",
+        message: "Selling price, capital price, stock, and minimum stock must be positive ",
       };
     }
     
+    // Cek apakah produk dengan nama yang sama (dan tidak dihapus) sudah ada
+    const existingProduct = await prisma.produk.findFirst({
+      where: {
+        nama: name,
+        isDeleted: false
+      }
+    });
+    
+    if (existingProduct) {
+      return {
+        status: "Error",
+        message: "Products with the same name already exist",
+      };
+    }
+    
+    // Tentukan status stok berdasarkan jumlah stok dan minimum stok
     let statusStok: "CRITICAL" | "LOW" | "NORMAL";
     if (stock <= minimumStok * 0.5) {
       statusStok = "CRITICAL";
@@ -597,6 +600,7 @@ export async function addProduct(formData: {
       statusStok = "NORMAL";
     }
     
+    // Buat produk baru
     const product = await prisma.produk.create({
       data: {
         nama: name,
@@ -614,14 +618,14 @@ export async function addProduct(formData: {
     
     return {
       status: "Success",
-      message: "Produk berhasil ditambahkan",
+      message: "Product added successfully ",
       data: product,
     };
   } catch (error) {
     console.error("Error menambahkan produk:", error);
     return {
       status: "Error",
-      message: error instanceof Error ? error.message : "Gagal menambahkan produk",
+      message: error instanceof Error ? error.message : "Failed to add product ",
     };
   }
 }
@@ -632,7 +636,7 @@ export async function fetchCategories(): Promise<{ status: string; data?: Catego
       orderBy: { nama: "asc" },
       where: {
         isDeleted: false,
-      }
+      },
     });
 
     if (!categories.length) {
@@ -660,38 +664,64 @@ export async function getCategory() {
 
 export async function updateCategory(data: { kategoriId: number; nama: string; icon?: string }) {
   try {
+    // First, check if a category with the same name exists and is not deleted
+    const existingCategory = await prisma.kategori.findFirst({
+      where: {
+        nama: data.nama,
+        isDeleted: false,
+        NOT: {
+          kategoriId: data.kategoriId // Exclude the current category being updated
+        }
+      }
+    });
+
+    // If an active category with the same name exists, return an error
+    if (existingCategory) {
+      return { 
+        status: "Error", 
+        message: "Categories with the same name already exist" 
+      };
+    }
+
+    // If no active category with the same name exists, proceed with the update
     const updatedCategory = await prisma.kategori.update({
       where: { kategoriId: data.kategoriId },
       data: {
         nama: data.nama,
         icon: data.icon || "",
-        // Karena kita tidak menyimpan color, field color bisa dibiarkan atau diabaikan
       },
     });
+    
     return { status: "Success", data: updatedCategory };
   } catch (error) {
     console.error("Error updating category:", error);
-    return { status: "Error", message: error instanceof Error ? error.message : "Failed to update category" };
+    return { 
+      status: "Error", 
+      message: error instanceof Error ? error.message : "Failed to update category" 
+    };
   }
 }
 
 export async function addCategory(data: { nama: string; icon?: string; color?: string }) {
   try {
-    // Cek apakah kategori dengan nama tersebut sudah ada
-    const existingCategory = await prisma.kategori.findUnique({
-      where: { nama: data.nama },
+    // Check if a non-deleted category with the same name already exists
+    const existingCategory = await prisma.kategori.findFirst({
+      where: { 
+        nama: data.nama,
+        isDeleted: false // Only check against non-deleted categories
+      },
     });
 
     if (existingCategory) {
       return { status: "Error", message: "Category already exists" };
     }
 
-    // Buat kategori baru dengan menyertakan icon dan color jika ada,
-    // jika tidak ada, bisa disimpan sebagai string kosong (atau nilai default lainnya)
+    // Create new category with the provided icon and color if available
     const newCategory = await prisma.kategori.create({
       data: {
         nama: data.nama,
         icon: data.icon || "",
+        isDeleted: false // Explicitly set as not deleted
       },
     });
 
@@ -709,8 +739,7 @@ interface DeleteCategoryResponse {
     nama: string;
     kategoriId: number;
     icon: string;
-
-  }
+  };
 }
 
 export async function deleteCategory(kategoriId: number): Promise<DeleteCategoryResponse> {
@@ -742,18 +771,35 @@ export async function deleteCategory(kategoriId: number): Promise<DeleteCategory
   return { status: "Success", message: "Kategori berhasil dihapus (soft delete)", data: deletedCategory };
 }
 
-
-export async function updateProduct(formData: { 
-  id: number; 
-  name: string; 
-  price: number; 
-  costPrice: number; // Added costPrice (hargaModal)
-  stock: number; 
-  minimumStok: number; 
-  category: string; 
-  imageUrl: string 
-}): Promise<{ status: string; message: string; data?: Produk }> {
+export async function updateProduct(formData: {   
+  id: number;   
+  name: string;   
+  price: number;   
+  costPrice: number;
+  stock: number;   
+  minimumStok: number;   
+  category: string;   
+  imageUrl: string; 
+}): Promise<{ status: string; message: string; data?: Produk }> {   
   try {
+    // First, check if the product name already exists and is active
+    const existingProduct = await prisma.produk.findFirst({
+      where: {
+        nama: formData.name,
+        isDeleted: false,
+        produkId: { not: formData.id } // Exclude the current product being updated
+      }
+    });
+
+    // If an active product with the same name exists, throw an error
+    if (existingProduct) {
+      return {
+        status: "Error",
+        message: "Products with the same name already exist"
+      };
+    }
+
+    // Determine stock status
     let statusStok: "CRITICAL" | "LOW" | "NORMAL";
     if (formData.stock <= formData.minimumStok * 0.5) {
       statusStok = "CRITICAL";
@@ -762,32 +808,50 @@ export async function updateProduct(formData: {
     } else {
       statusStok = "NORMAL";
     }
+    
+    // Find the category to connect
+    const category = await prisma.kategori.findFirst({
+      where: { nama: formData.category }
+    });
 
+    if (!category) {
+      return {
+        status: "Error",
+        message: "Category not found."
+      };
+    }
+
+    // Update the product
     const product = await prisma.produk.update({
       where: { produkId: formData.id },
       data: {
         nama: formData.name,
         harga: formData.price,
-        hargaModal: formData.costPrice, // Added hargaModal field
+        hargaModal: formData.costPrice,
         stok: formData.stock,
-        kategori: { connect: { nama: formData.category } },
+        kategoriId: category.kategoriId,
         image: formData.imageUrl,
         minimumStok: formData.minimumStok,
         statusStok: statusStok,
+        isDeleted: false, // Ensure the product is marked as active
       },
     });
-
+    
     // Use the proper revalidatePath with options
     revalidatePath("/dashboard-admin");
-
-    return { status: "Success", message: "Product updated successfully", data: product };
+    
+    return { 
+      status: "Success", 
+      message: "Product updated successfully", 
+      data: product 
+    };
   } catch (error) {
     console.error("Error updating product:", error);
     return {
       status: "Error",
       message: error instanceof Error ? error.message : "Failed to update product",
     };
-  }
+  } 
 }
 
 interface ActionResponse {
@@ -806,7 +870,7 @@ export async function addUser(formData: { username: string; password: string; le
     if (existingUser) {
       return {
         status: "Error",
-        message: "Username sudah digunakan",
+        message: "username already in use",
       };
     }
 
@@ -825,14 +889,14 @@ export async function addUser(formData: { username: string; password: string; le
 
     return {
       status: "Success",
-      message: "User berhasil ditambahkan",
+      message: "User successfully added",
       data: user,
     };
   } catch (error) {
     console.error("Error menambahkan user:", error);
     return {
       status: "Error",
-      message: error instanceof Error ? error.message : "Gagal menambahkan user",
+      message: error instanceof Error ? error.message : "Failed to add user",
     };
   }
 }
@@ -850,7 +914,7 @@ export async function updateUser(formData: { id: number; username: string; passw
     if (existingUser) {
       return {
         status: "Error",
-        message: "Username sudah digunakan",
+        message: "username already in use",
       };
     }
 
@@ -873,14 +937,14 @@ export async function updateUser(formData: { id: number; username: string; passw
 
     return {
       status: "Success",
-      message: "User berhasil diupdate",
+      message: "User successfully updated",
       data: user,
     };
   } catch (error) {
     console.error("Error mengupdate user:", error);
     return {
       status: "Error",
-      message: error instanceof Error ? error.message : "Gagal mengupdate user",
+      message: error instanceof Error ? error.message : "Failed to update user",
     };
   }
 }
@@ -909,12 +973,11 @@ export async function deleteUser(id: number): Promise<ActionResponse> {
 export async function getUsers(searchTerm?: string) {
   try {
     const users = await prisma.user.findMany({
-      where: searchTerm ? {
-        OR: [
-          { username: { contains: searchTerm, mode: 'insensitive' } },
-          { level: { contains: searchTerm, mode: 'insensitive' } }
-        ]
-      } : {},
+      where: searchTerm
+        ? {
+            OR: [{ username: { contains: searchTerm, mode: "insensitive" } }, { level: { contains: searchTerm, mode: "insensitive" } }],
+          }
+        : {},
       select: {
         id: true,
         username: true,
@@ -926,7 +989,6 @@ export async function getUsers(searchTerm?: string) {
     throw error;
   }
 }
-
 
 export async function getPelanggan() {
   try {
@@ -946,26 +1008,25 @@ export async function getPelanggan() {
   }
 }
 
-
 export async function updatePelanggan(data: Pelanggan) {
   try {
     // Only check for duplicate phone number if one is provided
     if (data.nomorTelepon) {
       const existingPhoneNumber = await prisma.pelanggan.findUnique({
         where: {
-          nomorTelepon: data.nomorTelepon
-        }
+          nomorTelepon: data.nomorTelepon,
+        },
       });
-      
+
       // Check if the found phone number belongs to a different customer
       if (existingPhoneNumber && existingPhoneNumber.pelangganId !== data.pelangganId) {
         return {
           status: "Error",
-          message: "duplicate: Nomor telepon sudah terdaftar"
+          message: "duplicate: Nomor telepon sudah terdaftar",
         };
       }
     }
-    
+
     const updatedPelanggan = await prisma.pelanggan.update({
       where: { pelangganId: data.pelangganId },
       data: {
@@ -975,7 +1036,7 @@ export async function updatePelanggan(data: Pelanggan) {
         points: data.points,
       },
     });
-    
+
     return { status: "Success", data: updatedPelanggan };
   } catch (error) {
     console.error("Error updating customer:", error);
@@ -995,48 +1056,50 @@ export async function deletePelanggan(pelangganId: number) {
   }
 }
 
-
 export async function getTransactions() {
   try {
     const transactions = await prisma.penjualan.findMany({
       include: {
+        user: true,
         pelanggan: true,
         guest: true,
         detailPenjualan: {
           include: {
-            produk: true
-          }
+            produk: true,
+          },
         },
         // Include refund information
         returns: {
           include: {
             detailRefund: {
               include: {
-                produk: true
-              }
-            }
-          }
-        }
+                produk: true,
+              },
+            },
+          },
+        },
       },
       orderBy: {
-        tanggalPenjualan: "desc"
-      }
+        tanggalPenjualan: "desc",
+      },
     });
-    
+
     // Transform transactions to use the stored promotion information
-    const transformedTransactions = transactions.map(transaction => ({
+    const transformedTransactions = transactions.map((transaction) => ({
       ...transaction,
-      detailPenjualan: transaction.detailPenjualan.map(detail => ({
+      detailPenjualan: transaction.detailPenjualan.map((detail) => ({
         ...detail,
         // Use the stored promotion information
-        promotion: detail.promotionTitle ? {
-          title: detail.promotionTitle,
-          discountPercentage: detail.discountPercentage,
-          discountAmount: detail.discountAmount
-        } : undefined
-      }))
+        promotion: detail.promotionTitle
+          ? {
+              title: detail.promotionTitle,
+              discountPercentage: detail.discountPercentage,
+              discountAmount: detail.discountAmount,
+            }
+          : undefined,
+      })),
     }));
-    
+
     return { status: "Success", data: transformedTransactions };
   } catch (error) {
     console.error("Error fetching transactions:", error);
@@ -1052,7 +1115,7 @@ interface StockData {
   category: string;
   lastUpdated: string;
   status?: "CRITICAL" | "LOW" | "NORMAL";
-  image?:string;
+  image?: string;
 }
 
 interface ApiResponse<T> {
@@ -1097,8 +1160,6 @@ export async function getStockItemsManagement(): Promise<ApiResponse<StockData[]
     };
   }
 }
-
-
 
 export async function getStockItems(): Promise<ApiResponse<StockData[]>> {
   try {
@@ -1225,16 +1286,6 @@ export async function deleteStockItem(id: number): Promise<ApiResponse<void>> {
   }
 }
 
-export interface ReportData {
-  id: number;
-  name: string;
-  period: string;
-  type: "sales" | "inventory" | "customers";
-  generatedDate: string;
-  summary: string;
-  data: Record<string, unknown>[];
-}
-
 // New interface for profit reports
 export interface ProfitReportData {
   id: number;
@@ -1258,67 +1309,6 @@ interface ProfitPeriodData {
   totalOrders: number;
 }
 
-// Existing generateReport function
-export async function generateReport(type: string): Promise<ReportData> {
-  const currentDate = new Date();
-  const firstDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
-  let reportData: Partial<ReportData> = {};
-
-  switch (type) {
-    case "sales": {
-      const salesData = await prisma.penjualan.findMany({
-        where: { tanggalPenjualan: { gte: firstDayOfMonth } },
-        include: { detailPenjualan: { include: { produk: true } } },
-      });
-      const totalSales = salesData.reduce((sum, sale) => sum + sale.total_harga, 0);
-      reportData = {
-        name: "Monthly Sales Report",
-        period: currentDate.toLocaleDateString("en-US", { month: "long", year: "numeric" }),
-        type: "sales",
-        summary: `Total Sales: ${new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR" }).format(totalSales)} | Orders: ${salesData.length}`,
-        data: salesData,
-      };
-      break;
-    }
-
-    case "inventory": {
-      const products = await prisma.produk.findMany({ where: { isDeleted: false }, include: { kategori: true }  });
-      const lowStock = products.filter((p) => p.stok < 10).length;
-      reportData = {
-        name: "Inventory Status",
-        period: `Q${Math.floor(currentDate.getMonth() / 3) + 1} ${currentDate.getFullYear()}`,
-        type: "inventory",
-        summary: `Items: ${products.length} | Low Stock: ${lowStock}`,
-        data: products,
-      };
-      break;
-    }
-
-    case "customers": {
-      const customers = await prisma.pelanggan.findMany({ include: { penjualan: true } });
-      const totalPoints = customers.reduce((sum, customer) => sum + customer.points, 0);
-      reportData = {
-        name: "Customer Analytics",
-        period: currentDate.toLocaleDateString("en-US", { month: "long", year: "numeric" }),
-        type: "customers",
-        summary: `Total Customers: ${customers.length} | Total Points: ${totalPoints}`,
-        data: customers,
-      };
-      break;
-    }
-  }
-
-  return {
-    id: Date.now(),
-    name: reportData.name || "",
-    period: reportData.period || "",
-    type: reportData.type || "sales",
-    summary: reportData.summary || "",
-    data: reportData.data || [],
-    generatedDate: new Date().toISOString(),
-  };
-}
-
 // New function for generating profit reports
 export async function generateProfitReport(periodType: "weekly" | "monthly" | "yearly"): Promise<ProfitReportData> {
   const currentDate = new Date();
@@ -1330,144 +1320,137 @@ export async function generateProfitReport(periodType: "weekly" | "monthly" | "y
   // Find the first transaction date
   const firstTransaction = await prisma.penjualan.findFirst({
     orderBy: {
-      tanggalPenjualan: 'asc'
-    }
+      tanggalPenjualan: "asc",
+    },
   });
 
   // If no transactions exist, use current date minus one period as fallback
-  const firstTransactionDate = firstTransaction 
-    ? new Date(firstTransaction.tanggalPenjualan) 
-    : new Date(currentDate.setMonth(currentDate.getMonth() - 1));
+  const firstTransactionDate = firstTransaction ? new Date(firstTransaction.tanggalPenjualan) : new Date(currentDate.setMonth(currentDate.getMonth() - 1));
 
   // Configure date ranges and formats based on period type
   switch (periodType) {
     case "weekly": {
       reportName = "Weekly Profit Report";
-      
+
       // Calculate number of weeks between first transaction and now
       const startDate = startOfWeek(firstTransactionDate);
       const endDateWeek = endOfWeek(endDate);
-      
+
       // Calculate the difference in weeks
       const diffTime = Math.abs(endDateWeek.getTime() - startDate.getTime());
       const diffWeeks = Math.ceil(diffTime / (7 * 24 * 60 * 60 * 1000)) + 1;
-      
+
       periodLabel = `${format(startDate, "dd MMM yyyy")} - ${format(endDate, "dd MMM yyyy")}`;
-      
+
       // Create segments for each week (limit to max 52 weeks/1 year to prevent too many segments)
       const weeksToShow = Math.min(diffWeeks, 52);
-      
+
       for (let i = 0; i < weeksToShow; i++) {
         const weekEnd = new Date(endDateWeek);
-        weekEnd.setDate(weekEnd.getDate() - (7 * i));
+        weekEnd.setDate(weekEnd.getDate() - 7 * i);
         const weekStart = startOfWeek(weekEnd);
-        
+
         // Don't go earlier than the first transaction
         if (weekStart < startDate) {
           break;
         }
-        
-        const weekData = await getProfitDataForRange(
-          weekStart,
-          i === 0 ? endDate : endOfWeek(weekEnd)
-        );
-        
+
+        const weekData = await getProfitDataForRange(weekStart, i === 0 ? endDate : endOfWeek(weekEnd));
+
         // Skip weeks with no transactions
         if (weekData.totalOrders === 0) {
           continue;
         }
-        
+
         const weekLabel = `Week ${format(weekStart, "w")} (${format(weekStart, "dd MMM")}-${format(endOfWeek(weekEnd), "dd MMM")})`;
         periodSegments.unshift({
           ...weekData,
           periodDate: weekStart.toISOString(),
-          periodLabel: weekLabel
+          periodLabel: weekLabel,
         });
       }
       break;
     }
-    
+
     case "monthly": {
       reportName = "Monthly Profit Report";
-      
+
       // Use the start of the month for the first transaction
       const startDate = startOfMonth(firstTransactionDate);
-      
+
       // Calculate number of months between first transaction and now
-      const monthDiff = 
-        (endDate.getFullYear() - startDate.getFullYear()) * 12 + 
-        (endDate.getMonth() - startDate.getMonth()) + 1;
-      
+      const monthDiff = (endDate.getFullYear() - startDate.getFullYear()) * 12 + (endDate.getMonth() - startDate.getMonth()) + 1;
+
       periodLabel = `${format(startDate, "MMM yyyy")} - ${format(endDate, "MMM yyyy")}`;
-      
+
       // Create segments for each month (limit to max 36 months/3 years to prevent too many segments)
       const monthsToShow = Math.min(monthDiff, 36);
-      
+
       for (let i = 0; i < monthsToShow; i++) {
         const monthDate = new Date(endDate);
         monthDate.setMonth(monthDate.getMonth() - i);
-        
+
         const monthStart = startOfMonth(monthDate);
-        
+
         // Don't go earlier than the first transaction month
         if (monthStart < startDate) {
           break;
         }
-        
+
         const monthEnd = i === 0 ? endDate : endOfMonth(monthDate);
-        
+
         const monthData = await getProfitDataForRange(monthStart, monthEnd);
-        
+
         // Skip months with no transactions
         if (monthData.totalOrders === 0) {
           continue;
         }
-        
+
         periodSegments.unshift({
           ...monthData,
           periodDate: monthStart.toISOString(),
-          periodLabel: format(monthStart, "MMMM yyyy")
+          periodLabel: format(monthStart, "MMMM yyyy"),
         });
       }
       break;
     }
-    
+
     case "yearly": {
       reportName = "Annual Profit Report";
-      
+
       // Use the start of the year for the first transaction
       const startDate = startOfYear(firstTransactionDate);
-      
+
       // Calculate number of years between first transaction and now
       const yearDiff = endDate.getFullYear() - startDate.getFullYear() + 1;
-      
+
       periodLabel = `${format(startDate, "yyyy")} - ${format(endDate, "yyyy")}`;
-      
+
       // Create segments for each year
       for (let i = 0; i < yearDiff; i++) {
         const yearDate = new Date(endDate);
         yearDate.setFullYear(yearDate.getFullYear() - i);
-        
+
         const yearStart = startOfYear(yearDate);
-        
+
         // Don't go earlier than the first transaction year
         if (yearStart < startDate) {
           break;
         }
-        
+
         const yearEnd = i === 0 ? endDate : endOfYear(yearDate);
-        
+
         const yearData = await getProfitDataForRange(yearStart, yearEnd);
-        
+
         // Skip years with no transactions
         if (yearData.totalOrders === 0) {
           continue;
         }
-        
+
         periodSegments.unshift({
           ...yearData,
           periodDate: yearStart.toISOString(),
-          periodLabel: format(yearStart, "yyyy")
+          periodLabel: format(yearStart, "yyyy"),
         });
       }
       break;
@@ -1498,9 +1481,9 @@ async function getProfitDataForRange(startDate: Date, endDate: Date): Promise<Om
     where: {
       tanggalPenjualan: {
         gte: startDate,
-        lte: endDate
-      }
-    }
+        lte: endDate,
+      },
+    },
   });
 
   const totalSales = sales.reduce((sum, sale) => sum + sale.total_harga, 0);
@@ -1513,7 +1496,7 @@ async function getProfitDataForRange(startDate: Date, endDate: Date): Promise<Om
     totalModal,
     profit,
     profitMargin,
-    totalOrders: sales.length
+    totalOrders: sales.length,
   };
 }
 
@@ -2014,7 +1997,7 @@ export async function getCategoryCounts() {
         },
         where: {
           isDeleted: false,
-        }
+        },
       }),
       // Get total count of non-deleted products
       prisma.produk.count({
@@ -2118,19 +2101,44 @@ export async function getSalesTrendData() {
   }
 }
 
-export async function getTopSellingProducts() {
-  try {
-    // Mengambil data penjualan 30 hari terakhir
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+// In your server/actions.js or similar file
 
-    // Mengambil data produk terlaris
+export async function getTopSellingProducts(startDateStr = '', endDateStr = '') {
+  try {
+    // Set default dates if not provided
+    let startDate = new Date();
+    let endDate = new Date();
+    
+    if (startDateStr) {
+      startDate = new Date(startDateStr);
+    } else {
+      // Default: 30 days ago
+      startDate.setDate(startDate.getDate() - 30);
+    }
+    
+    if (endDateStr) {
+      endDate = new Date(endDateStr);
+      // Set to end of day
+      endDate.setHours(23, 59, 59, 999);
+    }
+    
+    // Calculate previous period (same length as selected period)
+    const periodLength = endDate.getTime() - startDate.getTime();
+    const previousPeriodEndDate = new Date(startDate.getTime() - 1); // 1ms before start date
+    const previousPeriodStartDate = new Date(previousPeriodEndDate.getTime() - periodLength);
+    
+    // Debugging logs
+    console.log(`Current period: ${startDate.toISOString()} to ${endDate.toISOString()}`);
+    console.log(`Previous period: ${previousPeriodStartDate.toISOString()} to ${previousPeriodEndDate.toISOString()}`);
+
+    // Retrieve top selling products for the selected period
     const topProducts = await prisma.detailPenjualan.groupBy({
       by: ["produkId"],
       where: {
         penjualan: {
           tanggalPenjualan: {
-            gte: thirtyDaysAgo,
+            gte: startDate,
+            lte: endDate,
           },
         },
       },
@@ -2140,33 +2148,33 @@ export async function getTopSellingProducts() {
       },
       orderBy: {
         _sum: {
-          kuantitas: "desc", // Menambahkan arah pengurutan
+          kuantitas: "desc",
         },
       },
       take: 4,
     });
 
-    // Mengambil detail produk
+    // Get product details and calculate growth compared to previous period
     const productsWithDetails = await Promise.all(
       topProducts.map(async (item) => {
         const product = await prisma.produk.findUnique({
           where: {
             produkId: item.produkId,
-            isDeleted: false, // Memastikan produk masih aktif
+            isDeleted: false,
           },
         });
 
         if (!product) return null;
 
-        // Menghitung pertumbuhan
+        // Get sales data from previous period for comparison
         const previousPeriodSales = await prisma.detailPenjualan.groupBy({
           by: ["produkId"],
           where: {
             produkId: item.produkId,
             penjualan: {
               tanggalPenjualan: {
-                gte: new Date(thirtyDaysAgo.getTime() - 30 * 24 * 60 * 60 * 1000), //>= 30 hari sebelum periode saat ini
-                lt: thirtyDaysAgo, // < hari pertama periode saat ini
+                gte: previousPeriodStartDate,
+                lte: previousPeriodEndDate,
               },
             },
           },
@@ -2177,7 +2185,14 @@ export async function getTopSellingProducts() {
 
         const currentSales = item._sum.kuantitas || 0;
         const previousSales = previousPeriodSales[0]?._sum.kuantitas || 0;
-        const growth = previousSales === 0 ? 100 : ((currentSales - previousSales) / previousSales) * 100;
+        
+        // Calculate growth percentage
+        let growth = 0;
+        if (previousSales === 0) {
+          growth = currentSales > 0 ? 100 : 0; // 100% growth if there were no previous sales
+        } else {
+          growth = ((currentSales - previousSales) / previousSales) * 100;
+        }
 
         return {
           name: product.nama,
@@ -2342,19 +2357,19 @@ export type ProfitStats = {
 function getWIBDate(date: Date): Date {
   // Salin objek Date untuk menghindari modifikasi objek asli
   const wibDate = new Date(date);
-  
+
   // Mendapatkan offset timezone browser lokal dalam menit
   const localTimezoneOffset = date.getTimezoneOffset();
-  
+
   // WIB adalah UTC+7, jadi offsetnya adalah -420 menit (-7 jam)
   const wibOffset = -420;
-  
+
   // Menghitung selisih dalam menit antara timezone lokal dan WIB
   const offsetDiff = localTimezoneOffset - wibOffset;
-  
+
   // Menerapkan selisih waktu ke tanggal
   wibDate.setMinutes(wibDate.getMinutes() + offsetDiff);
-  
+
   return wibDate;
 }
 
@@ -2363,10 +2378,10 @@ function getDateRanges(timeRange: TimeRange) {
   // Gunakan tanggal saat ini dalam zona waktu WIB
   const currentDate = new Date();
   const currentDateWIB = getWIBDate(currentDate);
-  
+
   let currentPeriodStart: Date;
   let previousPeriodStart: Date;
-  
+
   switch (timeRange) {
     case "daily":
       // Current: Last 7 days, Previous: 7 days before that
@@ -2375,7 +2390,7 @@ function getDateRanges(timeRange: TimeRange) {
       previousPeriodStart = new Date(currentPeriodStart);
       previousPeriodStart.setDate(previousPeriodStart.getDate() - 7);
       break;
-    
+
     case "weekly":
       // Current: Last 4 weeks, Previous: 4 weeks before that
       currentPeriodStart = new Date(currentDateWIB);
@@ -2383,7 +2398,7 @@ function getDateRanges(timeRange: TimeRange) {
       previousPeriodStart = new Date(currentPeriodStart);
       previousPeriodStart.setDate(previousPeriodStart.getDate() - 28);
       break;
-    
+
     case "monthly":
       // Current: Last 12 months, Previous: 12 months before that
       currentPeriodStart = new Date(currentDateWIB);
@@ -2391,7 +2406,7 @@ function getDateRanges(timeRange: TimeRange) {
       previousPeriodStart = new Date(currentPeriodStart);
       previousPeriodStart.setMonth(previousPeriodStart.getMonth() - 12);
       break;
-    
+
     case "yearly":
       // Current: Last 5 years, Previous: 5 years before that
       currentPeriodStart = new Date(currentDateWIB);
@@ -2400,23 +2415,23 @@ function getDateRanges(timeRange: TimeRange) {
       previousPeriodStart.setFullYear(previousPeriodStart.getFullYear() - 5);
       break;
   }
-  
+
   // Set waktu ke awal hari dalam UTC untuk konsistensi dengan format database
   currentPeriodStart.setHours(0, 0, 0, 0);
   previousPeriodStart.setHours(0, 0, 0, 0);
-  
+
   const currentPeriodEnd = new Date(currentDateWIB);
   currentPeriodEnd.setHours(23, 59, 59, 999); // Set ke akhir hari saat ini
-  
+
   const previousPeriodEnd = new Date(currentPeriodStart);
   previousPeriodEnd.setHours(0, 0, 0, 0);
   previousPeriodEnd.setMilliseconds(-1); // 1 milidetik sebelum currentPeriodStart
-  
+
   return {
     currentPeriodStart,
     currentPeriodEnd,
     previousPeriodStart,
-    previousPeriodEnd
+    previousPeriodEnd,
   };
 }
 
@@ -2424,83 +2439,83 @@ function getDateRanges(timeRange: TimeRange) {
 function getDateFormat(date: Date, timeRange: TimeRange): string {
   // Konversi tanggal database (UTC) ke WIB
   const dateWIB = getWIBDate(date);
-  
+
   switch (timeRange) {
     case "daily":
-      return `${dateWIB.getFullYear()}-${String(dateWIB.getMonth() + 1).padStart(2, '0')}-${String(dateWIB.getDate()).padStart(2, '0')}`; // YYYY-MM-DD
-    
+      return `${dateWIB.getFullYear()}-${String(dateWIB.getMonth() + 1).padStart(2, "0")}-${String(dateWIB.getDate()).padStart(2, "0")}`; // YYYY-MM-DD
+
     case "weekly":
       const firstDayOfWeek = new Date(dateWIB);
       // getDay() mengembalikan 0 untuk Minggu, 1 untuk Senin, dsb.
       firstDayOfWeek.setDate(dateWIB.getDate() - dateWIB.getDay());
-      return `${firstDayOfWeek.getFullYear()}-${String(firstDayOfWeek.getMonth() + 1).padStart(2, '0')}-${String(firstDayOfWeek.getDate()).padStart(2, '0')}`;
-    
+      return `${firstDayOfWeek.getFullYear()}-${String(firstDayOfWeek.getMonth() + 1).padStart(2, "0")}-${String(firstDayOfWeek.getDate()).padStart(2, "0")}`;
+
     case "monthly":
-      return `${dateWIB.getFullYear()}-${String(dateWIB.getMonth() + 1).padStart(2, '0')}`; // YYYY-MM
-    
+      return `${dateWIB.getFullYear()}-${String(dateWIB.getMonth() + 1).padStart(2, "0")}`; // YYYY-MM
+
     case "yearly":
       return dateWIB.getFullYear().toString(); // YYYY
-    
+
     default:
-      return `${dateWIB.getFullYear()}-${String(dateWIB.getMonth() + 1).padStart(2, '0')}-${String(dateWIB.getDate()).padStart(2, '0')}`;
+      return `${dateWIB.getFullYear()}-${String(dateWIB.getMonth() + 1).padStart(2, "0")}-${String(dateWIB.getDate()).padStart(2, "0")}`;
   }
 }
 
 export async function getProfitData(timeRange: TimeRange): Promise<ProfitData[]> {
   try {
     const { currentPeriodStart, currentPeriodEnd } = getDateRanges(timeRange);
-    
+
     console.log(`Fetching data from ${currentPeriodStart.toISOString()} to ${currentPeriodEnd.toISOString()}`);
-    
+
     // Get sales from database
     const salesData = await prisma.penjualan.findMany({
       where: {
         tanggalPenjualan: {
           gte: currentPeriodStart,
-          lte: currentPeriodEnd
-        }
+          lte: currentPeriodEnd,
+        },
       },
       select: {
         tanggalPenjualan: true,
         total_harga: true,
         keuntungan: true,
-        penjualanId: true
+        penjualanId: true,
       },
       orderBy: {
-        tanggalPenjualan: 'asc'
-      }
+        tanggalPenjualan: "asc",
+      },
     });
-    
+
     console.log(`Found ${salesData.length} transactions`);
-    
+
     // Group by time range
     const groupedData = new Map<string, { sales: number; profit: number; transactions: number }>();
-    
+
     // Process the data
     for (const sale of salesData) {
       const dateKey = getDateFormat(sale.tanggalPenjualan, timeRange);
-      
+
       if (!groupedData.has(dateKey)) {
         groupedData.set(dateKey, { sales: 0, profit: 0, transactions: 0 });
       }
-      
+
       const entry = groupedData.get(dateKey)!;
       entry.sales += sale.total_harga;
       entry.profit += sale.keuntungan || 0; // Use 0 if keuntungan is null
       entry.transactions += 1;
     }
-    
+
     // Convert the map to array
     const result: ProfitData[] = [...groupedData.entries()].map(([date, data]) => ({
       date,
       sales: data.sales,
       profit: data.profit,
-      transactions: data.transactions
+      transactions: data.transactions,
     }));
-    
+
     // Sort by date to ensure correct order
     result.sort((a, b) => a.date.localeCompare(b.date));
-    
+
     return result;
   } catch (error) {
     console.error(`Error fetching ${timeRange} profit data:`, error);
@@ -2510,69 +2525,64 @@ export async function getProfitData(timeRange: TimeRange): Promise<ProfitData[]>
 
 export async function getProfitStats(timeRange: TimeRange): Promise<ProfitStats> {
   try {
-    const {
-      currentPeriodStart,
-      currentPeriodEnd,
-      previousPeriodStart,
-      previousPeriodEnd
-    } = getDateRanges(timeRange);
-    
+    const { currentPeriodStart, currentPeriodEnd, previousPeriodStart, previousPeriodEnd } = getDateRanges(timeRange);
+
     // Get current period data
     const currentData = await prisma.penjualan.aggregate({
       _sum: {
         total_harga: true,
-        keuntungan: true
+        keuntungan: true,
       },
       _count: {
-        penjualanId: true
+        penjualanId: true,
       },
       where: {
         tanggalPenjualan: {
           gte: currentPeriodStart,
-          lte: currentPeriodEnd
-        }
-      }
+          lte: currentPeriodEnd,
+        },
+      },
     });
-    
+
     // Get previous period data
     const previousData = await prisma.penjualan.aggregate({
       _sum: {
         total_harga: true,
-        keuntungan: true
+        keuntungan: true,
       },
       _count: {
-        penjualanId: true
+        penjualanId: true,
       },
       where: {
         tanggalPenjualan: {
           gte: previousPeriodStart,
-          lte: previousPeriodEnd
-        }
-      }
+          lte: previousPeriodEnd,
+        },
+      },
     });
-    
+
     // Extract values
     const currentSales = currentData._sum.total_harga || 0;
     const currentProfit = currentData._sum.keuntungan || 0;
     const currentTransactions = currentData._count.penjualanId;
-    
+
     const previousSales = previousData._sum.total_harga || 0;
     const previousProfit = previousData._sum.keuntungan || 0;
     const previousTransactions = previousData._count.penjualanId;
-    
+
     // Calculate percentage increases
     const calculateIncrease = (current: number, previous: number) => {
       if (previous === 0) return current === 0 ? 0 : 100;
       return ((current - previous) / previous) * 100;
     };
-    
+
     return {
       totalSales: currentSales,
       totalProfit: currentProfit,
       totalTransactions: currentTransactions,
       salesIncrease: calculateIncrease(currentSales, previousSales),
       profitIncrease: calculateIncrease(currentProfit, previousProfit),
-      transactionsIncrease: calculateIncrease(currentTransactions, previousTransactions)
+      transactionsIncrease: calculateIncrease(currentTransactions, previousTransactions),
     };
   } catch (error) {
     console.error(`Error fetching ${timeRange} profit stats:`, error);
@@ -2582,7 +2592,7 @@ export async function getProfitStats(timeRange: TimeRange): Promise<ProfitStats>
       totalTransactions: 0,
       salesIncrease: 0,
       profitIncrease: 0,
-      transactionsIncrease: 0
+      transactionsIncrease: 0,
     };
   }
 }
@@ -2703,19 +2713,19 @@ export async function getTransactionDetails(penjualanId: number) {
 export async function processReturn(returnData: {
   penjualanId: number;
   userId: number;
-  returnedItems: { 
-    produkId: number; 
-    kuantitas: number; 
-    harga: number; 
+  returnedItems: {
+    produkId: number;
+    kuantitas: number;
+    harga: number;
     hargaModal?: number;
     discountPercentage: number | null;
     discountAmount: number | null;
   }[];
-  replacementItems: { 
-    produkId: number; 
-    kuantitas: number; 
+  replacementItems: {
+    produkId: number;
+    kuantitas: number;
     promotionTitle: string;
-    harga: number; 
+    harga: number;
     hargaModal?: number;
     discountPercentage: number | null;
     discountAmount: number | null;
@@ -2725,7 +2735,7 @@ export async function processReturn(returnData: {
   additionalPayment: number;
 }) {
   const { penjualanId, userId, returnedItems, replacementItems, totalReturn, totalReplacement, additionalPayment } = returnData;
-  
+
   try {
     console.log("Processing return", returnData);
     return await prisma.$transaction(async (tx) => {
@@ -2740,8 +2750,8 @@ export async function processReturn(returnData: {
         },
       });
 
-      console.log("hasil query :",originalTransaction)
-      
+      console.log("hasil query :", originalTransaction);
+
       if (!originalTransaction) {
         throw new Error("Transaction not found");
       }
@@ -2749,41 +2759,37 @@ export async function processReturn(returnData: {
       // Calculate proportion of points discount (if any) for returned items
       const pointsDiscount = originalTransaction.diskonPoin || 0;
       const originalTotal = originalTransaction.total_harga + pointsDiscount; // Add back point discount to get pre-discount total
-      
+
       // Calculate what proportion of the original transaction is being returned
       let returnProportion = 0;
       if (originalTotal > 0) {
         returnProportion = totalReturn / originalTotal;
       }
-      
+
       // Calculate points discount amount for returned items (proportional)
       const returnedPointsDiscount = Math.round(pointsDiscount * returnProportion);
-      
+
       // Track original and adjusted item details for history
       const returnHistory = [];
-      
+
       // Calculate total modal for returned items
       let returnedModalTotal = 0;
       for (const item of returnedItems) {
         // Find the original product details from transaction
-        const originalDetail = originalTransaction.detailPenjualan.find(
-          detail => detail.produkId === item.produkId
-        );
-        
+        const originalDetail = originalTransaction.detailPenjualan.find((detail) => detail.produkId === item.produkId);
+
         if (originalDetail) {
           // Store original detail info for history
           const originalItemPrice = originalDetail.produk.harga;
-          const discountedPrice = originalDetail.discountPercentage ? 
-            originalItemPrice * (1 - (originalDetail.discountPercentage / 100)) : 
-            originalItemPrice - (originalDetail.discountAmount || 0);
-            
+          const discountedPrice = originalDetail.discountPercentage ? originalItemPrice * (1 - originalDetail.discountPercentage / 100) : originalItemPrice - (originalDetail.discountAmount || 0);
+
           // Use the product's modal price and quantity to calculate modal value being returned
           const productModal = originalDetail.produk.hargaModal;
           returnedModalTotal += productModal * item.kuantitas;
 
           // Track return history
           returnHistory.push({
-            type: 'return',
+            type: "return",
             produkId: item.produkId,
             produkName: originalDetail.produk.nama,
             quantity: item.kuantitas,
@@ -2792,18 +2798,18 @@ export async function processReturn(returnData: {
             discount: {
               percentage: originalDetail.discountPercentage,
               amount: originalDetail.discountAmount,
-              promotionTitle: originalDetail.promotionTitle
-            }
+              promotionTitle: originalDetail.promotionTitle,
+            },
           });
-          
+
           // Update the detailPenjualan record to reflect the actual quantity after return
           const newQuantity = originalDetail.kuantitas - item.kuantitas;
           const newSubtotal = Math.round(newQuantity * discountedPrice);
-          
+
           if (newQuantity <= 0) {
             // If all items are returned, delete the record
             await tx.detailPenjualan.delete({
-              where: { detailId: originalDetail.detailId }
+              where: { detailId: originalDetail.detailId },
             });
           } else {
             // Update the quantity and subtotal in detailPenjualan
@@ -2811,20 +2817,20 @@ export async function processReturn(returnData: {
               where: { detailId: originalDetail.detailId },
               data: {
                 kuantitas: newQuantity,
-                subtotal: newSubtotal
-              }
+                subtotal: newSubtotal,
+              },
             });
           }
         }
       }
-      
+
       // Process replacement items with current promotions
       let replacementModalTotal = 0;
       for (const item of replacementItems) {
         const product = await tx.produk.findUnique({
           where: { produkId: item.produkId },
         });
-        
+
         if (product) {
           // Check for active promotions for this product
           const currentDate = new Date();
@@ -2833,38 +2839,38 @@ export async function processReturn(returnData: {
               produkId: item.produkId,
               promotion: {
                 startDate: { lte: currentDate },
-                endDate: { gte: currentDate }
-              }
+                endDate: { gte: currentDate },
+              },
             },
             include: {
-              promotion: true
-            }
+              promotion: true,
+            },
           });
-          
+
           let discountPercentage = item.discountPercentage;
           let discountAmount = item.discountAmount;
           let promotionTitle = null;
-          
+
           // Apply promotion if it exists and wasn't already specified in item data
           if (activePromotion && !discountPercentage && !discountAmount) {
             discountPercentage = activePromotion.promotion.discountPercentage || null;
             discountAmount = activePromotion.promotion.discountAmount || null;
             promotionTitle = activePromotion.promotion.title;
           }
-          
+
           // Calculate actual price after discount
           let effectivePrice = product.harga;
           if (discountPercentage) {
-            effectivePrice = Math.round(effectivePrice * (1 - (discountPercentage / 100)));
+            effectivePrice = Math.round(effectivePrice * (1 - discountPercentage / 100));
           } else if (discountAmount) {
             effectivePrice = Math.round(effectivePrice - discountAmount);
           }
-          
+
           replacementModalTotal += product.hargaModal * item.kuantitas;
-          
+
           // Track replacement history
           returnHistory.push({
-            type: 'replacement',
+            type: "replacement",
             produkId: item.produkId,
             produkName: product.nama,
             quantity: item.kuantitas,
@@ -2873,20 +2879,18 @@ export async function processReturn(returnData: {
             discount: {
               percentage: discountPercentage,
               amount: discountAmount,
-              promotionTitle: promotionTitle
-            }
+              promotionTitle: promotionTitle,
+            },
           });
-          
+
           // Check if product already exists in original transaction
-          const existingDetail = originalTransaction.detailPenjualan.find(
-            detail => detail.produkId === item.produkId
-          );
-          
+          const existingDetail = originalTransaction.detailPenjualan.find((detail) => detail.produkId === item.produkId);
+
           if (existingDetail) {
             // Update existing product quantity and subtotal
             const newQuantity = existingDetail.kuantitas + item.kuantitas;
             const newSubtotal = Math.round(newQuantity * effectivePrice);
-            
+
             await tx.detailPenjualan.update({
               where: { detailId: existingDetail.detailId },
               data: {
@@ -2894,8 +2898,8 @@ export async function processReturn(returnData: {
                 subtotal: newSubtotal,
                 promotionTitle: promotionTitle,
                 discountPercentage: discountPercentage,
-                discountAmount: discountAmount
-              }
+                discountAmount: discountAmount,
+              },
             });
           } else {
             // Add new product to the transaction
@@ -2907,16 +2911,16 @@ export async function processReturn(returnData: {
                 subtotal: Math.round(item.kuantitas * effectivePrice),
                 promotionTitle: promotionTitle,
                 discountPercentage: discountPercentage,
-                discountAmount: discountAmount
-              }
+                discountAmount: discountAmount,
+              },
             });
           }
         }
       }
-      
+
       // Store detailed return history as JSON in the refund record
       const returnHistoryJSON = JSON.stringify(returnHistory);
-      
+
       // Create return record (stored in Refund model)
       const refund = await tx.refund.create({
         data: {
@@ -2933,7 +2937,7 @@ export async function processReturn(returnData: {
           returnHistoryData: returnHistoryJSON,
         },
       });
-      
+
       // Update stock for returned products
       for (const item of returnedItems) {
         await tx.produk.update({
@@ -2941,7 +2945,7 @@ export async function processReturn(returnData: {
           data: { stok: { increment: item.kuantitas } },
         });
       }
-      
+
       // Update stock for replacement products
       for (const item of replacementItems) {
         await tx.produk.update({
@@ -2949,22 +2953,22 @@ export async function processReturn(returnData: {
           data: { stok: { decrement: item.kuantitas } },
         });
       }
-      
+
       // Calculate difference between replacement total and return total
       const difference = totalReplacement - totalReturn;
-      
+
       // Calculate net changes for modal and profit
       const netModalChange = replacementModalTotal - returnedModalTotal;
-      const netProfitChange = (totalReplacement - replacementModalTotal) - (totalReturn - returnedModalTotal);
-      
+      const netProfitChange = totalReplacement - replacementModalTotal - (totalReturn - returnedModalTotal);
+
       // Get current values
       const currentTotalHarga = originalTransaction.total_harga;
       const currentTotalModal = originalTransaction.total_modal || 0;
       const currentKeuntungan = originalTransaction.keuntungan || 0;
-      
+
       // Calculate updated diskonPoin after removing returned items' proportion
       const updatedDiskonPoin = pointsDiscount - returnedPointsDiscount;
-      
+
       // Update original transaction with return information, including modal and profit adjustments
       await tx.penjualan.update({
         where: { penjualanId },
@@ -2973,25 +2977,21 @@ export async function processReturn(returnData: {
           total_modal: currentTotalModal + netModalChange,
           keuntungan: currentKeuntungan + netProfitChange,
           diskonPoin: updatedDiskonPoin > 0 ? updatedDiskonPoin : 0,
-          uangMasuk: additionalPayment > 0 ? 
-            (originalTransaction.uangMasuk || 0) + additionalPayment : 
-            undefined,
+          uangMasuk: additionalPayment > 0 ? (originalTransaction.uangMasuk || 0) + additionalPayment : undefined,
         },
       });
-      
+
       // If there's additional payment and separate transaction is needed
       if (additionalPayment > 0 && replacementItems.length > 0 && difference > 0) {
         // Calculate modal and profit for the new transaction
         const newTransactionModal = replacementItems.reduce((total, item) => {
-          const product = originalTransaction.detailPenjualan.find(
-            detail => detail.produkId === item.produkId
-          )?.produk;
-          
+          const product = originalTransaction.detailPenjualan.find((detail) => detail.produkId === item.produkId)?.produk;
+
           return total + (product?.hargaModal || 0) * item.kuantitas;
         }, 0);
-        
+
         const newTransactionProfit = additionalPayment - newTransactionModal;
-        
+
         await tx.penjualan.create({
           data: {
             userId,
@@ -3006,31 +3006,31 @@ export async function processReturn(returnData: {
                 // Calculate effective price with discount
                 let effectivePrice = item.harga;
                 if (item.discountPercentage) {
-                  effectivePrice = Math.round(effectivePrice * (1 - (item.discountPercentage / 100)));
+                  effectivePrice = Math.round(effectivePrice * (1 - item.discountPercentage / 100));
                 } else if (item.discountAmount) {
                   effectivePrice = Math.round(effectivePrice - item.discountAmount);
                 }
-                
+
                 return {
                   produkId: item.produkId,
                   kuantitas: item.kuantitas,
                   subtotal: Math.round(item.kuantitas * effectivePrice),
                   promotionTitle: item.promotionTitle,
                   discountPercentage: item.discountPercentage,
-                  discountAmount: item.discountAmount
+                  discountAmount: item.discountAmount,
                 };
               }),
             },
           },
         });
       }
-      
+
       return {
         status: "Success",
         message: "Return processed successfully",
         additionalPaymentProcessed: additionalPayment > 0,
         refundId: refund.refundId,
-        returnHistory: returnHistory
+        returnHistory: returnHistory,
       };
     });
   } catch (error) {
@@ -3072,17 +3072,7 @@ export interface CreatePromotionInput {
 
 export async function createPromotion(input: CreatePromotionInput) {
   try {
-    const {
-      title,
-      description,
-      type,
-      startDate,
-      endDate,
-      discountPercentage,
-      discountAmount,
-      minQuantity,
-      productIds,
-    } = input;
+    const { title, description, type, startDate, endDate, discountPercentage, discountAmount, minQuantity, productIds } = input;
 
     // Basic input validation
     if (!title || !type || !startDate || !endDate) {
@@ -3113,22 +3103,22 @@ export async function createPromotion(input: CreatePromotionInput) {
           where: {
             produkId: { in: productIds },
             promotion: {
-              endDate: { gte: new Date() } // Promotions still active if end date >= today
-            }
+              endDate: { gte: new Date() }, // Promotions still active if end date >= today
+            },
           },
           include: {
             produk: true,
-            promotion: true
-          }
+            promotion: true,
+          },
         });
 
         if (productsWithActivePromotions.length > 0) {
           // Some products already have active promotions
-          const conflictingProducts = productsWithActivePromotions.map(item => ({
+          const conflictingProducts = productsWithActivePromotions.map((item) => ({
             id: item.produk.produkId,
             nama: item.produk.nama,
             promosi: item.promotion.title,
-            berakhir: item.promotion.endDate.toLocaleDateString()
+            berakhir: item.promotion.endDate.toLocaleDateString(),
           }));
 
           throw new Error(`Beberapa produk sudah memiliki promosi aktif: ${JSON.stringify(conflictingProducts)}`);
@@ -3152,10 +3142,10 @@ export async function createPromotion(input: CreatePromotionInput) {
       // 2. If productIds present, create entries in the PromotionProduct join table
       if (productIds && productIds.length > 0) {
         await prismaClient.promotionProduct.createMany({
-          data: productIds.map(produkId => ({
+          data: productIds.map((produkId) => ({
             promotionId: newPromotion.promotionId,
             produkId,
-            activeUntil: end
+            activeUntil: end,
           })),
         });
       }
@@ -3169,24 +3159,14 @@ export async function createPromotion(input: CreatePromotionInput) {
     console.error("Error creating promotion:", error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Failed to create promotion"
+      error: error instanceof Error ? error.message : "Failed to create promotion",
     };
   }
 }
 
 export async function updatePromotion(promotionId: number, input: CreatePromotionInput) {
   try {
-    const {
-      title,
-      description,
-      type,
-      startDate,
-      endDate,
-      discountPercentage,
-      discountAmount,
-      minQuantity,
-      productIds,
-    } = input;
+    const { title, description, type, startDate, endDate, discountPercentage, discountAmount, minQuantity, productIds } = input;
 
     // Basic validation
     if (!title || !type || !startDate || !endDate) {
@@ -3214,17 +3194,14 @@ export async function updatePromotion(promotionId: number, input: CreatePromotio
       // Get current products associated with this promotion
       const currentPromotionProducts = await prismaClient.promotionProduct.findMany({
         where: { promotionId },
-        select: { produkId: true }
+        select: { produkId: true },
       });
-      
-      const currentProductIds = currentPromotionProducts.map(pp => pp.produkId);
-      
+
+      const currentProductIds = currentPromotionProducts.map((pp) => pp.produkId);
+
       // Identify products to add (new products not in the current list)
-      const productsToAdd = productIds 
-        ? productIds.filter(id => !currentProductIds.includes(id)) 
-        : [];
-      
-      
+      const productsToAdd = productIds ? productIds.filter((id) => !currentProductIds.includes(id)) : [];
+
       // VALIDATION: Check if products to be added already have active promotions
       if (productsToAdd.length > 0) {
         const productsWithActivePromotions = await prismaClient.promotionProduct.findMany({
@@ -3232,22 +3209,22 @@ export async function updatePromotion(promotionId: number, input: CreatePromotio
             produkId: { in: productsToAdd },
             promotionId: { not: promotionId }, // Don't check the promotion being updated
             promotion: {
-              endDate: { gte: new Date() } // Still active if end date >= today
-            }
+              endDate: { gte: new Date() }, // Still active if end date >= today
+            },
           },
           include: {
             produk: true,
-            promotion: true
-          }
+            promotion: true,
+          },
         });
 
         if (productsWithActivePromotions.length > 0) {
           // Some products already have active promotions
-          const conflictingProducts = productsWithActivePromotions.map(item => ({
+          const conflictingProducts = productsWithActivePromotions.map((item) => ({
             id: item.produk.produkId,
             nama: item.produk.nama,
             promosi: item.promotion.title,
-            berakhir: item.promotion.endDate.toLocaleDateString()
+            berakhir: item.promotion.endDate.toLocaleDateString(),
           }));
 
           throw new Error(`Beberapa produk sudah memiliki promosi aktif: ${JSON.stringify(conflictingProducts)}`);
@@ -3277,10 +3254,10 @@ export async function updatePromotion(promotionId: number, input: CreatePromotio
       // 3. Create new product relations if productIds provided
       if (productIds && productIds.length > 0) {
         await prismaClient.promotionProduct.createMany({
-          data: productIds.map(produkId => ({
+          data: productIds.map((produkId) => ({
             promotionId,
             produkId,
-            activeUntil: end
+            activeUntil: end,
           })),
         });
       }
@@ -3294,7 +3271,7 @@ export async function updatePromotion(promotionId: number, input: CreatePromotio
     console.error("Error updating promotion:", error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Failed to update promotion"
+      error: error instanceof Error ? error.message : "Failed to update promotion",
     };
   }
 }
@@ -3308,26 +3285,23 @@ export async function deletePromotion(promotionId: number) {
       await prismaClient.promotionProduct.deleteMany({
         where: { promotionId },
       });
-      
+
       // 3. Finally delete the promotion itself
       await prismaClient.promotion.delete({
         where: { promotionId },
       });
     });
-    
+
     revalidatePath("/admin/promotions");
     return { success: true };
   } catch (error) {
     console.error("Error deleting promotion:", error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Failed to delete promotion"
+      error: error instanceof Error ? error.message : "Failed to delete promotion",
     };
   }
 }
-
-
-
 
 export async function getPromotions() {
   try {
@@ -3362,33 +3336,32 @@ export async function getPromotions() {
   }
 }
 
-
 export async function getProductsForPromotions(promotionIdToEdit = null) {
   try {
     console.log(`Fetching products for promotions, editing promotion ID: ${promotionIdToEdit}`);
-    
+
     // Get all active products
     const allProducts = await prisma.produk.findMany({
       where: {
         isDeleted: false,
-        stok: { gt: 0 }
+        stok: { gt: 0 },
       },
       include: {
         kategori: true,
         // Include promotion associations for these products
         promotionProducts: {
           include: {
-            promotion: true
+            promotion: true,
           },
           where: {
             promotion: {
-              endDate: { gte: new Date() } // Only active promotions
-            }
-          }
-        }
-      }
+              endDate: { gte: new Date() }, // Only active promotions
+            },
+          },
+        },
+      },
     });
-    
+
     console.log(`Found ${allProducts.length} active products`);
 
     // If editing a promotion, get its full details
@@ -3401,15 +3374,15 @@ export async function getProductsForPromotions(promotionIdToEdit = null) {
             include: {
               produk: {
                 include: {
-                  kategori: true
-                }
-              }
-            }
-          }
-        }
+                  kategori: true,
+                },
+              },
+            },
+          },
+        },
       });
-      
-      console.log(`Found promotion to edit: ${promotionBeingEdited?.title || 'Unknown'}`);
+
+      console.log(`Found promotion to edit: ${promotionBeingEdited?.title || "Unknown"}`);
       if (promotionBeingEdited?.promotionProducts) {
         console.log(`Promotion has ${promotionBeingEdited.promotionProducts.length} associated products`);
       }
@@ -3418,22 +3391,21 @@ export async function getProductsForPromotions(promotionIdToEdit = null) {
     // Create a map of products that are part of the promotion being edited
     const productsInEditedPromotion = new Map();
     if (promotionBeingEdited && promotionBeingEdited.promotionProducts) {
-      promotionBeingEdited.promotionProducts.forEach(pp => {
+      promotionBeingEdited.promotionProducts.forEach((pp) => {
         if (pp.produk && pp.produk.produkId) {
           productsInEditedPromotion.set(pp.produk.produkId, pp.produk);
         }
       });
     }
-    
+
     // Process all products with their promotion information
-    const processedProducts = allProducts.map(product => {
+    const processedProducts = allProducts.map((product) => {
       // Check if this product is associated with any promotions excluding the one being edited
-      const otherActivePromotions = product.promotionProducts
-        .filter(pp => !promotionIdToEdit || pp.promotion.promotionId !== parseInt(promotionIdToEdit));
-      
+      const otherActivePromotions = product.promotionProducts.filter((pp) => !promotionIdToEdit || pp.promotion.promotionId !== parseInt(promotionIdToEdit));
+
       // Check if product has other active promotions
       const hasOtherActivePromotions = otherActivePromotions.length > 0;
-      
+
       // Format product info consistently
       const formattedProduct = {
         produkId: product.produkId,
@@ -3445,11 +3417,11 @@ export async function getProductsForPromotions(promotionIdToEdit = null) {
         // Only flag as having active promotions if it's in promotions OTHER than the one being edited
         hasActivePromotion: hasOtherActivePromotions,
         // Include all active promotion details
-        activePromotions: product.promotionProducts.map(pp => ({
+        activePromotions: product.promotionProducts.map((pp) => ({
           promotionId: pp.promotion.promotionId,
           title: pp.promotion.title,
-          endDate: pp.promotion.endDate
-        }))
+          endDate: pp.promotion.endDate,
+        })),
       };
 
       return formattedProduct;
@@ -3458,30 +3430,32 @@ export async function getProductsForPromotions(promotionIdToEdit = null) {
     // Now add any products from the promotion being edited that might not be in the main query
     // (This handles cases where a product might have been deleted or is out of stock)
     if (promotionBeingEdited) {
-      const currentProductIds = new Set(processedProducts.map(p => p.produkId));
-      
+      const currentProductIds = new Set(processedProducts.map((p) => p.produkId));
+
       // Find products that are part of this promotion but missing from our main query
       const missingProducts = [];
-      
+
       for (const [produkId, produk] of productsInEditedPromotion.entries()) {
         if (!currentProductIds.has(produkId)) {
           missingProducts.push({
             produkId: produk.produkId,
             nama: produk.nama,
             harga: produk.harga,
-            image: produk.image || '',
+            image: produk.image || "",
             stok: produk.stok,
             kategori: produk.kategori,
             hasActivePromotion: false, // Not important since it's already in this promotion
-            activePromotions: [{
-              promotionId: promotionIdToEdit !== null ? parseInt(promotionIdToEdit) : -1,
-              title: promotionBeingEdited.title,
-              endDate: promotionBeingEdited.endDate
-            }]
+            activePromotions: [
+              {
+                promotionId: promotionIdToEdit !== null ? parseInt(promotionIdToEdit) : -1,
+                title: promotionBeingEdited.title,
+                endDate: promotionBeingEdited.endDate,
+              },
+            ],
           });
         }
       }
-      
+
       if (missingProducts.length > 0) {
         console.log(`Adding ${missingProducts.length} products that are in the promotion but missing from active products`);
         processedProducts.push(...missingProducts);
@@ -3493,13 +3467,15 @@ export async function getProductsForPromotions(promotionIdToEdit = null) {
       status: "success",
       data: processedProducts,
       // Additional info about the promotion being edited
-      editInfo: promotionIdToEdit ? {
-        promotionId: parseInt(promotionIdToEdit),
-        promotionTitle: promotionBeingEdited?.title || 'Unknown Promotion',
-        productIds: Array.from(productsInEditedPromotion.keys())
-      } : null
+      editInfo: promotionIdToEdit
+        ? {
+            promotionId: parseInt(promotionIdToEdit),
+            promotionTitle: promotionBeingEdited?.title || "Unknown Promotion",
+            productIds: Array.from(productsInEditedPromotion.keys()),
+          }
+        : null,
     };
-    
+
     console.log(`Returning ${processedProducts.length} total products`);
     return response;
   } catch (error) {
@@ -3507,11 +3483,10 @@ export async function getProductsForPromotions(promotionIdToEdit = null) {
     return {
       status: "error",
       message: "Failed to fetch products for promotion",
-      error: error instanceof Error ? error.message : "Unknown error"
+      error: error instanceof Error ? error.message : "Unknown error",
     };
   }
 }
-
 
 // Fungsi helper untuk mendapatkan daftar kategori
 export async function getCategories() {
@@ -3533,30 +3508,29 @@ export async function getCategories() {
   }
 }
 
-
 export async function getTopProducts() {
   try {
     // Get all sales details grouped by product with total quantity
     const productSales = await prisma.detailPenjualan.groupBy({
-      by: ['produkId'],
+      by: ["produkId"],
       _sum: {
-        kuantitas: true
+        kuantitas: true,
       },
       orderBy: {
         _sum: {
-          kuantitas: "desc"
-        }
+          kuantitas: "desc",
+        },
       },
-      take: 5
-    })
+      take: 5,
+    });
 
     // Get the product details and calculate growth
     const topProducts = await Promise.all(
       productSales.map(async (sale) => {
         const product = await prisma.produk.findUnique({
           where: { produkId: sale.produkId },
-          select: { nama: true }
-        })
+          select: { nama: true },
+        });
 
         // Calculate sales growth by comparing with previous period
         const currentPeriodSales = await prisma.detailPenjualan.aggregate({
@@ -3564,14 +3538,14 @@ export async function getTopProducts() {
             produkId: sale.produkId,
             penjualan: {
               tanggalPenjualan: {
-                gte: new Date(new Date().setMonth(new Date().getMonth() - 1))
-              }
-            }
+                gte: new Date(new Date().setMonth(new Date().getMonth() - 1)),
+              },
+            },
           },
           _sum: {
-            kuantitas: true
-          }
-        })
+            kuantitas: true,
+          },
+        });
 
         const previousPeriodSales = await prisma.detailPenjualan.aggregate({
           where: {
@@ -3579,36 +3553,35 @@ export async function getTopProducts() {
             penjualan: {
               tanggalPenjualan: {
                 gte: new Date(new Date().setMonth(new Date().getMonth() - 2)),
-                lt: new Date(new Date().setMonth(new Date().getMonth() - 1))
-              }
-            }
+                lt: new Date(new Date().setMonth(new Date().getMonth() - 1)),
+              },
+            },
           },
           _sum: {
-            kuantitas: true
-          }
-        })
+            kuantitas: true,
+          },
+        });
 
-        const currentSales = currentPeriodSales._sum.kuantitas || 0
-        const previousSales = previousPeriodSales._sum.kuantitas || 0
-        
-        let growthPercentage = 0
+        const currentSales = currentPeriodSales._sum.kuantitas || 0;
+        const previousSales = previousPeriodSales._sum.kuantitas || 0;
+
+        let growthPercentage = 0;
         if (previousSales > 0) {
-          growthPercentage = ((currentSales - previousSales) / previousSales) * 100
+          growthPercentage = ((currentSales - previousSales) / previousSales) * 100;
         }
 
         return {
-          name: product?.nama || 'Unknown Product',
+          name: product?.nama || "Unknown Product",
           sales: sale._sum.kuantitas || 0,
-          growth: `${growthPercentage >= 0 ? '+' : ''}${growthPercentage.toFixed(1)}%`
-        }
+          growth: `${growthPercentage >= 0 ? "+" : ""}${growthPercentage.toFixed(1)}%`,
+        };
       })
-    )
+    );
 
-    return topProducts
-
+    return topProducts;
   } catch (error) {
-    console.error('Error fetching top products:', error)
-    throw new Error('Failed to fetch top products')
+    console.error("Error fetching top products:", error);
+    throw new Error("Failed to fetch top products");
   }
 }
 
@@ -3628,9 +3601,9 @@ export async function getCustomerTransactionsAnalytic() {
       where: {
         guestId: { not: null },
         tanggalPenjualan: {
-          gte: lastMonth
-        }
-      }
+          gte: lastMonth,
+        },
+      },
     });
 
     // Get previous month guest transactions for growth calculation
@@ -3639,9 +3612,9 @@ export async function getCustomerTransactionsAnalytic() {
         guestId: { not: null },
         tanggalPenjualan: {
           gte: previousMonthStart,
-          lt: lastMonth
-        }
-      }
+          lt: lastMonth,
+        },
+      },
     });
 
     // Get member transactions (Registered customers)
@@ -3649,9 +3622,9 @@ export async function getCustomerTransactionsAnalytic() {
       where: {
         pelangganId: { not: null },
         tanggalPenjualan: {
-          gte: lastMonth
-        }
-      }
+          gte: lastMonth,
+        },
+      },
     });
 
     // Get previous month member transactions for growth calculation
@@ -3660,22 +3633,18 @@ export async function getCustomerTransactionsAnalytic() {
         pelangganId: { not: null },
         tanggalPenjualan: {
           gte: previousMonthStart,
-          lt: lastMonth
-        }
-      }
+          lt: lastMonth,
+        },
+      },
     });
 
     // Calculate total transactions
     const totalTransactions = guestTransactions + memberTransactions;
 
     // Calculate growth percentages
-    const guestGrowth = previousGuestTransactions > 0 
-      ? ((guestTransactions - previousGuestTransactions) / previousGuestTransactions) * 100 
-      : 0;
+    const guestGrowth = previousGuestTransactions > 0 ? ((guestTransactions - previousGuestTransactions) / previousGuestTransactions) * 100 : 0;
 
-    const memberGrowth = previousMemberTransactions > 0 
-      ? ((memberTransactions - previousMemberTransactions) / previousMemberTransactions) * 100 
-      : 0;
+    const memberGrowth = previousMemberTransactions > 0 ? ((memberTransactions - previousMemberTransactions) / previousMemberTransactions) * 100 : 0;
 
     // Format the response
     return [
@@ -3683,22 +3652,20 @@ export async function getCustomerTransactionsAnalytic() {
         name: "Regular",
         value: totalTransactions > 0 ? Math.round((guestTransactions / totalTransactions) * 100) : 0,
         transactions: guestTransactions,
-        growth: `${guestGrowth >= 0 ? '+' : ''}${guestGrowth.toFixed(1)}%`
+        growth: `${guestGrowth >= 0 ? "+" : ""}${guestGrowth.toFixed(1)}%`,
       },
       {
         name: "Member",
         value: totalTransactions > 0 ? Math.round((memberTransactions / totalTransactions) * 100) : 0,
         transactions: memberTransactions,
-        growth: `${memberGrowth >= 0 ? '+' : ''}${memberGrowth.toFixed(1)}%`
-      }
+        growth: `${memberGrowth >= 0 ? "+" : ""}${memberGrowth.toFixed(1)}%`,
+      },
     ];
-
   } catch (error) {
-    console.error('Error fetching customer transactions:', error);
-    throw new Error('Failed to fetch customer transactions');
+    console.error("Error fetching customer transactions:", error);
+    throw new Error("Failed to fetch customer transactions");
   }
 }
-
 
 export async function getLowStockProducts() {
   try {
@@ -3709,48 +3676,47 @@ export async function getLowStockProducts() {
         OR: [
           {
             stok: {
-              lte: prisma.produk.fields.minimumStok
-            }
+              lte: prisma.produk.fields.minimumStok,
+            },
           },
           {
             statusStok: {
-              not: 'NORMAL'
-            }
-          }
+              not: "NORMAL",
+            },
+          },
         ],
-        isDeleted: false
+        isDeleted: false,
       },
       select: {
         nama: true,
         stok: true,
         minimumStok: true,
-        statusStok: true
+        statusStok: true,
       },
       orderBy: {
-        stok: 'asc'
+        stok: "asc",
       },
-      take: 5 // Limit to 5 products with lowest stock
-    })
+      take: 5, // Limit to 5 products with lowest stock
+    });
 
     // Format the response to match the expected structure
-    return lowStockProducts.map(product => ({
+    return lowStockProducts.map((product) => ({
       name: product.nama,
       stock: product.stok,
       minimumStock: product.minimumStok,
-      status: product.statusStok
-    }))
-
+      status: product.statusStok,
+    }));
   } catch (error) {
-    console.error('Error fetching low stock products:', error)
-    throw new Error('Failed to fetch low stock products')
+    console.error("Error fetching low stock products:", error);
+    throw new Error("Failed to fetch low stock products");
   }
 }
 
 export async function getCategoryRevenue() {
   try {
     // Get current date and date 1 month ago for the monthly revenue calculation
-    const currentDate = new Date()
-    const startOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1)
+    const currentDate = new Date();
+    const startOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
 
     // Calculate revenue by category using joins and aggregation
     const categoryRevenue = await prisma.kategori.findMany({
@@ -3763,63 +3729,64 @@ export async function getCategoryRevenue() {
               some: {
                 penjualan: {
                   tanggalPenjualan: {
-                    gte: startOfMonth
-                  }
-                }
-              }
-            }
+                    gte: startOfMonth,
+                  },
+                },
+              },
+            },
           },
           select: {
             detailPenjualan: {
               where: {
                 penjualan: {
                   tanggalPenjualan: {
-                    gte: startOfMonth
-                  }
-                }
+                    gte: startOfMonth,
+                  },
+                },
               },
               select: {
-                subtotal: true
-              }
-            }
-          }
-        }
-      }
-    })
+                subtotal: true,
+              },
+            },
+          },
+        },
+      },
+    });
 
     // Process and format the data
     const formattedRevenue = categoryRevenue
-      .map(category => {
+      .map((category) => {
         // Calculate total revenue for the category
         const revenue = category.produk.reduce((total, product) => {
-          return total + product.detailPenjualan.reduce((subtotal, detail) => {
-            return subtotal + detail.subtotal
-          }, 0)
-        }, 0)
+          return (
+            total +
+            product.detailPenjualan.reduce((subtotal, detail) => {
+              return subtotal + detail.subtotal;
+            }, 0)
+          );
+        }, 0);
 
         return {
           category: category.nama,
-          revenue: revenue
-        }
+          revenue: revenue,
+        };
       })
       // Filter out categories with no revenue
-      .filter(category => category.revenue > 0)
+      .filter((category) => category.revenue > 0)
       // Sort by revenue in descending order
-      .sort((a, b) => b.revenue - a.revenue)
+      .sort((a, b) => b.revenue - a.revenue);
 
-    return formattedRevenue
-
+    return formattedRevenue;
   } catch (error) {
-    console.error('Error calculating category revenue:', error)
-    throw new Error('Failed to calculate category revenue')
+    console.error("Error calculating category revenue:", error);
+    throw new Error("Failed to calculate category revenue");
   }
 }
-
 
 export async function getRecentTransactions() {
   const transactions = await prisma.penjualan.findMany({
     orderBy: {
-      tanggalPenjualan: 'desc'
+      tanggalPenjualan: "desc",
     },
     take: 10, // Get last 10 transactions
     select: {
@@ -3827,10 +3794,10 @@ export async function getRecentTransactions() {
       tanggalPenjualan: true,
       total_harga: true,
       uangMasuk: true,
-      kembalian: true
-    }
+      kembalian: true,
+    },
   });
-  
+
   return transactions;
 }
 
@@ -3873,42 +3840,40 @@ export async function getPromotionAnalytics(): Promise<PromotionAnalytics[]> {
     const salesByPromotion = promotionSales.reduce((acc, sale) => {
       // Skip if no promotionId or promotionTitle - this should never happen due to our where clause
       if (!sale.promotionId || !sale.promotionTitle) return acc;
-      
+
       const promotionId = sale.promotionId;
       const promotionTitle = sale.promotionTitle;
-      
+
       if (!acc[promotionId]) {
         acc[promotionId] = {
           name: promotionTitle,
           sales: [],
         };
       }
-      
+
       acc[promotionId].sales.push({
         penjualanId: sale.penjualanId,
         kuantitas: sale.kuantitas,
         subtotal: sale.subtotal,
         hargaModal: sale.produk.hargaModal,
       });
-      
+
       return acc;
     }, {} as Record<number, { name: string; sales: Array<{ penjualanId: number; kuantitas: number; subtotal: number; hargaModal: number }> }>);
 
     // Calculate metrics for each promotion
     const promotionAnalytics: PromotionAnalytics[] = Object.values(salesByPromotion).map((promotion) => {
       const revenue = promotion.sales.reduce((sum, sale) => sum + sale.subtotal, 0);
-      
+
       const profit = promotion.sales.reduce((sum, sale) => {
         const modalForSale = sale.hargaModal * sale.kuantitas;
         return sum + (sale.subtotal - modalForSale);
       }, 0);
-      
+
       // Count unique transactions
-      const uniqueTransactionsSet = new Set(
-        promotion.sales.map(sale => sale.penjualanId)
-      );
+      const uniqueTransactionsSet = new Set(promotion.sales.map((sale) => sale.penjualanId));
       const transactions = uniqueTransactionsSet.size;
-      
+
       return {
         name: promotion.name,
         revenue: revenue,
@@ -3925,51 +3890,48 @@ export async function getPromotionAnalytics(): Promise<PromotionAnalytics[]> {
   }
 }
 
-
-
 export async function getPetugasById(id: number) {
   try {
     const petugas = await prisma.user.findUnique({
       where: {
         id: id,
-        level: "PETUGAS"
-      }
-    })
-    return petugas
+        level: "PETUGAS",
+      },
+    });
+    return petugas;
   } catch (error) {
     console.error("Error fetching petugas by id:", error);
-    throw new Error("Failed to fetch petugas by id")
+    throw new Error("Failed to fetch petugas by id");
   }
 }
-
 
 export async function getActivePromotions() {
   try {
     const currentDate = new Date();
-    
+
     // First, get all active promotions
     const activePromotions = await prisma.promotion.findMany({
       where: {
         startDate: { lte: currentDate },
-        endDate: { gte: currentDate }
+        endDate: { gte: currentDate },
       },
       include: {
         promotionProducts: {
           include: {
-            produk: true
-          }
-        }
-      }
+            produk: true,
+          },
+        },
+      },
     });
-    
+
     // Format the data for frontend use
-    return activePromotions.map(promotion => ({
+    return activePromotions.map((promotion) => ({
       promotionId: promotion.promotionId,
       title: promotion.title,
       description: promotion.description,
       discountPercentage: promotion.discountPercentage,
       discountAmount: promotion.discountAmount,
-      produkIds: promotion.promotionProducts.map(pp => pp.produkId)
+      produkIds: promotion.promotionProducts.map((pp) => pp.produkId),
     }));
   } catch (error) {
     console.error("Error fetching active promotions:", error);
@@ -3986,27 +3948,21 @@ export async function searchProducts(query: string) {
           { stok: { gt: 0 } },
           {
             OR: [
-              { nama: { contains: query, mode: 'insensitive' } },
+              { nama: { contains: query, mode: "insensitive" } },
               // Add additional search fields if needed
-            ]
-          }
-        ]
+            ],
+          },
+        ],
       },
       take: 10, // Limit results
     });
-    
+
     return products;
   } catch (error) {
     console.error("Error searching products:", error);
     throw error;
   }
 }
-
-
-
-
-
-
 
 // Interface for product performance report
 export interface ProductPerformanceReportData {
@@ -4042,7 +3998,6 @@ interface ProductPerformanceData {
   growthPercentage?: number; // Growth percentage
   PriceSale: number; // Add selling price
   PriceCapital: number; // Add modal (cost price)
-
 }
 
 interface CategorySalesData {
@@ -4060,9 +4015,7 @@ interface CategorySalesData {
 }
 
 // Function to generate product performance report
-export async function generateProductPerformanceReport(
-  periodType: "weekly" | "monthly" | "yearly"
-): Promise<ProductPerformanceReportData> {
+export async function generateProductPerformanceReport(periodType: "weekly" | "monthly" | "yearly"): Promise<ProductPerformanceReportData> {
   const currentDate = new Date();
   let startDate: Date;
   let prevPeriodStartDate: Date;
@@ -4077,18 +4030,20 @@ export async function generateProductPerformanceReport(
       startDate = startOfWeek(currentDate);
       periodLabel = `${format(startDate, "dd MMM yyyy")} - ${format(currentDate, "dd MMM yyyy")}`;
       reportName = "Weekly Product Performance Report";
-      
+
       // Previous period (last week)
       prevPeriodEndDate = subDays(startDate, 1);
       prevPeriodStartDate = startOfWeek(prevPeriodEndDate);
       break;
+
+     
     }
     case "monthly": {
       // Set start date to beginning of this month
       startDate = startOfMonth(currentDate);
       periodLabel = format(startDate, "MMMM yyyy");
       reportName = "Monthly Product Performance Report";
-      
+
       // Previous period (last month)
       prevPeriodEndDate = subDays(startDate, 1);
       prevPeriodStartDate = startOfMonth(prevPeriodEndDate);
@@ -4099,7 +4054,7 @@ export async function generateProductPerformanceReport(
       startDate = startOfYear(currentDate);
       periodLabel = format(startDate, "yyyy");
       reportName = "Yearly Product Performance Report";
-      
+
       // Previous period (last year)
       prevPeriodEndDate = subDays(startDate, 1);
       prevPeriodStartDate = startOfYear(prevPeriodEndDate);
@@ -4112,72 +4067,72 @@ export async function generateProductPerformanceReport(
     where: {
       tanggalPenjualan: {
         gte: startDate,
-        lte: currentDate
-      }
+        lte: currentDate,
+      },
     },
     include: {
       detailPenjualan: {
         include: {
           produk: {
             include: {
-              kategori: true
-            }
-          }
-        }
-      }
-    }
+              kategori: true,
+            },
+          },
+        },
+      },
+    },
   });
-  
+
   // Get sales data for previous period (for comparison)
   const prevPeriodSales = await prisma.penjualan.findMany({
     where: {
       tanggalPenjualan: {
         gte: prevPeriodStartDate,
-        lte: prevPeriodEndDate
-      }
+        lte: prevPeriodEndDate,
+      },
     },
     include: {
       detailPenjualan: {
         include: {
           produk: {
             include: {
-              kategori: true
-            }
-          }
-        }
-      }
-    }
+              kategori: true,
+            },
+          },
+        },
+      },
+    },
   });
 
   // Get current stock data for all products
   const currentProducts = await prisma.produk.findMany({
     where: { isDeleted: false },
-    include: { kategori: true }
+    include: { kategori: true },
   });
 
   // Map current product stocks
   const productStockMap = new Map<number, number>();
-  currentProducts.forEach(product => {
+  currentProducts.forEach((product) => {
     productStockMap.set(product.produkId, product.stok);
   });
-  
+
   // Map to store previous period sales
-  const prevPeriodProductMap = new Map<number, { sales: number, quantity: number }>();
-  const prevPeriodCategoryMap = new Map<number, { sales: number, quantity: number }>();
-  
+  const prevPeriodProductMap = new Map<number, { sales: number; quantity: number }>();
+  const prevPeriodCategoryMap = new Map<number, { sales: number; quantity: number }>();
+
   // Calculate total sales for previous period
   let prevPeriodTotalSales = 0;
-  
+
   // Process previous period sales data
-  prevPeriodSales.forEach(sale => {
-    sale.detailPenjualan.forEach(detail => {
+  prevPeriodSales.forEach((sale) => {
+    sale.detailPenjualan.forEach((detail) => {
       const productId = detail.produkId;
       const categoryId = detail.produk.kategoriId;
       const salesAmount = detail.subtotal;
       const quantity = detail.kuantitas;
-      
+
       prevPeriodTotalSales += salesAmount;
-      
+
       // Update previous period product data
       if (!prevPeriodProductMap.has(productId)) {
         prevPeriodProductMap.set(productId, { sales: 0, quantity: 0 });
@@ -4185,7 +4140,7 @@ export async function generateProductPerformanceReport(
       const productData = prevPeriodProductMap.get(productId)!;
       productData.sales += salesAmount;
       productData.quantity += quantity;
-      
+
       // Update previous period category data
       if (!prevPeriodCategoryMap.has(categoryId)) {
         prevPeriodCategoryMap.set(categoryId, { sales: 0, quantity: 0 });
@@ -4204,13 +4159,13 @@ export async function generateProductPerformanceReport(
   let totalProfit = 0;
 
   // Process sales data
-  sales.forEach(sale => {
-    sale.detailPenjualan.forEach(detail => {
+  sales.forEach((sale) => {
+    sale.detailPenjualan.forEach((detail) => {
       const product = detail.produk;
       const category = product.kategori;
       const salesAmount = detail.subtotal;
       const quantity = detail.kuantitas;
-      
+
       totalSales += salesAmount;
       totalProductsSold += quantity;
 
@@ -4219,7 +4174,7 @@ export async function generateProductPerformanceReport(
         // Get previous period sales data if available
         const prevProductData = prevPeriodProductMap.get(product.produkId);
         const prevSales = prevProductData?.sales || 0;
-        
+
         // Calculate stock turnover
         // Formula: Sales / Average inventory
         const currentStock = productStockMap.get(product.produkId) || 0;
@@ -4227,7 +4182,7 @@ export async function generateProductPerformanceReport(
         const estimatedStockAtStart = currentStock + quantity;
         const avgStock = (currentStock + estimatedStockAtStart) / 2;
         const stockTurnover = avgStock > 0 ? quantity / avgStock : 0;
-        
+
         productMap.set(product.produkId, {
           produkId: product.produkId,
           productName: product.nama,
@@ -4242,25 +4197,24 @@ export async function generateProductPerformanceReport(
           stockTurnover: stockTurnover,
           prevPeriodSales: prevSales,
           growthPercentage: prevSales > 0 ? ((salesAmount - prevSales) / prevSales) * 100 : undefined,
-          PriceSale: product.harga,     // Add the selling price
-          PriceCapital: product.hargaModal // Add the modal (cost price)
-
+          PriceSale: product.harga, // Add the selling price
+          PriceCapital: product.hargaModal, // Add the modal (cost price)
         });
       }
-      
+
       const productData = productMap.get(product.produkId)!;
       productData.quantitySold += quantity;
       productData.totalSales += salesAmount;
-      
+
       // Calculate profit margin
       const costPerItem = product.hargaModal;
       const revenuePerItem = salesAmount / quantity;
       const profitPerItem = revenuePerItem - costPerItem;
       const profitAmount = profitPerItem * quantity;
-      
+
       productData.profitMargin = ((revenuePerItem - costPerItem) / revenuePerItem) * 100;
       productData.profitAmount += profitAmount;
-      
+
       // Add to total profit
       totalProfit += profitAmount;
 
@@ -4269,7 +4223,7 @@ export async function generateProductPerformanceReport(
         // Get previous period category data if available
         const prevCategoryData = prevPeriodCategoryMap.get(category.kategoriId);
         const prevSales = prevCategoryData?.sales || 0;
-        
+
         categoryMap.set(category.kategoriId, {
           kategoriId: category.kategoriId,
           categoryName: category.nama,
@@ -4281,14 +4235,14 @@ export async function generateProductPerformanceReport(
           prevPeriodSales: prevSales,
           growthPercentage: prevSales > 0 ? ((salesAmount - prevSales) / prevSales) * 100 : undefined,
           avgProfitMargin: 0, // Will be calculated later
-          productCountWithNoSales: 0 // Will be calculated later
+          productCountWithNoSales: 0, // Will be calculated later
         });
       }
-      
+
       const categoryData = categoryMap.get(category.kategoriId)!;
       categoryData.quantitySold += quantity;
       categoryData.totalSales += salesAmount;
-      
+
       // Increment product count only once per product
       if (productData.quantitySold === quantity) {
         categoryData.productCount++;
@@ -4297,23 +4251,23 @@ export async function generateProductPerformanceReport(
   });
 
   // Calculate sales contribution percentage
-  productMap.forEach(product => {
+  productMap.forEach((product) => {
     product.salesContribution = (product.totalSales / totalSales) * 100;
   });
-  
-  categoryMap.forEach(category => {
+
+  categoryMap.forEach((category) => {
     category.salesContribution = (category.totalSales / totalSales) * 100;
   });
 
   // Add all products with no sales in this period
   const productsWithNoSales: ProductPerformanceData[] = [];
-  
-  currentProducts.forEach(product => {
+
+  currentProducts.forEach((product) => {
     if (!productMap.has(product.produkId)) {
       // Get previous period sales data if available
       const prevProductData = prevPeriodProductMap.get(product.produkId);
       const prevSales = prevProductData?.sales || 0;
-      
+
       const noSalesProduct: ProductPerformanceData = {
         produkId: product.produkId,
         productName: product.nama,
@@ -4327,14 +4281,14 @@ export async function generateProductPerformanceReport(
         ranking: 0,
         stockTurnover: 0,
         prevPeriodSales: prevSales,
-        PriceSale: product.harga,     // Add the selling price
+        PriceSale: product.harga, // Add the selling price
         PriceCapital: product.hargaModal, // Add the modal (cost price)
-        growthPercentage: prevSales > 0 ? -100 : 0 // -100% if there were sales previously
+        growthPercentage: prevSales > 0 ? -100 : 0, // -100% if there were sales previously
       };
-      
+
       productMap.set(product.produkId, noSalesProduct);
       productsWithNoSales.push(noSalesProduct);
-      
+
       // Update category for products with no sales
       if (categoryMap.has(product.kategoriId)) {
         const categoryData = categoryMap.get(product.kategoriId);
@@ -4354,7 +4308,7 @@ export async function generateProductPerformanceReport(
           bestSellingProduct: "",
           prevPeriodSales: 0,
           growthPercentage: 0,
-          avgProfitMargin: 0
+          avgProfitMargin: 0,
         });
       }
     }
@@ -4370,13 +4324,11 @@ export async function generateProductPerformanceReport(
 
   // Determine best-selling product for each category and calculate average profit margin
   categoryMap.forEach((category) => {
-    const categoryProducts = sortedProducts.filter(
-      product => product.category === category.categoryName && product.quantitySold > 0
-    );
-    
+    const categoryProducts = sortedProducts.filter((product) => product.category === category.categoryName && product.quantitySold > 0);
+
     if (categoryProducts.length > 0) {
       category.bestSellingProduct = categoryProducts[0].productName;
-      
+
       // Calculate average profit margin for category
       const totalMargin = categoryProducts.reduce((sum, product) => sum + product.profitMargin, 0);
       category.avgProfitMargin = totalMargin / categoryProducts.length;
@@ -4384,14 +4336,11 @@ export async function generateProductPerformanceReport(
   });
 
   // Create additional analysis
-  const categorySummary = Array.from(categoryMap.values())
-    .sort((a, b) => b.totalSales - a.totalSales);
-    
+  const categorySummary = Array.from(categoryMap.values()).sort((a, b) => b.totalSales - a.totalSales);
+
   // Calculate average profit margin across all products
-  const productsWithSales = sortedProducts.filter(p => p.quantitySold > 0);
-  const avgProfitMargin = productsWithSales.length > 0
-    ? productsWithSales.reduce((sum, product) => sum + product.profitMargin, 0) / productsWithSales.length
-    : 0;
+  const productsWithSales = sortedProducts.filter((p) => p.quantitySold > 0);
+  const avgProfitMargin = productsWithSales.length > 0 ? productsWithSales.reduce((sum, product) => sum + product.profitMargin, 0) / productsWithSales.length : 0;
 
   return {
     id: Date.now(),
@@ -4402,13 +4351,265 @@ export async function generateProductPerformanceReport(
     totalSales,
     totalProductsSold,
     prevPeriodSales: prevPeriodTotalSales,
-    salesGrowth: prevPeriodTotalSales > 0 
-      ? ((totalSales - prevPeriodTotalSales) / prevPeriodTotalSales) * 100 
-      : undefined,
+    salesGrowth: prevPeriodTotalSales > 0 ? ((totalSales - prevPeriodTotalSales) / prevPeriodTotalSales) * 100 : undefined,
     totalProfit,
     avgProfitMargin,
     productsWithNoSales,
     data: sortedProducts,
-    categorySummary
+    categorySummary,
   };
-};
+}
+
+import { calculateAverage, groupBy } from "@/lib/helper";
+
+// Define types for the inventory report
+interface ProductCategory {
+  categoryName: string;
+  productCount: number;
+  stockValue: number;
+  avgStockLevel: number;
+  lowStockCount: number;
+  outOfStockCount: number;
+  stockValuePercentage: number;
+}
+
+interface StockProduct {
+  produkId: number;
+  productName: string;
+  category: string;
+  hargaModal: number;
+  stok: number;
+  minimumStok: number;
+  statusStok: string;
+  stockValue: number;
+  daysOnHand: number;
+  stockTurnoverRate: number;
+  lastRestockDate?: Date;
+  salesVelocity: number;
+  estimatedStockOutDate?: Date;
+  reorderRecommended: boolean;
+  reorderQuantity?: number;
+}
+
+interface InventoryAlerts {
+  outOfStockCount: number;
+  lowStockCount: number;
+  excessStockCount: number;
+  totalReorderValue: number;
+  reorderItemCount: number;
+}
+
+export interface InventoryReportData {
+  name: string;
+  period: string;
+  generatedDate: string;
+  totalProducts: number;
+  totalStockValue: number;
+  avgStockTurnover: number;
+  stockProductRatio: number;
+  alerts: InventoryAlerts;
+  categoryBreakdown: ProductCategory[];
+  products: StockProduct[];
+}
+
+// Type for period
+type PeriodType = "weekly" | "monthly" | "yearly";
+
+// Function to generate the inventory stock report
+export async function generateInventoryStockReport(periodType: PeriodType = "monthly"): Promise<InventoryReportData> {
+  // Fetch all products with their categories
+  const products = await prisma.produk.findMany({
+    where: {
+      isDeleted: false,
+    },
+    include: {
+      kategori: true,
+      detailPenjualan: {
+        include: {
+          penjualan: true,
+        },
+      },
+    },
+  });
+
+  // Calculate date range based on period type
+  const today = new Date();
+  let startDate: Date;
+  let periodLabel: string;
+
+  switch (periodType) {
+    case "weekly":
+      startDate = new Date(today);
+      startDate.setDate(today.getDate() - 7);
+      periodLabel = `Last 7 days (${startDate.toLocaleDateString()} - ${today.toLocaleDateString()})`;
+      break;
+    case "yearly":
+      startDate = new Date(today);
+      startDate.setFullYear(today.getFullYear() - 1);
+      periodLabel = `Last 12 months (${startDate.toLocaleDateString()} - ${today.toLocaleDateString()})`;
+      break;
+    case "monthly":
+    default:
+      startDate = new Date(today);
+      startDate.setMonth(today.getMonth() - 1);
+      periodLabel = `Last 30 days (${startDate.toLocaleDateString()} - ${today.toLocaleDateString()})`;
+      break;
+  }
+
+  // Fetch sales data for velocity calculations
+  const sales = await prisma.detailPenjualan.findMany({
+    where: {
+      penjualan: {
+        tanggalPenjualan: {
+          gte: startDate,
+        },
+      },
+    },
+    include: {
+      penjualan: true,
+      produk: true,
+    },
+  });
+
+  // Calculate sales data by product
+  const salesByProduct = groupBy(sales, "produkId");
+
+  // Calculate number of days in the period for velocity calculation
+  const daysInPeriod = Math.ceil((today.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+
+  // Process products into the required format
+  const processedProducts: StockProduct[] = products.map((product) => {
+    // Calculate stock value
+    const stockValue = product.hargaModal * product.stok;
+
+    // Calculate sales velocity (units sold per day)
+    const productSales = salesByProduct[product.produkId] || [];
+    const totalSold = productSales.reduce((sum, item) => sum + item.kuantitas, 0);
+    const salesVelocity = totalSold / daysInPeriod;
+
+    // Calculate days on hand (how long current stock will last)
+    const daysOnHand = salesVelocity > 0 ? product.stok / salesVelocity : 999; // If no sales, set to a high number
+
+    // Calculate stock turnover rate (annualized)
+    const annualizedSold = totalSold * (365 / daysInPeriod);
+    const avgInventory = (product.stok + product.stok) / 2; // Simplified calculation assuming current stock = average stock
+    const stockTurnoverRate = avgInventory > 0 ? annualizedSold / avgInventory : 0;
+
+    // Determine if reorder is recommended
+    // Logic: Reorder if current stock will last less than 14 days OR if stock is below minimum level
+    const reorderRecommended = (daysOnHand < 14 && salesVelocity > 0) || product.stok <= product.minimumStok;
+
+    // Calculate recommended reorder quantity if needed
+    let reorderQuantity: number | undefined = undefined;
+    if (reorderRecommended) {
+      // Base reorder quantity: enough for 30 days of sales plus buffer
+      const thirtyDaySales = Math.ceil(salesVelocity * 30);
+      const buffer = Math.ceil(thirtyDaySales * 0.2); // 20% buffer
+
+      if (product.stok < product.minimumStok) {
+        // If below minimum level, reorder to reach minimum + 30 days supply
+        reorderQuantity = product.minimumStok - product.stok + thirtyDaySales;
+      } else {
+        // Otherwise just reorder 30 days supply
+        reorderQuantity = thirtyDaySales + buffer;
+      }
+    }
+
+    // Calculate estimated stockout date
+    let estimatedStockOutDate: Date | undefined = undefined;
+    if (salesVelocity > 0) {
+      estimatedStockOutDate = new Date(today);
+      estimatedStockOutDate.setDate(today.getDate() + Math.floor(daysOnHand));
+    }
+
+    return {
+      produkId: product.produkId,
+      productName: product.nama,
+      category: product.kategori.nama,
+      hargaModal: product.hargaModal,
+      stok: product.stok,
+      minimumStok: product.minimumStok,
+      statusStok: product.statusStok,
+      stockValue: stockValue,
+      daysOnHand: daysOnHand,
+      stockTurnoverRate: stockTurnoverRate,
+      salesVelocity: salesVelocity,
+      estimatedStockOutDate: estimatedStockOutDate,
+      reorderRecommended: reorderRecommended,
+      reorderQuantity: reorderQuantity,
+    };
+  });
+
+  // Sort products by stock value (descending)
+  processedProducts.sort((a, b) => b.stockValue - a.stockValue);
+
+  // Calculate category breakdown
+  const productsByCategory = groupBy(processedProducts, "category");
+  const totalStockValue = processedProducts.reduce((sum, product) => sum + product.stockValue, 0);
+
+  const categoryBreakdown: ProductCategory[] = Object.entries(productsByCategory).map(([categoryName, products]) => {
+    const categoryStockValue = products.reduce((sum, product) => sum + product.stockValue, 0);
+    const lowStockCount = products.filter((p) => p.stok <= p.minimumStok && p.stok > 0).length;
+    const outOfStockCount = products.filter((p) => p.stok === 0).length;
+
+    return {
+      categoryName,
+      productCount: products.length,
+      stockValue: categoryStockValue,
+      avgStockLevel: calculateAverage(products, "stok"),
+      lowStockCount,
+      outOfStockCount,
+      stockValuePercentage: (categoryStockValue / totalStockValue) * 100,
+    };
+  });
+
+  // Sort categories by stock value (descending)
+  categoryBreakdown.sort((a, b) => b.stockValue - a.stockValue);
+
+  // Generate alerts
+  const outOfStockCount = processedProducts.filter((p) => p.stok === 0).length;
+  const lowStockCount = processedProducts.filter((p) => p.stok <= p.minimumStok && p.stok > 0).length;
+  const excessStockCount = processedProducts.filter((p) => p.stok > p.minimumStok * 3).length;
+  const reorderItems = processedProducts.filter((p) => p.reorderRecommended);
+  const reorderItemCount = reorderItems.length;
+  const totalReorderValue = reorderItems.reduce((sum, item) => {
+    return sum + (item.reorderQuantity || 0) * item.hargaModal;
+  }, 0);
+
+  // Calculate overall metrics
+  const totalProducts = processedProducts.length;
+  const avgStockTurnover = calculateAverage(processedProducts, "stockTurnoverRate");
+  const totalStockCount = processedProducts.reduce((sum, product) => sum + product.stok, 0);
+  const stockProductRatio = totalStockCount / totalProducts;
+
+  // Assemble the report
+  return {
+    name: "Inventory Stock Analysis",
+    period: periodLabel,
+    generatedDate: new Date().toISOString(),
+    totalProducts,
+    totalStockValue,
+    avgStockTurnover,
+    stockProductRatio,
+    alerts: {
+      outOfStockCount,
+      lowStockCount,
+      excessStockCount,
+      totalReorderValue,
+      reorderItemCount,
+    },
+    categoryBreakdown,
+    products: processedProducts,
+  };
+}
+
+
+export const getUserById = async (userId: number) => {
+  try {
+    const user = await prisma.user.findUnique({ where: { id: userId }, });
+    return user;
+  } catch (error) {
+    console.error("Failed to fetch user:", error);
+    return null;
+  }
+}
