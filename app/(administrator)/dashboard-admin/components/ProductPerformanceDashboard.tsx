@@ -464,7 +464,7 @@ const ProductPerformanceDashboard: React.FC<ProductPerformanceDashboardProps> = 
               {/* Glowing effect on hover */}
               <div className="absolute -inset-1 bg-gradient-to-r from-purple-400 via-blue-500 to-indigo-600 rounded-lg blur opacity-0 group-hover:opacity-20 transition duration-1000 group-hover:duration-200" />
               
-              <div className="relative shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] hover:shadow-[12px_12px_0px_0px_rgba(0,0,0,1)] transition-all duration-300">
+              <div className="relative transition-all duration-300">
                 {/* Header */}
                 <div className="flex items-center justify-between mb-6">
                   <div className="transform -rotate-2 bg-gradient-to-r from-purple-400 to-blue-400 border-4 border-black p-3 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
@@ -559,7 +559,7 @@ const ProductPerformanceDashboard: React.FC<ProductPerformanceDashboardProps> = 
               {/* Glowing effect on hover */}
               <div className="absolute -inset-1 bg-gradient-to-r from-yellow-400 via-pink-500 to-purple-600 rounded-lg blur opacity-0 group-hover:opacity-20 transition duration-1000 group-hover:duration-200" />
               
-              <div className="relative shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] hover:shadow-[12px_12px_0px_0px_rgba(0,0,0,1)] transition-all duration-300">
+              <div className="relative transition-all duration-300">
                 {/* Header */}
                 <div className="flex items-center justify-between mb-6">
                   <div className="transform -rotate-2 bg-gradient-to-r from-yellow-300 to-yellow-400 border-4 border-black p-3 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
@@ -669,7 +669,7 @@ const ProductPerformanceDashboard: React.FC<ProductPerformanceDashboardProps> = 
       {/* Products tab */}
       {activeTab === 'products' && (
         <div>
-          <div className="overflow-x-auto bg-white border-4 border-black p-4 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]">
+          <div className="overflow-x-auto bg-white border-4 border-black p-4 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] h-[500px] overflow-y-scroll">
             <table className="min-w-full bg-white">
               <thead className="bg-black text-white">
                 <tr>
@@ -688,7 +688,7 @@ const ProductPerformanceDashboard: React.FC<ProductPerformanceDashboardProps> = 
               </thead>
               <tbody>
                 {report.data.map((product: Produk) => (
-                  <tr key={product.produkId} className={`border-b hover:bg-gray-50 ${product.quantitySold === 0 ? 'bg-red-50' : ''}`}>
+                  <tr key={product.produkId} className={`border-b hover:bg-gray-50 ${product.quantitySold === 0 ? 'bg-red-500 text-white hover:text-red-500 transition-all' : ''}`}>
                     <td className="py-2 px-4 border-r border-gray-200">{product.ranking}</td>
                     <td className="py-2 px-4 border-r border-gray-200 font-bold">{product.productName}</td>
                     <td className="py-2 px-4 border-r border-gray-200">{product.category}</td>
@@ -700,7 +700,7 @@ const ProductPerformanceDashboard: React.FC<ProductPerformanceDashboardProps> = 
                     <td className="py-2 px-4 text-right border-r border-gray-200">{product.profitMargin.toFixed(1)}%</td>
                     <td className="py-2 px-4 text-right border-r border-gray-200">{formatRupiah(product.totalSales - product.profitAmount)}</td>
                     <td className={`py-2 px-4 text-right ${
-                      product.stockLevel === 0 ? 'text-red-600 font-bold' : 
+                      product.stockLevel === 0 ? 'text-white' : 
                       (product.stockLevel < 10 ? 'text-yellow-600 font-bold' : '')
                     }`}>
                       {product.stockLevel}

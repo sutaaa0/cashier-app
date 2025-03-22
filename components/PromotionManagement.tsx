@@ -11,6 +11,7 @@ import { EditPromotionModal } from "./EditPromotionModal";
 import { PromotionCard } from "./PromotionCard";
 import { useQuery } from "@tanstack/react-query";
 import { Promotion, ServerResponse } from "@/types/promotion";
+import { NeoProgressIndicator } from "./NeoProgresIndicator";
 
 export function PromotionManagement(): React.ReactElement {
   // State for modals with proper types
@@ -199,6 +200,8 @@ export function PromotionManagement(): React.ReactElement {
           subject="Promotion "
         />
       )}
+
+      <NeoProgressIndicator isLoading={isLoading}  message="Loading Promotions"/>
     </div>
   );
 }

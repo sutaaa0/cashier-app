@@ -81,17 +81,6 @@ const PromotionCard = memo(({ promotion, onEdit, onDelete, disabled }: Promotion
           <Button
             variant="neutral"
             size="icon"
-            onClick={() => onEdit(promotion)}
-            disabled={disabled}
-            className="p-2 bg-[#FFD700] border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]
-                     hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]
-                     active:translate-x-[4px] active:translate-y-[4px] active:shadow-none transition-all transform rotate-2"
-          >
-            <Edit size={20} />
-          </Button>
-          <Button
-            variant="neutral"
-            size="icon"
             onClick={() => onDelete(promotion)}
             disabled={disabled}
             className="p-2 bg-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]

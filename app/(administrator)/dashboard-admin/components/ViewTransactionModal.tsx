@@ -1,3 +1,4 @@
+"use client";
 import React from "react";
 import { X, Calendar, DollarSign, User, ShoppingBag, RefreshCw, CreditCard } from "lucide-react";
 import { formatRupiah } from "@/lib/formatIdr";
@@ -32,6 +33,7 @@ interface ViewTransactionModalProps {
   onClose: () => void;
   transaction: {
     penjualanId: number;
+    userId?: number;
     tanggalPenjualan: Date;
     total_harga: number;
     pelanggan?: { nama: string } | null;
@@ -39,6 +41,7 @@ interface ViewTransactionModalProps {
     detailPenjualan: DetailPenjualanWithPromotion[];
     returns: RefundInfo[];
     diskonPoin: number | null;
+    user?: { username: string } | null;
   };
 }
 
@@ -70,10 +73,14 @@ export function ViewTransactionModal({ isOpen, onClose, transaction }: ViewTrans
               <User size={20} />
               <span>Customer: {transaction.pelanggan ? transaction.pelanggan.nama : `Guest ${transaction.guest?.guestId}`}</span>
             </div>
-            {transaction.diskonPoin && transaction.diskonPoin > 0 && (
+            <div className="flex items-center gap-2">
+              <User size={20} />
+              <span>Cashier: {transaction.user ? transaction.user.username : "Unknown"}</span>
+            </div>
+            { (transaction.diskonPoin ?? 0) > 0 && (
               <div className="flex items-center gap-2 text-green-600">
                 <CreditCard size={20} />
-                <span>Points Discount: {formatRupiah(transaction.diskonPoin)}</span>
+                <span>Points Discount: {formatRupiah(transaction.diskonPoin ?? 0)}</span>
               </div>
             )}
           </div>
@@ -117,14 +124,14 @@ export function ViewTransactionModal({ isOpen, onClose, transaction }: ViewTrans
           </div>
 
           {/* Discount Points Summary */}
-          {transaction.diskonPoin && transaction.diskonPoin > 0 && (
+          {(transaction.diskonPoin ?? 0) > 0 && (
             <div className="bg-green-50 p-3 border border-green-200 rounded">
               <div className="flex items-center gap-2">
                 <CreditCard size={20} className="text-green-600" />
                 <h3 className="font-bold text-green-700">Points Discount Applied</h3>
               </div>
               <p className="mt-1 text-green-700">
-                {formatRupiah(transaction.diskonPoin)} discount from redeemed points
+                {formatRupiah(transaction.diskonPoin ?? 0)} discount from redeemed points
               </p>
             </div>
           )}

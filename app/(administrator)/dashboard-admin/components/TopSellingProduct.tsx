@@ -25,7 +25,7 @@ const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?:
             <Coffee className="text-yellow-400" size={20} />
             <h3 className="font-black text-xl">{label}</h3>
           </div>
-          <div className="font-mono bg-black text-white p-2 transform rotate-1">{payload[0].value} CUPS SOLD</div>
+          <div className="font-mono bg-black text-white p-2 transform rotate-1">{payload[0].value} PRODUCTS SOLD</div>
         </div>
       </div>
     );
@@ -70,7 +70,7 @@ export function TopSellingProducts() {
       <div className="absolute -inset-1 bg-gradient-to-r from-yellow-400 via-pink-500 to-purple-600 rounded-lg blur opacity-0 group-hover:opacity-20 transition duration-1000 group-hover:duration-200" />
 
       {/* Main content container */}
-      <div className="relative shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] hover:shadow-[12px_12px_0px_0px_rgba(0,0,0,1)] transition-all duration-300">
+      <div className="relative transition-all duration-300">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div className="transform -rotate-2 bg-gradient-to-r from-yellow-300 to-yellow-400 border-4 border-black p-3 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
@@ -124,7 +124,7 @@ export function TopSellingProducts() {
                 <div className="w-8 h-8 border-3 border-black transform rotate-45 transition-transform group-hover/item:rotate-0" style={{ backgroundColor: COLORS[index] }} />
                 <span className="font-bold text-lg">{product.name}</span>
                 <div className="ml-auto flex items-center gap-2">
-                  <span className="font-mono bg-white text-black px-2 py-1 border-2 border-black">{product.sales} CUPS</span>
+                  <span className="font-mono bg-white text-black px-2 py-1 border-2 border-black">{product.sales} PRODUCTS</span>
                   <span className="flex items-center text-green-500 font-bold">
                     <TrendingUp size={16} className="mr-1" />
                     {product.growth}

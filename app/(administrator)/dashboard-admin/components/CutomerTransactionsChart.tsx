@@ -62,7 +62,7 @@ const CustomerTransactionsChart = () => {
   if (isLoading) return <CustomerTransactionsLoading />;
 
   return (
-    <div className="relative bg-white border-4 border-black p-6 transition-all duration-300 group">
+    <div className="relative bg-white border-4 border-black p-6 transition-all duration-300 group h-[680px]">
       {/* Background Pattern */}
       <div className="absolute inset-0 opacity-5 pointer-events-none">
         {[...Array(15)].map((_, i) => (
@@ -84,7 +84,7 @@ const CustomerTransactionsChart = () => {
       <div className="absolute -inset-1 bg-gradient-to-r from-blue-400 via-purple-500 to-pink-500 rounded-lg blur opacity-0 group-hover:opacity-20 transition duration-1000 group-hover:duration-200" />
 
       {/* Main content container */}
-      <div className="relative shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] hover:shadow-[12px_12px_0px_0px_rgba(0,0,0,1)] transition-all duration-300">
+      <div className="relative transition-all duration-300">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div className="transform -rotate-2 bg-gradient-to-r from-blue-300 to-purple-400 border-4 border-black p-3 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">

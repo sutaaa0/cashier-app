@@ -58,6 +58,7 @@ export default function AdminDashboard() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-10">
         {/* Top Selling Products */}
         <TopSellingProducts />
+        {/* perbandingan 30hari terakhir */}
 
         {/* Low Stock Products */}
         <LowStockAlert />

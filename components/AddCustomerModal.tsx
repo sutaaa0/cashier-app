@@ -1,6 +1,7 @@
 "use client"
 
 import type React from "react"
+import { useEffect } from "react"
 import { X } from "lucide-react"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
@@ -20,18 +21,16 @@ import {
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 
-// Define the form schema with Zod
 const customerFormSchema = z.object({
   name: z.string().min(1, { message: "Name is required" }),
   address: z.string().min(1, { message: "Address is required" }),
   phoneNumber: z.string()
     .min(1, { message: "Phone number is required" })
-    .regex(/^(\+62|0)[0-9]{9,12}$/, { 
-      message: "Invalid phone number format (use format: 08xxxxxxxxxx or +62xxxxxxxxxx)" 
+    .regex(/^08[0-9]{8,11}$/, { 
+      message: "Invalid phone number format (use format: 08xxxxxxxxxx)" 
     })
 })
 
-// Type for the form values
 type CustomerFormValues = z.infer<typeof customerFormSchema>
 
 interface AddCustomerModalProps {
@@ -41,7 +40,6 @@ interface AddCustomerModalProps {
 }
 
 export function AddCustomerModal({ isOpen, onClose, onCustomerAdded }: AddCustomerModalProps) {
-  // Define form with React Hook Form
   const form = useForm<CustomerFormValues>({
     resolver: zodResolver(customerFormSchema),
     defaultValues: {
@@ -50,6 +48,12 @@ export function AddCustomerModal({ isOpen, onClose, onCustomerAdded }: AddCustom
       phoneNumber: "",
     },
   })
+
+  useEffect(() => {
+    if (!isOpen) {
+      form.reset()
+    }
+  }, [isOpen, form])
 
   const isLoading = form.formState.isSubmitting
 
@@ -62,41 +66,20 @@ export function AddCustomerModal({ isOpen, onClose, onCustomerAdded }: AddCustom
       })
 
       if (result.status === "Success") {
-        toast({
-          title: "Success",
-          description: "Customer added successfully",
-        })
+        toast({ title: "Success", description: "Customer added successfully" })
         onClose()
         onCustomerAdded()
-        // Reset form
-        form.reset()
       } else {
-        // Handle specific error for duplicate phone numbers
         if (result.message && result.message.includes("duplicate")) {
-          toast({
-            title: "Error",
-            description: "Phone number already registered",
-            variant: "destructive",
-          })
-          form.setError("phoneNumber", { 
-            type: "manual", 
-            message: "Phone number already in use" 
-          })
+          toast({ title: "Error", description: "Phone number already registered", variant: "destructive" })
+          form.setError("phoneNumber", { type: "manual", message: "Phone number already in use" })
         } else {
-          toast({
-            title: "Error",
-            description: result.message,
-            variant: "destructive",
-          })
+          toast({ title: "Error", description: result.message, variant: "destructive" })
         }
       }
     } catch (error) {
       console.error(error)
-      toast({
-        title: "Error",
-        description: "Failed to add customer",
-        variant: "destructive",
-      })
+      toast({ title: "Error", description: "Failed to add customer", variant: "destructive" })
     }
   }
 
@@ -114,64 +97,37 @@ export function AddCustomerModal({ isOpen, onClose, onCustomerAdded }: AddCustom
         
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <FormField
-              control={form.control}
-              name="name"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="font-bold">Name</FormLabel>
-                  <FormControl>
-                    <Input
-                      {...field}
-                      className="p-2 border-[3px] border-black rounded focus:outline-none focus:ring-2 focus:ring-[#93B8F3]"
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            <FormField control={form.control} name="name" render={({ field }) => (
+              <FormItem>
+                <FormLabel className="font-bold">Name</FormLabel>
+                <FormControl>
+                  <Input {...field} className="p-2 border-[3px] border-black rounded focus:outline-none focus:ring-2 focus:ring-[#93B8F3]" />
+                </FormControl>
+                <FormMessage className="text-red-500" />
+              </FormItem>
+            )} />
             
-            <FormField
-              control={form.control}
-              name="address"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="font-bold">Address</FormLabel>
-                  <FormControl>
-                    <Input
-                      {...field}
-                      className="p-2 border-[3px] border-black rounded focus:outline-none focus:ring-2 focus:ring-[#93B8F3]"
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            <FormField control={form.control} name="address" render={({ field }) => (
+              <FormItem>
+                <FormLabel className="font-bold">Address</FormLabel>
+                <FormControl>
+                  <Input {...field} className="p-2 border-[3px] border-black rounded focus:outline-none focus:ring-2 focus:ring-[#93B8F3]" />
+                </FormControl>
+                <FormMessage className="text-red-500" />
+              </FormItem>
+            )} />
             
-            <FormField
-              control={form.control}
-              name="phoneNumber"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="font-bold">Phone Number</FormLabel>
-                  <FormControl>
-                    <Input
-                      {...field}
-                      type="tel"
-                      className="p-2 border-[3px] border-black rounded focus:outline-none focus:ring-2 focus:ring-[#93B8F3]"
-                      placeholder="Format: 08xxxxxxxxxx"
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            <FormField control={form.control} name="phoneNumber" render={({ field }) => (
+              <FormItem>
+                <FormLabel className="font-bold">Phone Number</FormLabel>
+                <FormControl>
+                  <Input {...field} type="tel" className="p-2 border-[3px] border-black rounded focus:outline-none focus:ring-2 focus:ring-[#93B8F3]" placeholder="Format: 08xxxxxxxxxx" />
+                </FormControl>
+                <FormMessage className="text-red-500" />
+              </FormItem>
+            )} />
             
-            <Button
-              type="submit"
-              disabled={isLoading}
-              className="w-full px-4 py-2 bg-[#93B8F3] font-bold border-[3px] border-black rounded shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none transition-all disabled:opacity-50"
-            >
+            <Button type="submit" disabled={isLoading} className="w-full px-4 py-2 bg-[#93B8F3] font-bold border-[3px] border-black rounded shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none transition-all disabled:opacity-50">
               Add Customer
             </Button>
           </form>

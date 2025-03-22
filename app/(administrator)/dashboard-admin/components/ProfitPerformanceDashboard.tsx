@@ -1,0 +1,1146 @@
+import React, { useState, useEffect } from "react";
+import { Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ComposedChart, Line, Area, LineChart, ReferenceLine } from "recharts";
+import { saveAs } from "file-saver";
+import * as XLSX from "xlsx";
+import { jsPDF } from "jspdf";
+import "jspdf-autotable";
+import { FileText, FileDown, Sparkles, TrendingUp, DollarSign, Percent, TrendingDown } from "lucide-react";
+import { formatRupiah } from "@/lib/formatIdr";
+
+// Vibrant neo-brutalist color palette
+const TOTAL_SALES_COLOR = "#4ECDC4";
+const TOTAL_COST_COLOR = "#FF8364";
+const PROFIT_COLOR = "#FFE66D";
+const PROFIT_MARGIN_COLOR = "#45B7D1";
+
+// Helper function to calculate growth rate between periods
+interface CalculateGrowthFn {
+  (current: number, previous: number): number | null;
+}
+
+const calculateGrowth: CalculateGrowthFn = (current, previous) => {
+  if (!previous || previous === 0) return null;
+  return ((current - previous) / previous) * 100;
+};
+
+// Helper function to format date strings
+interface ILocaleDateOptions extends Intl.DateTimeFormatOptions {
+  day: "numeric";
+  month: "short";
+  year: "numeric";
+}
+
+interface IFormatDateString {
+  (dateString: string): string;
+}
+
+const formatDateString: IFormatDateString = (dateString: string): string => {
+  const date = new Date(dateString);
+  return date.toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" } as ILocaleDateOptions);
+};
+
+// Custom tooltip for line/bar charts
+interface CustomTooltipPayload {
+  color: string;
+  name: string;
+  value: number;
+}
+
+interface CustomTooltipProps {
+  active?: boolean;
+  payload?: CustomTooltipPayload[];
+  label?: string;
+}
+
+const CustomTooltip: React.FC<CustomTooltipProps> = ({ active, payload, label }) => {
+  if (active && payload && payload.length) {
+    return (
+      <div className="relative group">
+        <div className="absolute -inset-1 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg blur opacity-25 group-hover:opacity-100 transition duration-1000 group-hover:duration-200" />
+        <div className="relative bg-white border-4 border-black p-4 transform -rotate-2 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]">
+          <div className="flex items-center gap-2 mb-3">
+            <TrendingUp className="text-blue-500" size={20} />
+            <h3 className="font-black text-xl">{label}</h3>
+          </div>
+
+          {payload.map((entry, index) => {
+            // Determine optimal text color based on background color
+            const isGrowthValue = entry.name.toLowerCase().includes("growth");
+            const isLightBackground = entry.color === "#ffffff" || entry.color === "#fff" || entry.color === "white";
+            const textColor = isLightBackground ? "black" : "white";
+
+            return (
+              <div key={index} className="mb-2">
+                <div className="flex items-center gap-2 mb-1">
+                  <div
+                    className="w-4 h-4 border-2 border-black"
+                    style={{
+                      backgroundColor: isGrowthValue && entry.value >= 0 ? "#2ecc71" : isGrowthValue && entry.value < 0 ? "#e74c3c" : entry.color,
+                    }}
+                  />
+                  <span className="font-bold">{entry.name}:</span>
+                </div>
+                <div
+                  className="font-mono p-2 transform rotate-1 border-2 border-black"
+                  style={{
+                    backgroundColor: isGrowthValue && entry.value >= 0 ? "#2ecc71" : isGrowthValue && entry.value < 0 ? "#e74c3c" : entry.color,
+                    color: textColor,
+                  }}
+                >
+                  {entry.name.toLowerCase().includes("margin") || entry.name.toLowerCase().includes("growth") ? `${entry.value.toFixed(2)}%` : formatRupiah(entry.value)}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+  return null;
+};
+
+// Custom growth indicator component
+interface GrowthIndicatorProps {
+  value: number;
+  prefix?: string;
+  size?: "sm" | "md" | "lg";
+}
+
+const GrowthIndicator: React.FC<GrowthIndicatorProps> = ({ value, prefix = "", size = "md" }) => {
+  if (value === null || value === undefined) return null;
+
+  const sizeClasses = {
+    sm: "text-sm",
+    md: "text-md",
+    lg: "text-lg",
+  };
+
+  return (
+    <span className={`flex items-center gap-1 font-bold ${value >= 0 ? "text-green-600" : "text-red-600"} ${sizeClasses[size]}`}>
+      {value >= 0 ? <TrendingUp size={size === "sm" ? 14 : size === "md" ? 18 : 22} /> : <TrendingDown size={size === "sm" ? 14 : size === "md" ? 18 : 22} />}
+      {prefix}
+      {Math.abs(value).toFixed(2)}%
+    </span>
+  );
+};
+
+// TypeScript interfaces
+interface PeriodData {
+  totalSales: number;
+  totalModal: number;
+  profit: number;
+  profitMargin: number;
+  totalOrders: number;
+  periodDate: string;
+  periodLabel: string;
+  salesGrowth?: number | null;
+  costGrowth?: number | null;
+  marginGrowth?: number | null;
+}
+
+interface ReportData {
+  id: number;
+  name: string;
+  period: string;
+  periodType: string;
+  generatedDate: string;
+  totalAmount: number;
+  totalProfit: number;
+  profitMargin: number;
+  data: PeriodData[];
+}
+
+interface MonthlyProfitReportProps {
+  report: ReportData;
+}
+
+const ProfitPerformanceDashboard: React.FC<MonthlyProfitReportProps> = ({ report }) => {
+  console.log("data yang diterima :", report);
+  const [activeTab, setActiveTab] = useState("overview");
+  const [positions, setPositions] = useState<{ left: string; top: string }[]>([]);
+  const [projectedData, setProjectedData] = useState<
+    {
+      periodDate: string;
+      periodLabel: string;
+      totalSales: number;
+      totalModal: number;
+      profit: number;
+      profitMargin: number;
+      isProjected: boolean;
+    }[]
+  >([]);
+
+  // Find highest and lowest profit periods
+  const highestProfitPeriod = [...report.data].sort((a, b) => b.profit - a.profit)[0] || {};
+  const lowestProfitPeriod = [...report.data].sort((a, b) => a.profit - b.profit)[0] || {};
+
+  // Generate random positions for decorative elements
+  useEffect(() => {
+    setPositions(
+      [...Array(20)].map(() => ({
+        left: `${Math.random() * 100}%`,
+        top: `${Math.random() * 100}%`,
+      }))
+    );
+
+    // Generate projected data based on historical trend
+    if (report.data.length >= 3) {
+      const lastThreePeriods = report.data.slice(-3);
+
+      // Calculate average growth rate
+      const growthRates = [];
+      for (let i = 1; i < lastThreePeriods.length; i++) {
+        const growth = calculateGrowth(lastThreePeriods[i].profit, lastThreePeriods[i - 1].profit);
+        if (growth !== null) growthRates.push(growth / 100); // Convert to decimal
+      }
+
+      const avgGrowthRate = growthRates.length ? growthRates.reduce((sum, rate) => sum + rate, 0) / growthRates.length : 0.05; // Default to 5% if we can't calculate
+
+      // Get last period data
+      const lastPeriod = lastThreePeriods[lastThreePeriods.length - 1];
+
+      // Project next three periods
+      const projected = [];
+      let lastProjectedProfit = lastPeriod.profit;
+      let lastProjectedSales = lastPeriod.totalSales;
+
+      for (let i = 1; i <= 3; i++) {
+        // Project with some slight randomness for natural-looking growth
+        const randomFactor = 0.9 + Math.random() * 0.2; // 0.9-1.1 randomness factor
+        const projectedProfit = lastProjectedProfit * (1 + avgGrowthRate * randomFactor);
+        const projectedSales = lastProjectedSales * (1 + avgGrowthRate * randomFactor * 0.8); // Sales grow slower than profit
+        const projectedCost = projectedSales - projectedProfit;
+
+        // Estimate date for next period based on last two periods
+        let nextPeriodDate;
+        if (report.periodType === "monthly") {
+          const lastDate = new Date(lastPeriod.periodDate);
+          nextPeriodDate = new Date(lastDate.setMonth(lastDate.getMonth() + i));
+        } else if (report.periodType === "weekly") {
+          const lastDate = new Date(lastPeriod.periodDate);
+          nextPeriodDate = new Date(lastDate.setDate(lastDate.getDate() + i * 7));
+        } else {
+          // yearly
+          const lastDate = new Date(lastPeriod.periodDate);
+          nextPeriodDate = new Date(lastDate.setFullYear(lastDate.getFullYear() + i));
+        }
+
+        projected.push({
+          periodDate: nextPeriodDate.toISOString(),
+          periodLabel: `${
+            report.periodType === "monthly"
+              ? nextPeriodDate.toLocaleDateString("id-ID", { month: "long", year: "numeric" })
+              : report.periodType === "weekly"
+              ? `Week ${Math.ceil(nextPeriodDate.getDate() / 7)}, ${nextPeriodDate.toLocaleDateString("id-ID", { month: "long", year: "numeric" })}`
+              : nextPeriodDate.getFullYear().toString()
+          } (Projected)`,
+          totalSales: projectedSales,
+          totalModal: projectedCost,
+          profit: projectedProfit,
+          profitMargin: (projectedProfit / projectedSales) * 100,
+          isProjected: true,
+        });
+
+        // Update for next projection
+        lastProjectedProfit = projectedProfit;
+        lastProjectedSales = projectedSales;
+      }
+
+      setProjectedData(projected);
+    }
+  }, [report.data, report.periodType]);
+
+  // Prepare data for charts with proper formatting
+  const chartData = [...report.data].map((period) => ({
+    ...period,
+    periodLabel: period.periodLabel,
+    formattedDate: formatDateString(period.periodDate),
+  }));
+
+  // Include projected data in trend chart
+  const trendChartData = [
+    ...chartData,
+    ...projectedData.map((period) => ({
+      ...period,
+      formattedDate: formatDateString(period.periodDate),
+    })),
+  ];
+
+  // Calculate Period-over-Period growth rates
+  const popGrowthData = chartData.map((period, index, array) => {
+    if (index === 0) return { ...period, popGrowth: null };
+
+    const prevPeriod = array[index - 1];
+    const popGrowth = calculateGrowth(period.profit, prevPeriod.profit);
+
+    return {
+      ...period,
+      popGrowth,
+      salesGrowth: calculateGrowth(period.totalSales, prevPeriod.totalSales),
+      costGrowth: calculateGrowth(period.totalModal, prevPeriod.totalModal),
+      marginGrowth: calculateGrowth(period.profitMargin, prevPeriod.profitMargin),
+    };
+  });
+
+  // Find periods with significant performance changes
+  const significantChanges = popGrowthData
+    .filter((period) => period.popGrowth !== null && Math.abs(period.popGrowth) > 10) // 10% threshold
+    .sort((a, b) => Math.abs(b.popGrowth as number) - Math.abs(a.popGrowth as number))
+    .slice(0, 3) // Top 3 most significant changes
+    .map((period) => ({
+      ...period,
+      changeType: (period.popGrowth as number) > 0 ? "positive" : "negative",
+    }));
+
+  // Calculate average profit margin across all periods
+  interface IProfitPeriod {
+    profitMargin: number;
+  }
+
+  const avgProfitMargin: number = report.data.reduce((sum: number, period: IProfitPeriod) => sum + period.profitMargin, 0) / (report.data.length || 1);
+
+  // Calculate overall profit growth (first period to last period)
+  const overallGrowth = report.data.length >= 2 ? calculateGrowth(report.data[report.data.length - 1].profit, report.data[0].profit) : null;
+
+  // Handle Excel download function
+  const handleDownloadExcel = () => {
+    const wb = XLSX.utils.book_new();
+
+    // Create Profit Summary sheet
+    const summaryData = [
+      {
+        "Report Name": report.name,
+        Period: report.period,
+        "Generated Date": new Date(report.generatedDate).toLocaleString(),
+        "Total Sales": formatRupiah(report.totalAmount),
+        "Total Cost": formatRupiah(report.totalAmount - report.totalProfit),
+        "Total Profit": formatRupiah(report.totalProfit),
+        "Avg. Profit Margin": `${(report.profitMargin * 100).toFixed(2)}%`,
+        "Overall Growth": overallGrowth ? `${overallGrowth.toFixed(2)}%` : "0%",
+        "Highest Profit Period": highestProfitPeriod.periodLabel || "0%",
+        "Highest Profit Amount": formatRupiah(highestProfitPeriod.profit || 0),
+        "Lowest Profit Period": lowestProfitPeriod.periodLabel || "0%",
+        "Lowest Profit Amount": formatRupiah(lowestProfitPeriod.profit || 0),
+      },
+    ];
+
+    const ws1 = XLSX.utils.json_to_sheet(summaryData);
+    XLSX.utils.book_append_sheet(wb, ws1, "Summary");
+
+    // Create detailed profit data sheet
+    interface IReportPeriod {
+      periodLabel: string;
+      totalSales: number;
+      totalModal: number;
+      profit: number;
+      profitMargin: number;
+      totalOrders: number;
+      popGrowth?: number | null;
+    }
+
+    interface DetailedDataEntry {
+      Period: string;
+      "Total Sales": string;
+      "Total Cost": string;
+      Profit: string;
+      "Profit Margin": string;
+      Orders: number;
+      "Growth (vs Previous)": string;
+    }
+
+    const detailedData: DetailedDataEntry[] = report.data.map((period: IReportPeriod) => ({
+      Period: period.periodLabel,
+      "Total Sales": formatRupiah(period.totalSales),
+      "Total Cost": formatRupiah(period.totalModal),
+      Profit: formatRupiah(period.profit),
+      "Profit Margin": `${period.profitMargin.toFixed(2)}%`,
+      Orders: period.totalOrders,
+      "Growth (vs Previous)": period.popGrowth ? `${period.popGrowth.toFixed(2)}%` : "0%",
+    }));
+
+    const ws2 = XLSX.utils.json_to_sheet(detailedData);
+    XLSX.utils.book_append_sheet(wb, ws2, "Detailed Profit Data");
+
+    // Create projections sheet if available
+    if (projectedData.length > 0) {
+      const projectionData = projectedData.map((period) => ({
+        Period: period.periodLabel,
+        "Projected Sales": formatRupiah(period.totalSales),
+        "Projected Cost": formatRupiah(period.totalModal),
+        "Projected Profit": formatRupiah(period.profit),
+        "Projected Margin": `${period.profitMargin.toFixed(2)}%`,
+        "Based On": "Historical trend analysis",
+      }));
+
+      const ws3 = XLSX.utils.json_to_sheet(projectionData);
+      XLSX.utils.book_append_sheet(wb, ws3, "Projections");
+    }
+
+    // Create significant changes sheet if available
+    if (significantChanges.length > 0) {
+      const changesData = significantChanges.map((period) => ({
+        Period: period.periodLabel,
+        "Change Type": period.changeType === "positive" ? "Improvement" : "Decline",
+        "Profit Change": `${period.popGrowth?.toFixed(2)}%`,
+        "Sales Change": `${period.salesGrowth ? period.salesGrowth.toFixed(2) : "0"}%`,
+        "Cost Change": `${period.costGrowth ? period.costGrowth.toFixed(2) : "0"}%`,
+        "Margin Change": `${period.marginGrowth ? period.marginGrowth.toFixed(2) : "0"}%`,
+        "Total Sales": formatRupiah(period.totalSales),
+        "Total Cost": formatRupiah(period.totalModal),
+        Profit: formatRupiah(period.profit),
+      }));
+
+      const ws4 = XLSX.utils.json_to_sheet(changesData);
+      XLSX.utils.book_append_sheet(wb, ws4, "Significant Changes");
+    }
+
+    // Write the file
+    const excelBuffer = XLSX.write(wb, { bookType: "xlsx", type: "array" });
+    const data = new Blob([excelBuffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+
+    saveAs(data, `${report.name}-${report.period}.xlsx`);
+  };
+
+  // Handle PDF download function
+  const handleDownloadPDF = () => {
+    const doc = new jsPDF("landscape");
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const margin = 10;
+
+    // Header with smaller font size
+    doc.setFontSize(16);
+    doc.setFont("helvetica", "bold");
+    doc.text(report.name, margin, 15);
+
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "normal");
+    doc.text(`Period: ${report.period}`, margin, 22);
+    doc.text(`Created: ${new Date(report.generatedDate).toLocaleString()}`, margin, 27);
+
+    // Separator line
+    doc.setDrawColor(0, 0, 0);
+    doc.setLineWidth(0.5);
+    doc.line(margin, 30, pageWidth - margin, 30);
+
+    // Start profit table
+    const startY = 35;
+
+    // Prepare columns
+    const profitTableColumns = [
+      { header: "Period", dataKey: "period", width: 45 },
+      { header: "Total Sales", dataKey: "sales", width: 35 },
+      { header: "Total Cost", dataKey: "cost", width: 35 },
+      { header: "Profit", dataKey: "profit", width: 35 },
+      { header: "Margin", dataKey: "margin", width: 25 },
+      { header: "Orders", dataKey: "orders", width: 20 },
+      { header: "Growth", dataKey: "growth", width: 25 },
+    ];
+
+    // Prepare data
+    const profitData = popGrowthData.map((period) => {
+      return [
+        period.periodLabel,
+        formatRupiah(period.totalSales),
+        formatRupiah(period.totalModal),
+        formatRupiah(period.profit),
+        `${period.profitMargin.toFixed(2)}%`,
+        period.totalOrders,
+        period.popGrowth ? `${period.popGrowth.toFixed(2)}%` : "0%",
+      ];
+    });
+
+    doc.autoTable({
+      startY,
+      head: [profitTableColumns.map((col) => col.header)],
+      body: profitData,
+      theme: "grid",
+      headStyles: {
+        fillColor: [41, 128, 185],
+        textColor: 255,
+        fontStyle: "bold",
+        fontSize: 8,
+        halign: "center",
+      },
+      styles: {
+        font: "helvetica",
+        fontSize: 7,
+        overflow: "linebreak",
+        cellPadding: 2,
+        lineWidth: 0.1,
+      },
+      columnStyles: {
+        0: { halign: "left", cellWidth: profitTableColumns[0].width },
+        1: { halign: "right", cellWidth: profitTableColumns[1].width },
+        2: { halign: "right", cellWidth: profitTableColumns[2].width },
+        3: { halign: "right", cellWidth: profitTableColumns[3].width },
+        4: { halign: "right", cellWidth: profitTableColumns[4].width },
+        5: { halign: "right", cellWidth: profitTableColumns[5].width },
+        6: { halign: "right", cellWidth: profitTableColumns[6].width },
+      },
+      didParseCell: (data) => {
+        // Highlight highest and lowest profit periods
+        const periodData = data.row.raw;
+        if (periodData && Array.isArray(periodData)) {
+          // Period label is at index 0, profit at index 3
+          if (periodData[0] === highestProfitPeriod.periodLabel) {
+            data.cell.styles.fillColor = [230, 255, 230]; // Light green
+          } else if (periodData[0] === lowestProfitPeriod.periodLabel) {
+            data.cell.styles.fillColor = [255, 235, 235]; // Light red
+          }
+
+          // Highlight growth cells based on positive/negative values
+          if (data.column.index === 6 && periodData[6] !== "0%" && periodData[6] != null) {
+            const growthValue = parseFloat(String(periodData[6]));
+            if (growthValue > 0) {
+              data.cell.styles.textColor = [0, 150, 0]; // Green for positive
+            } else if (growthValue < 0) {
+              data.cell.styles.textColor = [200, 0, 0]; // Red for negative
+            }
+          }
+        }
+      },
+      alternateRowStyles: {
+        fillColor: [248, 248, 248],
+      },
+      margin: { left: margin, right: margin },
+    });
+
+    // Add summary section
+    let footerY = (doc.lastAutoTable?.finalY ?? startY) + 10;
+
+    // Check if a new page is needed for the summary
+    if (footerY > pageHeight - 40) {
+      doc.addPage("landscape");
+      footerY = 15;
+    }
+
+    // Summary section
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "bold");
+    doc.text("Profit Report Summary", margin, footerY);
+
+    footerY += 6;
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "normal");
+
+    // Summary points in compact format
+    const summaryPoints = [
+      `• Total Sales: ${formatRupiah(report.totalAmount)}`,
+      `• Total Cost: ${formatRupiah(report.totalAmount - report.totalProfit)}`,
+      `• Total Profit: ${formatRupiah(report.totalProfit)}`,
+      `• Average Margin: ${(report.profitMargin * 100).toFixed(2)}%`,
+      `• Overall Growth: ${overallGrowth ? `${overallGrowth.toFixed(2)}%` : "0%"}`,
+      `• Highest Profit: ${highestProfitPeriod.periodLabel || "0%"} (${formatRupiah(highestProfitPeriod.profit || 0)})`,
+      `• Lowest Profit: ${lowestProfitPeriod.periodLabel || "0%"} (${formatRupiah(lowestProfitPeriod.profit || 0)})`,
+    ];
+
+    // Split into columns to save space
+    const colWidth = Math.ceil(summaryPoints.length / 3);
+    const col1Points = summaryPoints.slice(0, colWidth);
+    const col2Points = summaryPoints.slice(colWidth, colWidth * 2);
+    const col3Points = summaryPoints.slice(colWidth * 2);
+
+    col1Points.forEach((point, index) => {
+      doc.text(point, margin, footerY + index * 5);
+    });
+
+    col2Points.forEach((point, index) => {
+      doc.text(point, margin + 100, footerY + index * 5);
+    });
+
+    col3Points.forEach((point, index) => {
+      doc.text(point, margin + 200, footerY + index * 5);
+    });
+
+    // Footer with page number
+    const totalPages = doc.internal.pages.length;
+    for (let i = 1; i <= totalPages; i++) {
+      doc.setPage(i);
+      doc.setFontSize(8);
+      doc.setFont("helvetica", "italic");
+      doc.setTextColor(100, 100, 100);
+      doc.text(`${report.name} - ${report.period} | Page ${i} of ${totalPages}`, pageWidth / 2, pageHeight - 8, { align: "center" });
+    }
+
+    doc.save(`${report.name}-${report.period}.pdf`);
+  };
+
+  return (
+    <div className="relative">
+      {/* Background Pattern for Neo-Brutalist effect */}
+      <div className="absolute inset-0 opacity-5 pointer-events-none">
+        {positions.map((pos, i) => (
+          <div
+            key={i}
+            className="absolute transform rotate-45 border-2 border-black"
+            style={{
+              left: pos.left,
+              top: pos.top,
+              width: "20px",
+              height: "20px",
+            }}
+          />
+        ))}
+      </div>
+
+      {/* Download buttons */}
+      <div className="flex justify-end mb-4 gap-2">
+        <button
+          onClick={handleDownloadExcel}
+          className="px-4 py-2 bg-[#FFE66D] font-black border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none transition-all flex items-center gap-2"
+          title="Download Excel"
+        >
+          <FileText size={20} />
+          EXCEL
+        </button>
+        <button
+          onClick={handleDownloadPDF}
+          className="px-4 py-2 bg-[#FF6B6B] font-black border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none transition-all flex items-center gap-2 text-white"
+          title="Download PDF"
+        >
+          <FileDown size={20} />
+          PDF
+        </button>
+      </div>
+
+      {/* Tab navigation - Neo-Brutalist Style */}
+      <div className="flex border-b-4 border-black mb-6">
+        <button className={`px-6 py-3 mr-2 font-black text-lg transform ${activeTab === "overview" ? "bg-black text-white -rotate-2" : "bg-white rotate-1"} border-4 border-black transition-all`} onClick={() => setActiveTab("overview")}>
+          OVERVIEW
+        </button>
+        <button className={`px-6 py-3 mr-2 font-black text-lg transform ${activeTab === "trends" ? "bg-black text-white -rotate-2" : "bg-white rotate-1"} border-4 border-black transition-all`} onClick={() => setActiveTab("trends")}>
+          TRENDS
+        </button>
+        <button
+          className={`px-6 py-3 mr-2 font-black text-lg transform ${activeTab === "projections" ? "bg-black text-white -rotate-2" : "bg-white rotate-1"} border-4 border-black transition-all`}
+          onClick={() => setActiveTab("projections")}
+        >
+          PROJECTIONS
+        </button>
+      </div>
+
+      {/* Overview tab */}
+      {activeTab === "overview" && (
+        <div>
+          {/* Metrics Cards */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-8">
+            <div className="bg-white border-4 border-black p-6 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] transform rotate-1">
+              <h3 className="text-xl font-black mb-4">Total Sales</h3>
+              <p className="text-3xl font-black">{formatRupiah(report.totalAmount)}</p>
+              {overallGrowth && (
+                <div className="mt-2">
+                  <GrowthIndicator value={overallGrowth} size="md" />
+                </div>
+              )}
+            </div>
+
+            <div className="bg-white border-4 border-black p-6 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] transform -rotate-1">
+              <h3 className="text-xl font-black mb-4">Total Profit</h3>
+              <p className="text-3xl font-black">{formatRupiah(report.totalProfit)}</p>
+              <p className="font-bold mt-2">Margin: {(report.profitMargin * 100).toFixed(2)}%</p>
+            </div>
+
+            <div className="bg-white border-4 border-black p-6 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] transform rotate-1">
+              <h3 className="text-xl font-black mb-4">Total Cost</h3>
+              <p className="text-3xl font-black">{formatRupiah(report.totalAmount - report.totalProfit)}</p>
+              <p className="font-bold mt-2">of total sales</p>
+            </div>
+
+            <div className="bg-white border-4 border-black p-6 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] transform -rotate-1">
+              <h3 className="text-xl font-black mb-4">Best Period</h3>
+              <p className="text-xl font-black truncate">{highestProfitPeriod.periodLabel || "0%"}</p>
+              <p className="font-bold mt-2 text-green-600">{formatRupiah(highestProfitPeriod.profit || 0)}</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+            {/* Profit vs Cost Chart */}
+            <div className="relative bg-white border-4 border-black p-6 transition-all duration-300 group">
+              {/* Glowing effect on hover */}
+              <div className="absolute -inset-1 bg-gradient-to-r from-purple-400 via-blue-500 to-indigo-600 rounded-lg blur opacity-0 group-hover:opacity-20 transition duration-1000 group-hover:duration-200" />
+
+              <div className="relative transition-all duration-300">
+                {/* Header */}
+                <div className="flex items-center justify-between mb-6">
+                  <div className="transform -rotate-2 bg-gradient-to-r from-purple-400 to-blue-400 border-4 border-black p-3 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+                    <h2 className="text-xl font-black tracking-tighter">SALES vs COST</h2>
+                  </div>
+                  <div className="bg-black text-white p-3 transform rotate-3 hover:rotate-6 transition-transform">
+                    <DollarSign size={24} />
+                  </div>
+                </div>
+
+                <ResponsiveContainer width="100%" height={300}>
+                  <ComposedChart data={chartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#000" strokeWidth={1} opacity={0.1} />
+                    <XAxis dataKey="periodLabel" stroke="#000" strokeWidth={2} tick={{ fill: "#000", fontWeight: "bold" }} tickLine={{ stroke: "#000" }} />
+                    <YAxis yAxisId="left" stroke="#000" strokeWidth={2} tick={{ fill: "#000" }} tickFormatter={(value) => formatRupiah(value)} />
+                    <Tooltip content={<CustomTooltip />} />
+                    <Legend
+                      iconType="square"
+                      iconSize={15}
+                      wrapperStyle={{
+                        border: "2px solid black",
+                        backgroundColor: "#ffffff",
+                        padding: "8px",
+                        fontWeight: "bold",
+                      }}
+                    />
+                    <Bar yAxisId="left" dataKey="totalSales" name="Sales" fill={TOTAL_SALES_COLOR} stroke="#000" strokeWidth={2} radius={[4, 4, 0, 0]} />
+                    <Bar yAxisId="left" dataKey="totalModal" name="Cost" fill={TOTAL_COST_COLOR} stroke="#000" strokeWidth={2} radius={[4, 4, 0, 0]} />
+                    <Line
+                      yAxisId="left"
+                      dataKey="profit"
+                      name="Profit"
+                      stroke="#000"
+                      strokeWidth={3}
+                      dot={{ fill: PROFIT_COLOR, stroke: "#000", strokeWidth: 2, r: 6 }}
+                      activeDot={{ fill: PROFIT_COLOR, stroke: "#000", strokeWidth: 2, r: 8 }}
+                    />
+                  </ComposedChart>
+                </ResponsiveContainer>
+              </div>
+
+              {/* Decorative elements */}
+              <div className="absolute -top-2 -right-2 bg-yellow-300 border-2 border-black p-1 transform rotate-12">
+                <DollarSign size={20} />
+              </div>
+              <div className="absolute -bottom-2 -left-2 bg-pink-400 border-2 border-black p-1 transform -rotate-12">
+                <Sparkles size={20} />
+              </div>
+            </div>
+
+            {/* Profit Margin Chart */}
+            <div className="relative bg-white border-4 border-black p-6 transition-all duration-300 group">
+              {/* Glowing effect on hover */}
+              <div className="absolute -inset-1 bg-gradient-to-r from-yellow-400 via-pink-500 to-purple-600 rounded-lg blur opacity-0 group-hover:opacity-20 transition duration-1000 group-hover:duration-200" />
+
+              <div className="relative transition-all duration-300">
+                {/* Header */}
+                <div className="flex items-center justify-between mb-6">
+                  <div className="transform -rotate-2 bg-gradient-to-r from-yellow-300 to-yellow-400 border-4 border-black p-3 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+                    <h2 className="text-xl font-black tracking-tighter">PROFIT MARGIN</h2>
+                  </div>
+                  <div className="bg-black text-white p-3 transform rotate-3 hover:rotate-6 transition-transform">
+                    <Percent size={24} />
+                  </div>
+                </div>
+
+                <ResponsiveContainer width="100%" height={300}>
+                  <ComposedChart data={chartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#000" strokeWidth={1} opacity={0.1} />
+                    <XAxis dataKey="periodLabel" stroke="#000" strokeWidth={2} tick={{ fill: "#000", fontWeight: "bold" }} tickLine={{ stroke: "#000" }} />
+                    <YAxis stroke="#000" strokeWidth={2} tick={{ fill: "#000" }} tickFormatter={(value) => `${value.toFixed(1)}%`} />
+                    <Tooltip content={<CustomTooltip />} />
+                    <Legend
+                      iconType="square"
+                      iconSize={15}
+                      wrapperStyle={{
+                        border: "2px solid black",
+                        backgroundColor: "#ffffff",
+                        padding: "8px",
+                        fontWeight: "bold",
+                      }}
+                    />
+                    {/* Target margin reference line */}
+                    <ReferenceLine
+                      y={avgProfitMargin}
+                      stroke="#000"
+                      strokeDasharray="3 3"
+                      label={{
+                        value: "Avg margin",
+                        position: "right",
+                        fill: "#000",
+                        fontSize: 12,
+                      }}
+                    />
+                    <Area type="monotone" dataKey="profitMargin" name="Profit Margin" fill={PROFIT_MARGIN_COLOR} stroke="#000" strokeWidth={2} fillOpacity={0.6} />
+                  </ComposedChart>
+                </ResponsiveContainer>
+              </div>
+
+              {/* Decorative elements */}
+              <div className="absolute -top-2 -left-2 bg-pink-400 border-2 border-black p-1 transform rotate-12">
+                <Percent size={20} />
+              </div>
+            </div>
+          </div>
+
+          {/* Significant Changes */}
+          {significantChanges.length > 0 && (
+            <div className="mb-8">
+              <h3 className="text-xl font-black mb-4 transform -rotate-1 inline-block bg-black text-white border-4 border-black p-3">SIGNIFICANT PERIOD CHANGES</h3>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {significantChanges.map((period, index) => (
+                  <div key={index} className={`p-4 border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] ${period.changeType === "positive" ? "bg-green-100" : "bg-red-100"}`}>
+                    <h4 className="font-bold text-lg">{period.periodLabel}</h4>
+                    <div className="mt-3 space-y-2">
+                      <div className="flex justify-between items-center">
+                        <span className="font-medium">Profit Change:</span>
+                        <GrowthIndicator value={period.popGrowth as number} size="md" />
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="font-medium">Sales Change:</span>
+                        <GrowthIndicator value={period.salesGrowth as number} size="sm" />
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="font-medium">Cost Change:</span>
+                        <GrowthIndicator value={period.costGrowth as number} size="sm" />
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="font-medium">Margin Change:</span>
+                        <GrowthIndicator value={period.marginGrowth as number} size="sm" />
+                      </div>
+                    </div>
+                    <div className="mt-3 p-2 bg-white border-2 border-black">
+                      <div className="flex justify-between">
+                        <span>Profit:</span>
+                        <span className="font-bold">{formatRupiah(period.profit)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Margin:</span>
+                        <span className="font-bold">{period.profitMargin.toFixed(2)}%</span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Trends tab */}
+      {activeTab === "trends" && (
+        <div>
+          {/* Profit Trend Chart */}
+          <div className="relative bg-white border-4 border-black p-6 transition-all duration-300 group mb-6">
+            <div className="absolute -inset-1 bg-gradient-to-r from-blue-400 via-green-500 to-blue-600 rounded-lg blur opacity-0 group-hover:opacity-20 transition duration-1000 group-hover:duration-200" />
+
+            <div className="relative transition-all duration-300">
+              {/* Header */}
+              <div className="flex items-center justify-between mb-6">
+                <div className="transform -rotate-2 bg-gradient-to-r from-blue-400 to-green-400 border-4 border-black p-3 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+                  <h2 className="text-xl font-black tracking-tighter">PROFIT TREND</h2>
+                </div>
+                <div className="bg-black text-white p-3 transform rotate-3 hover:rotate-6 transition-transform">
+                  <TrendingUp size={24} />
+                </div>
+              </div>
+
+              <ResponsiveContainer width="100%" height={400}>
+                <LineChart data={chartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#000" strokeWidth={1} opacity={0.1} />
+                  <XAxis dataKey="periodLabel" stroke="#000" strokeWidth={2} tick={{ fill: "#000", fontWeight: "bold" }} tickLine={{ stroke: "#000" }} />
+                  <YAxis stroke="#000" strokeWidth={2} tick={{ fill: "#000" }} tickFormatter={(value) => formatRupiah(value)} />
+                  <Tooltip content={<CustomTooltip />} />
+                  <Legend
+                    iconType="square"
+                    iconSize={15}
+                    wrapperStyle={{
+                      border: "2px solid black",
+                      backgroundColor: "#ffffff",
+                      padding: "8px",
+                      fontWeight: "bold",
+                    }}
+                  />
+
+                  {/* Reference lines for highest and lowest profit */}
+                  {highestProfitPeriod.profit && (
+                    <ReferenceLine
+                      y={highestProfitPeriod.profit}
+                      stroke="#00aa00"
+                      strokeDasharray="3 3"
+                      label={{
+                        value: "Highest profit",
+                        position: "right",
+                        fill: "#00aa00",
+                        fontSize: 12,
+                      }}
+                    />
+                  )}
+
+                  {lowestProfitPeriod.profit && lowestProfitPeriod.profit > 0 && (
+                    <ReferenceLine
+                      y={lowestProfitPeriod.profit}
+                      stroke="#aa0000"
+                      strokeDasharray="3 3"
+                      label={{
+                        value: "Lowest profit",
+                        position: "right",
+                        fill: "#aa0000",
+                        fontSize: 12,
+                      }}
+                    />
+                  )}
+
+                  <Line
+                    type="monotone"
+                    dataKey="profit"
+                    name="Profit"
+                    stroke="#000"
+                    strokeWidth={3}
+                    dot={{ fill: PROFIT_COLOR, stroke: "#000", strokeWidth: 2, r: 6 }}
+                    activeDot={{ fill: PROFIT_COLOR, stroke: "#000", strokeWidth: 2, r: 8 }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+          
+          {/* Growth Rate Chart */}
+          <div className="relative bg-white border-4 border-black p-6 transition-all duration-300 group mb-6">
+            <div className="absolute -inset-1 bg-gradient-to-r from-pink-400 via-purple-500 to-red-600 rounded-lg blur opacity-0 group-hover:opacity-20 transition duration-1000 group-hover:duration-200" />
+
+            <div className="relative transition-all duration-300">
+              {/* Header */}
+              <div className="flex items-center justify-between mb-6">
+                <div className="transform -rotate-2 bg-gradient-to-r from-pink-400 to-purple-400 border-4 border-black p-3 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+                  <h2 className="text-xl font-black tracking-tighter">GROWTH RATES</h2>
+                </div>
+                <div className="bg-black text-white p-3 transform rotate-3 hover:rotate-6 transition-transform">
+                  <TrendingUp size={24} />
+                </div>
+              </div>
+
+              <ResponsiveContainer width="100%" height={350}>
+                <ComposedChart data={popGrowthData.filter((item) => item.popGrowth !== null)} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#000" strokeWidth={1} opacity={0.1} />
+                  <XAxis dataKey="periodLabel" stroke="#000" strokeWidth={2} tick={{ fill: "#000", fontWeight: "bold" }} tickLine={{ stroke: "#000" }} />
+                  <YAxis stroke="#000" strokeWidth={2} tick={{ fill: "#000" }} tickFormatter={(value) => `${value.toFixed(1)}%`} />
+                  <Tooltip content={<CustomTooltip />} />
+                  <Legend
+                    iconType="square"
+                    iconSize={15}
+                    wrapperStyle={{
+                      border: "2px solid black",
+                      backgroundColor: "#ffffff",
+                      padding: "8px",
+                      fontWeight: "bold",
+                    }}
+                  />
+
+                  {/* Reference line for zero growth */}
+                  <ReferenceLine y={0} stroke="#000" strokeWidth={2} />
+
+                  {/* Use bar for Profit Growth */}
+                  <Bar dataKey="popGrowth" name="Profit Growth" fill="#FFE66D" stroke="#000" strokeWidth={2} radius={[4, 4, 0, 0]} />
+
+                  {/* Use bar for Sales Growth with teal color */}
+                  <Bar dataKey="salesGrowth" name="Sales Growth" fill="#4ECDC4" stroke="#000" strokeWidth={2} radius={[4, 4, 0, 0]} />
+
+                  {/* Use bar for Margin Growth with much more distinct color (purple) */}
+                  <Bar dataKey="marginGrowth" name="Margin Growth" fill="#9C58D3" stroke="#000" strokeWidth={2} radius={[4, 4, 0, 0]} />
+                </ComposedChart>
+              </ResponsiveContainer>
+            </div>
+
+            {/* Decorative elements to match SALES vs COST */}
+            <div className="absolute -top-2 -right-2 bg-yellow-300 border-2 border-black p-1 transform rotate-12">
+              <TrendingUp size={20} />
+            </div>
+            <div className="absolute -bottom-2 -left-2 bg-pink-400 border-2 border-black p-1 transform -rotate-12">
+              <Sparkles size={20} />
+            </div>
+          </div>
+          {/* Period Detail Table */}
+          <div className="bg-white border-4 border-black p-4 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] h-[500px] overflow-y-scroll">
+            <table className="min-w-full bg-white">
+              <thead className="bg-black text-white">
+                <tr>
+                  <th className="py-3 px-4 text-left">Period</th>
+                  <th className="py-3 px-4 text-right">Total Sales</th>
+                  <th className="py-3 px-4 text-right">Total Cost</th>
+                  <th className="py-3 px-4 text-right">Profit</th>
+                  <th className="py-3 px-4 text-right">Margin</th>
+                  <th className="py-3 px-4 text-right">Orders</th>
+                  <th className="py-3 px-4 text-right">Growth</th>
+                </tr>
+              </thead>
+              <tbody>
+                {popGrowthData.map((period, index) => (
+                  <tr key={index} className={`border-b hover:bg-gray-50 ${period.periodLabel === highestProfitPeriod.periodLabel ? "bg-green-100" : period.periodLabel === lowestProfitPeriod.periodLabel ? "bg-red-100" : ""}`}>
+                    <td className="py-2 px-4 border-r border-gray-200 font-bold">{period.periodLabel}</td>
+                    <td className="py-2 px-4 text-right border-r border-gray-200">{formatRupiah(period.totalSales)}</td>
+                    <td className="py-2 px-4 text-right border-r border-gray-200">{formatRupiah(period.totalModal)}</td>
+                    <td className="py-2 px-4 text-right border-r border-gray-200 font-medium">{formatRupiah(period.profit)}</td>
+                    <td className="py-2 px-4 text-right border-r border-gray-200">{period.profitMargin.toFixed(2)}%</td>
+                    <td className="py-2 px-4 text-right border-r border-gray-200">{period.totalOrders}</td>
+                    <td className="py-2 px-4 text-right">{period.popGrowth !== null ? <span className={period.popGrowth >= 0 ? "text-green-600" : "text-red-600"}>{period.popGrowth.toFixed(2)}%</span> : "0%"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* Projections tab */}
+      {activeTab === "projections" && (
+        <div>
+          {/* Projection Chart */}
+          <div className="relative bg-white border-4 border-black p-6 transition-all duration-300 group mb-6">
+            <div className="absolute -inset-1 bg-gradient-to-r from-purple-400 via-blue-500 to-green-600 rounded-lg blur opacity-0 group-hover:opacity-20 transition duration-1000 group-hover:duration-200" />
+
+            <div className="relative transition-all duration-300">
+              {/* Header */}
+              <div className="flex items-center justify-between mb-6">
+                <div className="transform -rotate-2 bg-gradient-to-r from-purple-400 to-blue-400 border-4 border-black p-3 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+                  <h2 className="text-xl font-black tracking-tighter">PROFIT PROJECTIONS</h2>
+                </div>
+                <div className="bg-black text-white p-3 transform rotate-3 hover:rotate-6 transition-transform">
+                  <Sparkles size={24} />
+                </div>
+              </div>
+
+              <div className="p-3 bg-yellow-100 border-2 border-black mb-4">
+                <p className="font-medium text-sm flex items-center">
+                  <Sparkles size={16} className="mr-2" />
+                  Projections are based on historical trends and should be used as estimates only. Actual results may vary.
+                </p>
+              </div>
+
+              <ResponsiveContainer width="100%" height={400}>
+                <LineChart data={trendChartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#000" strokeWidth={1} opacity={0.1} />
+                  <XAxis dataKey="periodLabel" stroke="#000" strokeWidth={2} tick={{ fill: "#000", fontWeight: "bold" }} tickLine={{ stroke: "#000" }} />
+                  <YAxis stroke="#000" strokeWidth={2} tick={{ fill: "#000" }} tickFormatter={(value) => formatRupiah(value)} />
+                  <Tooltip content={<CustomTooltip />} />
+                  <Legend
+                    iconType="square"
+                    iconSize={15}
+                    wrapperStyle={{
+                      border: "2px solid black",
+                      backgroundColor: "#ffffff",
+                      padding: "8px",
+                      fontWeight: "bold",
+                    }}
+                  />
+
+                  {/* Split between historical and projected data */}
+                  {projectedData.length > 0 && (
+                    <ReferenceLine
+                      x={chartData[chartData.length - 1].periodLabel}
+                      stroke="#000"
+                      strokeDasharray="3 3"
+                      label={{
+                        value: "Current",
+                        position: "top",
+                        fill: "#000",
+                        fontSize: 12,
+                      }}
+                    />
+                  )}
+
+                  <Line
+                    type="monotone"
+                    dataKey="profit"
+                    name="Profit"
+                    stroke="#000"
+                    strokeWidth={3}
+                    dot={(props) => {
+                      const { cx, cy, payload, index } = props;
+                      // Different styling for projected data points
+                      if (payload.isProjected) {
+                        return (
+                          <svg key={`profit-dot-${index}`}>
+                            <circle cx={cx} cy={cy} r={6} fill="#FFF" stroke="#000" strokeWidth={2} />
+                            <circle cx={cx} cy={cy} r={3} fill={PROFIT_COLOR} stroke="none" />
+                          </svg>
+                        );
+                      }
+                      return <circle key={`profit-dot-${index}`} cx={cx} cy={cy} r={6} fill={PROFIT_COLOR} stroke="#000" strokeWidth={2} />;
+                    }}
+                    activeDot={{ fill: PROFIT_COLOR, stroke: "#000", strokeWidth: 2, r: 8 }}
+                  />
+
+                  <Line
+                    type="monotone"
+                    dataKey="totalSales"
+                    name="Sales"
+                    stroke={TOTAL_SALES_COLOR}
+                    strokeWidth={2}
+                    dot={(props) => {
+                      const { cx, cy, payload, index } = props;
+                      if (payload.isProjected) {
+                        return (
+                          <svg key={`sales-dot-${index}`}>
+                            <circle cx={cx} cy={cy} r={5} fill="#FFF" stroke={TOTAL_SALES_COLOR} strokeWidth={2} />
+                            <circle cx={cx} cy={cy} r={2} fill={TOTAL_SALES_COLOR} stroke="none" />
+                          </svg>
+                        );
+                      }
+                      return <circle key={`sales-dot-${index}`} cx={cx} cy={cy} r={4} fill={TOTAL_SALES_COLOR} stroke="#000" strokeWidth={1} />;
+                    }}
+                  />
+
+                  <Line
+                    type="monotone"
+                    dataKey="totalModal"
+                    name="Cost"
+                    stroke={TOTAL_COST_COLOR}
+                    strokeWidth={2}
+                    dot={(props) => {
+                      const { cx, cy, payload, index } = props;
+                      if (payload.isProjected) {
+                        return (
+                          <svg key={`cost-dot-${index}`}>
+                            <circle cx={cx} cy={cy} r={5} fill="#FFF" stroke={TOTAL_COST_COLOR} strokeWidth={2} />
+                            <circle cx={cx} cy={cy} r={2} fill={TOTAL_COST_COLOR} stroke="none" />
+                          </svg>
+                        );
+                      }
+                      return <circle key={`cost-dot-${index}`} cx={cx} cy={cy} r={4} fill={TOTAL_COST_COLOR} stroke="#000" strokeWidth={1} />;
+                    }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          {/* Projection Data */}
+          {projectedData.length > 0 && (
+            <div className="bg-white border-4 border-black p-4 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]">
+              <h3 className="font-bold text-xl mb-4">Projected Performance</h3>
+
+              <table className="min-w-full bg-white">
+                <thead className="bg-black text-white">
+                  <tr>
+                    <th className="py-3 px-4 text-left">Period</th>
+                    <th className="py-3 px-4 text-right">Projected Sales</th>
+                    <th className="py-3 px-4 text-right">Projected Cost</th>
+                    <th className="py-3 px-4 text-right">Projected Profit</th>
+                    <th className="py-3 px-4 text-right">Projected Margin</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {projectedData.map((period, index) => (
+                    <tr key={index} className="border-b hover:bg-gray-50 bg-yellow-50">
+                      <td className="py-2 px-4 border-r border-gray-200 font-bold">{period.periodLabel}</td>
+                      <td className="py-2 px-4 text-right border-r border-gray-200">{formatRupiah(period.totalSales)}</td>
+                      <td className="py-2 px-4 text-right border-r border-gray-200">{formatRupiah(period.totalModal)}</td>
+                      <td className="py-2 px-4 text-right border-r border-gray-200 font-medium">{formatRupiah(period.profit)}</td>
+                      <td className="py-2 px-4 text-right">{period.profitMargin.toFixed(2)}%</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+
+              <div className="mt-4 p-3 bg-yellow-100 border-2 border-black">
+                <h4 className="font-bold mb-1">Projection Methodology</h4>
+                <p className="text-sm">
+                  These projections are calculated based on historical growth trends from the most recent periods. The projection model analyzes your past performance pattern and estimates future performance, assuming similar market
+                  conditions continue. Business decisions, market changes, or seasonal variations may affect actual outcomes.
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default ProfitPerformanceDashboard;

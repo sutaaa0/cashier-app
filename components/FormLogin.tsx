@@ -170,7 +170,7 @@ export default function LoginPage() {
                 <input
                   {...form.register("username")}
                   placeholder="Username"
-                  className={`
+                  className={`placeholder:text-black
                     w-full h-12 p-4 text-lg font-mono text-black bg-[#FFE66D] 
                     border-4 border-black
                     shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]
@@ -206,7 +206,7 @@ export default function LoginPage() {
                   {...form.register("password")}
                   type={showPassword ? "text" : "password"}
                   placeholder="Password"
-                  className={`
+                  className={` placeholder:text-black
                     w-full h-12 p-4 text-lg font-mono text-black bg-[#4ECDC4]
                     border-4 border-black
                     shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]
@@ -241,7 +241,7 @@ export default function LoginPage() {
                        border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]
                        hover:translate-y-1 hover:shadow-none relative z-10"
               >
-                OPEN REGISTER
+                LOGIN
               </Button>
             </div>
           </form>

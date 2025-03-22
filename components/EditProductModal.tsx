@@ -13,15 +13,15 @@ interface EditProductModalProps {
     kategori: Kategori;
   };
   categories: Kategori[];
-  onEditProduct: (product: { 
-    id: string; 
-    name: string; 
-    price: number; 
+  onEditProduct: (product: {
+    id: string;
+    name: string;
+    price: number;
     costPrice: number; // Added costPrice (hargaModal)
-    stock: number; 
-    minimumStok: number; 
-    category: string; 
-    imageUrl: string 
+    stock: number;
+    minimumStok: number;
+    category: string;
+    imageUrl: string;
   }) => void;
 }
 
@@ -80,8 +80,10 @@ export function EditProductModal({ isOpen, onClose, product, categories: initial
         category,
         imageUrl,
       };
-      await onEditProduct(updatedProduct);
-      onClose();
+      const result = onEditProduct(updatedProduct);
+      if (result?.status === "Success") {
+        onClose();
+      }
     } catch (error) {
       console.error(error);
       toast({
@@ -204,7 +206,6 @@ export function EditProductModal({ isOpen, onClose, product, categories: initial
           </button>
         </form>
       </div>
-      <NeoProgressIndicator isLoading={isLoading} message="Updating product..." />
     </div>
   );
 }

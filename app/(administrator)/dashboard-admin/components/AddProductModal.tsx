@@ -30,6 +30,33 @@ export function AddProductModal({ isOpen, onClose, onProductAdded }: AddProductM
   const [isLoading, setIsLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Reset form function
+  const resetForm = () => {
+    setProductName("");
+    setSellingPrice("");
+    setCostPrice("");
+    setStock("");
+    setMinStock("");
+    setSelectedCategoryId("");
+    setImage(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
+  // Handle close with form reset
+  const handleClose = () => {
+    resetForm();
+    onClose();
+  };
+
+  // Reset form when modal is closed
+  useEffect(() => {
+    if (!isOpen) {
+      resetForm();
+    }
+  }, [isOpen]);
+
   useEffect(() => {
     const loadCategories = async () => {
       const response = await fetchCategories();
@@ -39,7 +66,6 @@ export function AddProductModal({ isOpen, onClose, onProductAdded }: AddProductM
     };
     loadCategories();
   }, []);
-
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -77,16 +103,8 @@ export function AddProductModal({ isOpen, onClose, onProductAdded }: AddProductM
 
       if (result.status === "Success") {
         toast({ title: "Success", description: "Product added successfully" });
-        onClose();
+        handleClose();
         onProductAdded();
-        // Reset form fields
-        setProductName("");
-        setSellingPrice("");
-        setCostPrice("");
-        setStock("");
-        setMinStock("");
-        setSelectedCategoryId("");
-        setImage(null);
       } else {
         toast({ title: "Error", description: result.message, variant: "destructive" });
       }
@@ -109,7 +127,7 @@ export function AddProductModal({ isOpen, onClose, onProductAdded }: AddProductM
       <div className="bg-white border-[3px] border-black p-6 rounded-lg shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] w-full max-w-md">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-2xl font-bold">Add New Product</h2>
-          <button onClick={onClose} className="p-1 hover:bg-gray-200 rounded">
+          <button onClick={handleClose} className="p-1 hover:bg-gray-200 rounded">
             <X size={24} />
           </button>
         </div>
@@ -211,7 +229,7 @@ export function AddProductModal({ isOpen, onClose, onProductAdded }: AddProductM
             disabled={isLoading}
             className="w-full px-4 py-2 bg-[#93B8F3] font-bold border-[3px] border-black rounded shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {isLoading ? "Adding..." : "Add Product"}
+            Add Product
           </button>
         </form>
       </div>

@@ -327,7 +327,7 @@ export function StockManagement() {
       </div>
 
       {isLoading ? (
-        <NeoProgressIndicator isLoading={true} />
+        <NeoProgressIndicator isLoading={true} message="Loading Stok Management" />
       ) : (
         <div className="grid gap-4">
           {stock.length === 0 && !isLoading && (

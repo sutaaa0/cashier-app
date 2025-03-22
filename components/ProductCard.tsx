@@ -4,12 +4,13 @@ import Image from "next/image"
 import { formatRupiah } from "@/lib/formatIdr"
 import { isAfter, isBefore, format } from "date-fns"
 import { useEffect, useState, useRef, useMemo } from "react"
-import { Clock, Flame, Calendar } from "lucide-react"
+import { Clock, Flame, Calendar, Package } from "lucide-react"
 
 // Updated interfaces to match the database schema relationships
 interface NeoProductCardProps {
   product: Produk & {
     image: string
+    stok: number;
     kategoriId: number
     kategori: {
       nama: string
@@ -203,6 +204,9 @@ export function NeoProductCard({ product, onClick }: NeoProductCardProps) {
 
   // Check if product is out of stock
   const isOutOfStock = product.stok <= 0;
+  
+  // Check if stock is low (less than minimum stock)
+  const isLowStock = product.stok > 0 && product.stok <= (product.minimumStok || 10);
 
   // Fungsi helper untuk memformat informasi diskon
   const getDiscountInfo = () => {
@@ -272,6 +276,15 @@ export function NeoProductCard({ product, onClick }: NeoProductCardProps) {
               <div className="w-full h-1 bg-red-600 border border-black transform rotate-45 origin-center"></div>
               <div className="w-full h-1 bg-red-600 border border-black transform -rotate-45 origin-center"></div>
             </div>
+          </div>
+        </div>
+      )}
+      
+      {/* "LOW STOCK" label */}
+      {isLowStock && !isOutOfStock && (
+        <div className="absolute -top-3 right-3 z-10">
+          <div className="bg-amber-500 border-2 border-black text-white font-bold px-3 py-0.5 transform rotate-3 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+            <span className="font-mono text-xs tracking-tight block transform -rotate-0">STOK TERBATAS</span>
           </div>
         </div>
       )}
@@ -365,6 +378,30 @@ export function NeoProductCard({ product, onClick }: NeoProductCardProps) {
                 {formatRupiah(product.harga)}
               </span>
               {isOutOfStock && <span className="block font-bold font-mono text-red-600 text-xs">TIDAK TERSEDIA</span>}
+            </div>
+          )}
+        </div>
+
+        {/* Stock Information Display */}
+        <div className="flex items-center justify-between mt-2">
+          <div className="flex items-center gap-1">
+            <Package className={`w-4 h-4 ${isOutOfStock ? "text-red-600" : isLowStock ? "text-amber-500" : "text-green-600"}`} />
+            <span className={`font-mono text-sm font-bold ${
+              isOutOfStock ? "text-red-600" : 
+              isLowStock ? "text-amber-500" : 
+              "text-green-600"
+            }`}>
+              Stok: {product.stok}
+            </span>
+          </div>
+          
+          {/* Stock status badges */}
+          {!isOutOfStock && (
+            <div className={`px-2 py-0.5 font-mono text-xs font-bold border border-black ${
+              isLowStock ? "bg-amber-100 text-amber-800 border-amber-500" : 
+              "bg-green-100 text-green-800 border-green-500"
+            }`}>
+              {isLowStock ? "TERBATAS" : "TERSEDIA"}
             </div>
           )}
         </div>

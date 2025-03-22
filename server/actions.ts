@@ -1489,7 +1489,7 @@ async function getProfitDataForRange(startDate: Date, endDate: Date): Promise<Om
   const totalSales = sales.reduce((sum, sale) => sum + sale.total_harga, 0);
   const totalModal = sales.reduce((sum, sale) => sum + (sale.total_modal || 0), 0);
   const profit = totalSales - totalModal;
-  const profitMargin = totalSales > 0 ? profit / totalSales : 0;
+  const profitMargin = totalSales > 0 ? (profit / totalSales) * 100 : 0;
 
   return {
     totalSales,
@@ -3054,6 +3054,7 @@ export async function getAllProducts() {
 
 // types.ts
 import { PromotionType } from "@prisma/client";
+import { calculateAverage, groupBy } from "@/lib/helper";
 
 export interface CreatePromotionInput {
   title: string;
@@ -4360,10 +4361,23 @@ export async function generateProductPerformanceReport(periodType: "weekly" | "m
   };
 }
 
-import { calculateAverage, groupBy } from "@/lib/helper";
 
-// Define types for the inventory report
-interface ProductCategory {
+
+// Function to generate the inventory stock report
+export interface InventoryReportData {
+  name: string;
+  period: string;
+  generatedDate: string;
+  totalProducts: number;
+  totalStockValue: number;
+  totalStockCount: number; // Changed from avgStockTurnover
+  stockProductRatio: number;
+  alerts: InventoryAlerts;
+  categoryBreakdown: ProductCategory[];
+  products: StockProduct[];
+}
+
+export interface ProductCategory {
   categoryName: string;
   productCount: number;
   stockValue: number;
@@ -4373,25 +4387,25 @@ interface ProductCategory {
   stockValuePercentage: number;
 }
 
-interface StockProduct {
+export interface StockProduct {
   produkId: number;
   productName: string;
   category: string;
   hargaModal: number;
   stok: number;
   minimumStok: number;
-  statusStok: string;
+  statusStok: string; // "LOW", "OUT_OF_STOCK", "NORMAL"
   stockValue: number;
   daysOnHand: number;
-  stockTurnoverRate: number;
+  // stockTurnoverRate removed
   lastRestockDate?: Date;
-  salesVelocity: number;
+  salesVelocity: number; // Average units sold per day
   estimatedStockOutDate?: Date;
   reorderRecommended: boolean;
   reorderQuantity?: number;
 }
 
-interface InventoryAlerts {
+export interface InventoryAlerts {
   outOfStockCount: number;
   lowStockCount: number;
   excessStockCount: number;
@@ -4399,21 +4413,9 @@ interface InventoryAlerts {
   reorderItemCount: number;
 }
 
-export interface InventoryReportData {
-  name: string;
-  period: string;
-  generatedDate: string;
-  totalProducts: number;
-  totalStockValue: number;
-  avgStockTurnover: number;
-  stockProductRatio: number;
-  alerts: InventoryAlerts;
-  categoryBreakdown: ProductCategory[];
-  products: StockProduct[];
-}
-
 // Type for period
 type PeriodType = "weekly" | "monthly" | "yearly";
+
 
 // Function to generate the inventory stock report
 export async function generateInventoryStockReport(periodType: PeriodType = "monthly"): Promise<InventoryReportData> {
@@ -4490,11 +4492,6 @@ export async function generateInventoryStockReport(periodType: PeriodType = "mon
     // Calculate days on hand (how long current stock will last)
     const daysOnHand = salesVelocity > 0 ? product.stok / salesVelocity : 999; // If no sales, set to a high number
 
-    // Calculate stock turnover rate (annualized)
-    const annualizedSold = totalSold * (365 / daysInPeriod);
-    const avgInventory = (product.stok + product.stok) / 2; // Simplified calculation assuming current stock = average stock
-    const stockTurnoverRate = avgInventory > 0 ? annualizedSold / avgInventory : 0;
-
     // Determine if reorder is recommended
     // Logic: Reorder if current stock will last less than 14 days OR if stock is below minimum level
     const reorderRecommended = (daysOnHand < 14 && salesVelocity > 0) || product.stok <= product.minimumStok;
@@ -4532,7 +4529,7 @@ export async function generateInventoryStockReport(periodType: PeriodType = "mon
       statusStok: product.statusStok,
       stockValue: stockValue,
       daysOnHand: daysOnHand,
-      stockTurnoverRate: stockTurnoverRate,
+      // stockTurnoverRate removed
       salesVelocity: salesVelocity,
       estimatedStockOutDate: estimatedStockOutDate,
       reorderRecommended: reorderRecommended,
@@ -4578,7 +4575,7 @@ export async function generateInventoryStockReport(periodType: PeriodType = "mon
 
   // Calculate overall metrics
   const totalProducts = processedProducts.length;
-  const avgStockTurnover = calculateAverage(processedProducts, "stockTurnoverRate");
+  // Calculate total stock count
   const totalStockCount = processedProducts.reduce((sum, product) => sum + product.stok, 0);
   const stockProductRatio = totalStockCount / totalProducts;
 
@@ -4589,7 +4586,7 @@ export async function generateInventoryStockReport(periodType: PeriodType = "mon
     generatedDate: new Date().toISOString(),
     totalProducts,
     totalStockValue,
-    avgStockTurnover,
+    totalStockCount, // Changed from avgStockTurnover
     stockProductRatio,
     alerts: {
       outOfStockCount,

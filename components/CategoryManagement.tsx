@@ -27,9 +27,11 @@ export function CategoryManagement() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
+  const [loadingMessage, setLoadingMessage] = useState("Loading categories...")
 
   const loadCategories = async () => {
     setIsLoading(true);
+    setLoadingMessage("Loading categories...")
     try {
       const response = await fetchCategories();
       if (response.status === "Success" && response.data) {
@@ -112,6 +114,7 @@ export function CategoryManagement() {
     }
   
     setIsLoading(true);
+    setLoadingMessage("Updating category...")
     try {
       let iconUrl = categoryToUpdate.icon;
       if (newIconFile) {
@@ -171,6 +174,7 @@ export function CategoryManagement() {
   const handleDeleteCategory = async () => {
     if (selectedCategory) {
       setIsLoading(true);
+      setLoadingMessage("Deleting category...")
       try {
         const deleteResponse = await deleteCategory(selectedCategory.kategoriId);
         if (deleteResponse.status === "Success") {
@@ -221,7 +225,7 @@ export function CategoryManagement() {
         </button>
       </div>
 
-      {isLoading && <NeoProgressIndicator isLoading={isLoading} message="Loading categories..." />}
+      {isLoading && <NeoProgressIndicator isLoading={isLoading} message={loadingMessage} />}
 
       <div className="space-y-6">
         {categories.map((cat) => (

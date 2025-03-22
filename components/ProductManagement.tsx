@@ -130,7 +130,7 @@ export function ProductManagement() {
       } else {
         toast({
           title: "Error",
-          description: "Failed to update product",
+          description: result.message ?? "Failed to update product" ,
           variant: "destructive",
         });
       }
@@ -206,6 +206,7 @@ export function ProductManagement() {
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchTerm(e.target.value);
+    setLoadingMessage("Searching product...");
   };
 
   // Calculate overall loading state

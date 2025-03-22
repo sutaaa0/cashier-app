@@ -1,45 +1,39 @@
-"use client"
+"use client";
 
-import { useEffect } from "react"
-import { X } from "lucide-react"
-import { zodResolver } from "@hookform/resolvers/zod"
-import { useForm } from "react-hook-form"
-import * as z from "zod"
-import { toast } from "@/hooks/use-toast"
-import { updatePelanggan } from "@/server/actions"
-import type { Pelanggan as PelangganType } from "@prisma/client"
-import { NeoProgressIndicator } from "./NeoProgresIndicator"
+import { useEffect } from "react";
+import { X } from "lucide-react";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm } from "react-hook-form";
+import * as z from "zod";
+import { toast } from "@/hooks/use-toast";
+import { updatePelanggan } from "@/server/actions";
+import type { Pelanggan as PelangganType } from "@prisma/client";
+import { NeoProgressIndicator } from "./NeoProgresIndicator";
 
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form"
-import { Input } from "@/components/ui/input"
-import { Button } from "@/components/ui/button"
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 
 // Define the form schema with Zod
 const customerFormSchema = z.object({
   name: z.string().min(1, { message: "Name is required" }),
   address: z.string().optional(),
-  phoneNumber: z.string()
-    .optional()
-    .refine((val) => !val || /^(\+62|0)[0-9]{9,12}$/.test(val), {
-      message: "Invalid phone number format (use format: 08xxxxxxxxxx or +62xxxxxxxxxx)",
+  phoneNumber: z
+    .string()
+    .min(1, { message: "Phone number is required" })
+    .regex(/^08[0-9]{8,11}$/, {
+      message: "Invalid phone number format (use format: 08xxxxxxxxxx)",
     }),
-})
+});
 
 // Type for the form values
-type CustomerFormValues = z.infer<typeof customerFormSchema>
+type CustomerFormValues = z.infer<typeof customerFormSchema>;
 
 interface EditCustomerModalProps {
-  isOpen: boolean
-  onClose: () => void
-  customer: PelangganType
-  onEditCustomer: (customer: PelangganType) => void
+  isOpen: boolean;
+  onClose: () => void;
+  customer: PelangganType;
+  onEditCustomer: (customer: PelangganType) => void;
 }
 
 export function EditCustomerModal({ isOpen, onClose, customer, onEditCustomer }: EditCustomerModalProps) {
@@ -51,18 +45,20 @@ export function EditCustomerModal({ isOpen, onClose, customer, onEditCustomer }:
       address: customer.alamat || "",
       phoneNumber: customer.nomorTelepon || "",
     },
-  })
+  });
 
-  // Update form values when customer changes
+  // Reset form values when modal opens
   useEffect(() => {
-    form.reset({
-      name: customer.nama,
-      address: customer.alamat || "",
-      phoneNumber: customer.nomorTelepon || "",
-    })
-  }, [customer, form])
+    if (isOpen) {
+      form.reset({
+        name: customer.nama,
+        address: customer.alamat || "",
+        phoneNumber: customer.nomorTelepon || "",
+      });
+    }
+  }, [isOpen, customer, form]);
 
-  const isLoading = form.formState.isSubmitting
+  const isLoading = form.formState.isSubmitting;
 
   const onSubmit = async (data: CustomerFormValues) => {
     try {
@@ -71,17 +67,17 @@ export function EditCustomerModal({ isOpen, onClose, customer, onEditCustomer }:
         nama: data.name,
         alamat: data.address || null,
         nomorTelepon: data.phoneNumber || null,
-      }
+      };
 
-      const result = await updatePelanggan(updatedCustomer)
+      const result = await updatePelanggan(updatedCustomer);
 
       if (result.status === "Success") {
         toast({
           title: "Success",
           description: "Customer updated successfully",
-        })
-        onEditCustomer(updatedCustomer)
-        onClose()
+        });
+        onEditCustomer(updatedCustomer);
+        onClose();
       } else {
         // Handle specific error for duplicate phone numbers
         if (result.message && result.message.includes("duplicate")) {
@@ -89,30 +85,30 @@ export function EditCustomerModal({ isOpen, onClose, customer, onEditCustomer }:
             title: "Error",
             description: "Phone number already registered",
             variant: "destructive",
-          })
-          form.setError("phoneNumber", { 
-            type: "manual", 
-            message: "Phone number already in use" 
-          })
+          });
+          form.setError("phoneNumber", {
+            type: "manual",
+            message: "Phone number already in use",
+          });
         } else {
           toast({
             title: "Error",
             description: result.message,
             variant: "destructive",
-          })
+          });
         }
       }
     } catch (error) {
-      console.error(error)
+      console.error(error);
       toast({
         title: "Error",
         description: "Failed to update customer",
         variant: "destructive",
-      })
+      });
     }
-  }
+  };
 
-  if (!isOpen) return null
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -123,7 +119,7 @@ export function EditCustomerModal({ isOpen, onClose, customer, onEditCustomer }:
             <X size={24} />
           </button>
         </div>
-        
+
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <FormField
@@ -133,16 +129,13 @@ export function EditCustomerModal({ isOpen, onClose, customer, onEditCustomer }:
                 <FormItem>
                   <FormLabel className="font-bold">Name</FormLabel>
                   <FormControl>
-                    <Input
-                      {...field}
-                      className="p-2 border-[3px] border-black rounded focus:outline-none focus:ring-2 focus:ring-[#93B8F3]"
-                    />
+                    <Input {...field} className="p-2 border-[3px] border-black rounded focus:outline-none focus:ring-2 focus:ring-[#93B8F3]" />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
-            
+
             <FormField
               control={form.control}
               name="address"
@@ -150,16 +143,13 @@ export function EditCustomerModal({ isOpen, onClose, customer, onEditCustomer }:
                 <FormItem>
                   <FormLabel className="font-bold">Address</FormLabel>
                   <FormControl>
-                    <Input
-                      {...field}
-                      className="p-2 border-[3px] border-black rounded focus:outline-none focus:ring-2 focus:ring-[#93B8F3]"
-                    />
+                    <Input {...field} className="p-2 border-[3px] border-black rounded focus:outline-none focus:ring-2 focus:ring-[#93B8F3]" />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
-            
+
             <FormField
               control={form.control}
               name="phoneNumber"
@@ -167,18 +157,13 @@ export function EditCustomerModal({ isOpen, onClose, customer, onEditCustomer }:
                 <FormItem>
                   <FormLabel className="font-bold">Phone Number</FormLabel>
                   <FormControl>
-                    <Input
-                      {...field}
-                      type="tel"
-                      className="p-2 border-[3px] border-black rounded focus:outline-none focus:ring-2 focus:ring-[#93B8F3]"
-                      placeholder="Format: 08xxxxxxxxxx or +62xxxxxxxxxx"
-                    />
+                    <Input {...field} type="tel" className="p-2 border-[3px] border-black rounded focus:outline-none focus:ring-2 focus:ring-[#93B8F3]" placeholder="Format: 08xxxxxxxxxx" />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
-            
+
             <Button
               type="submit"
               disabled={isLoading}
@@ -191,5 +176,5 @@ export function EditCustomerModal({ isOpen, onClose, customer, onEditCustomer }:
       </div>
       <NeoProgressIndicator isLoading={isLoading} message="Updating customer..." />
     </div>
-  )
+  );
 }

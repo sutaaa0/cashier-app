@@ -15,16 +15,50 @@ const PromotionForm: React.FC<PromotionFormProps> = ({ formData, setFormData, pr
   // State to track validation errors
   const [errors, setErrors] = useState<Record<string, string>>({});
   
+  // Keep a local state of the currently selected product IDs to prevent losing selection
+  const [localProductIds, setLocalProductIds] = useState<number[]>(formData.selectedProductIds || []);
+
   // Debug: Log important information when component renders or updates
   useEffect(() => {
     console.log("PromotionForm Products:", products);
     console.log("PromotionForm Current Selection:", formData.selectedProductIds);
   }, [products, formData.selectedProductIds]);
 
+  // Sync local productIds with formData when it changes externally
+  useEffect(() => {
+    setLocalProductIds(formData.selectedProductIds || []);
+  }, [formData.selectedProductIds]);
+
   // Clear errors when form data changes
   useEffect(() => {
     setErrors({});
   }, [formData]);
+
+  // Handle promotion type change - FIXED to preserve product selection
+  const handlePromotionTypeChange = (value: PromotionType) => {
+    // Always preserve the selected product IDs even when switching types
+    setFormData({ 
+      ...formData, 
+      type: value,
+      // Keep the selectedProductIds regardless of type change
+      selectedProductIds: localProductIds 
+    });
+  };
+
+  // Handle product selection change
+  const handleProductSelectionChange = (values: string[]) => {
+    console.log("MultiSelect onChange called with values:", values);
+    const newProductIds = values.map(Number);
+    
+    // Update local state
+    setLocalProductIds(newProductIds);
+    
+    // Update form data
+    setFormData({
+      ...formData,
+      selectedProductIds: newProductIds,
+    });
+  };
 
   // Validation function
   const validateForm = (): boolean => {
@@ -106,27 +140,24 @@ const PromotionForm: React.FC<PromotionFormProps> = ({ formData, setFormData, pr
       console.log("Products is not an array:", products);
       return [];
     }
-    
+
     // Filter out invalid products and ensure uniqueness
-    const validProducts = products
-      .filter(product => 
-        product && 
-        product.produkId !== undefined && 
-        product.nama !== undefined
-      );
-    
+    const validProducts = products.filter((product) => product && product.produkId !== undefined && product.nama !== undefined);
+
     // Ensure uniqueness by produkId
-    const uniqueProducts = [...new Map(validProducts.map(p => [p.produkId, p])).values()];
-    
-    const options = uniqueProducts.map(product => ({
+    const uniqueProducts = [...new Map(validProducts.map((p) => [p.produkId, p])).values()];
+
+    const options = uniqueProducts.map((product) => ({
       value: product.produkId.toString(),
-      label: `${product.nama || ''} - ${formatRupiah(product.harga || 0)} ${product.kategori ? `(${product.kategori.nama || ''})` : ''}`,
+      label: `${product.nama || ""} - ${formatRupiah(product.harga || 0)} ${product.kategori ? `(${product.kategori.nama || ""})` : ""}`,
     }));
-    
+
     console.log("Prepared product options:", options);
     return options;
   }, [products]);
 
+  // Key change: Always show product selection regardless of promotion type
+  // This ensures the product selection is always rendered, even if it's not relevant for all types
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div>
@@ -142,7 +173,11 @@ const PromotionForm: React.FC<PromotionFormProps> = ({ formData, setFormData, pr
 
       <div>
         <Label className="font-bold">Tipe Promosi</Label>
-        <Select name="type" value={formData.type} onValueChange={(value: PromotionType) => setFormData({ ...formData, type: value })}>
+        <Select 
+          name="type" 
+          value={formData.type} 
+          onValueChange={handlePromotionTypeChange}
+        >
           <SelectTrigger className="border-2 border-black">
             <SelectValue placeholder="Pilih tipe promosi" />
           </SelectTrigger>
@@ -226,60 +261,49 @@ const PromotionForm: React.FC<PromotionFormProps> = ({ formData, setFormData, pr
         </div>
       )}
 
-{formData.type === PromotionType.PRODUCT_SPECIFIC && (
-  <div className="border-2 border-black p-4 rounded-md">
-    <Label className="font-bold mb-2 block">Pilih Produk</Label>
-    <div className={`${errors.selectedProductIds ? 'border-2 border-red-500 rounded-md p-1' : ''}`}>
-      {/* Display total products available */}
-      <div className="text-sm text-gray-500 mb-2">
-        Total produk tersedia: {productOptions.length}
-      </div>
-      
-      {/* Show which products are currently selected */}
-      <div className="text-sm text-gray-500 mb-2">
-        Produk terpilih: {formData.selectedProductIds.length}
-      </div>
-      
-      {/* Add a warning about products with active promotions */}
-      {productOptions.some(product => {
-        const originalProduct = products.find(p => p.produkId?.toString() === product.value);
-        return originalProduct && originalProduct.hasActivePromotion;
-      }) && (
-        <div className="mb-2 p-2 bg-yellow-100 border border-yellow-500 rounded-md">
-          <p className="text-sm text-yellow-800 font-medium">
-            <span className="mr-1">⚠️</span>
-            Beberapa produk sudah memiliki promosi aktif dan tidak dapat ditambahkan.
-          </p>
+      {/* FIXED: Always render the product selection section */}
+      <div className="border-2 border-black p-4 rounded-md">
+        <Label className="font-bold mb-2 block">Pilih Produk</Label>
+        <div className={`${errors.selectedProductIds ? "border-2 border-red-500 rounded-md p-1" : ""}`}>
+          {/* Display total products available */}
+          <div className="text-sm text-gray-500 mb-2">Total produk tersedia: {productOptions.length}</div>
+
+          {/* Show which products are currently selected */}
+          <div className="text-sm text-gray-500 mb-2">Produk terpilih: {localProductIds.length}</div>
+
+          {/* Add a warning about products with active promotions */}
+          {productOptions.some((product) => {
+            const originalProduct = products.find((p) => p.produkId?.toString() === product.value);
+            return originalProduct && originalProduct.hasActivePromotion;
+          }) && (
+            <div className="mb-2 p-2 bg-yellow-100 border border-yellow-500 rounded-md">
+              <p className="text-sm text-yellow-800 font-medium">
+                <span className="mr-1">⚠️</span>
+                Beberapa produk sudah memiliki promosi aktif dan tidak dapat ditambahkan.
+              </p>
+            </div>
+          )}
+
+          {/* Using the MultiSelect component with disabled items */}
+          <MultiSelect
+            options={productOptions.map((option) => {
+              // Find the original product to check if it has active promotions
+              const originalProduct = products.find((p) => p.produkId?.toString() === option.value);
+              const hasActivePromotion = originalProduct && originalProduct.hasActivePromotion;
+
+              return {
+                ...option,
+                label: hasActivePromotion ? `${option.label} (Sudah dalam promosi)` : option.label,
+                disabled: hasActivePromotion,
+              };
+            })}
+            value={localProductIds.map((id) => id.toString())}
+            onChange={handleProductSelectionChange}
+            placeholder="Pilih produk yang akan mendapat promosi"
+          />
         </div>
-      )}
-      
-      {/* Using the MultiSelect component with disabled items */}
-      <MultiSelect
-        options={productOptions.map(option => {
-          // Find the original product to check if it has active promotions
-          const originalProduct = products.find(p => p.produkId?.toString() === option.value);
-          const hasActivePromotion = originalProduct && originalProduct.hasActivePromotion;
-          
-          return {
-            ...option,
-            label: hasActivePromotion ? `${option.label} (Sudah dalam promosi)` : option.label,
-            disabled: hasActivePromotion
-          };
-        })}
-        value={formData.selectedProductIds.map(id => id.toString())}
-        onChange={(values: string[]) => {
-          console.log("MultiSelect onChange called with values:", values);
-          setFormData({ 
-            ...formData, 
-            selectedProductIds: values.map(Number) 
-          });
-        }}
-        placeholder="Pilih produk yang akan mendapat promosi"
-      />
-    </div>
-    <ErrorMessage name="selectedProductIds" />
-  </div>
-)}
+        <ErrorMessage name="selectedProductIds" />
+      </div>
 
       <div className="flex justify-end gap-2">
         <Button type="button" variant="default" onClick={onCancel} disabled={isPending} className="border-2 bg-white border-black hover:bg-red-500 hover:text-white">
@@ -293,4 +317,4 @@ const PromotionForm: React.FC<PromotionFormProps> = ({ formData, setFormData, pr
   );
 };
 
-export { PromotionForm }; 
+export { PromotionForm };

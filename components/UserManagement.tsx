@@ -44,8 +44,8 @@ export function UserManagement() {
     onSuccess: (response) => {
       if (response.status === "Success") {
         toast({
-          title: "Berhasil",
-          description: "User berhasil dihapus",
+          title: "Success",
+          description: "User successfully deleted",
         });
 
         setLoadingMessage("Deleting product...");
@@ -89,12 +89,12 @@ export function UserManagement() {
   };
 
   const handleModalClose = () => {
-    setLoadingMessage("Adding user...");
-    refetchUsers(); // Use the explicit refetch function
+    refetchUsers(); 
   };
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchTerm(e.target.value);
+    setLoadingMessage("Searching users...");
   };
 
   return (
@@ -156,7 +156,7 @@ export function UserManagement() {
 
         {users.length === 0 && !isLoading && (
           <div className="bg-white border-[3px] border-black p-4 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-            <p className="text-center text-gray-500">{searchTerm ? `Tidak ada user ditemukan untuk "${searchTerm}"` : "Tidak ada user ditemukan"}</p>
+            <p className="text-center text-gray-500">{searchTerm ? `No user found for "${searchTerm}"` : "No user found "}</p>
           </div>
         )}
       </div>

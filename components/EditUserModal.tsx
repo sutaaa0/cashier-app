@@ -1,8 +1,8 @@
-// components/EditUserModal.tsx
-import React, { useState, useEffect } from 'react';
-import { X } from 'lucide-react';
-import { toast } from '@/hooks/use-toast';
-import { updateUser } from '@/server/actions';
+import React, { useState, useEffect } from "react";
+import { X, Eye, EyeOff } from "lucide-react";
+import { toast } from "@/hooks/use-toast";
+import { updateUser } from "@/server/actions";
+import { NeoProgressIndicator } from "./NeoProgresIndicator";
 
 interface EditUserModalProps {
   isOpen: boolean;
@@ -16,18 +16,20 @@ interface EditUserModalProps {
 
 export function EditUserModal({ isOpen, onClose, user }: EditUserModalProps) {
   const [username, setUsername] = useState(user.username);
-  const [password, setPassword] = useState('');
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [level, setLevel] = useState(user.level);
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     setUsername(user.username);
-    setPassword('');
+    setPassword("");
     setLevel(user.level);
   }, [user]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
+    setIsLoading(true);
     try {
       const updateData = {
         id: user.id,
@@ -59,6 +61,7 @@ export function EditUserModal({ isOpen, onClose, user }: EditUserModalProps) {
         variant: "destructive",
       });
     }
+    setIsLoading(false);
   };
 
   if (!isOpen) return null;
@@ -74,7 +77,9 @@ export function EditUserModal({ isOpen, onClose, user }: EditUserModalProps) {
         </div>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label htmlFor="username" className="block mb-1 font-bold">Username</label>
+            <label htmlFor="username" className="block mb-1 font-bold">
+              Username
+            </label>
             <input
               type="text"
               id="username"
@@ -84,20 +89,29 @@ export function EditUserModal({ isOpen, onClose, user }: EditUserModalProps) {
               required
             />
           </div>
-          <div>
+          <div className="relative">
             <label htmlFor="password" className="block mb-1 font-bold">
               New Password (leave blank to keep current)
             </label>
             <input
-              type="password"
+              type={showPassword ? "text" : "password"}
               id="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full p-2 border-[3px] border-black rounded focus:outline-none focus:ring-2 focus:ring-[#93B8F3]"
+              className="w-full p-2 border-[3px] border-black rounded focus:outline-none focus:ring-2 focus:ring-[#93B8F3] pr-10"
             />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-3 top-[65%] transform  text-gray-500 hover:text-black"
+            >
+              {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+            </button>
           </div>
           <div>
-            <label htmlFor="level" className="block mb-1 font-bold">Level</label>
+            <label htmlFor="level" className="block mb-1 font-bold">
+              Level
+            </label>
             <select
               id="level"
               value={level}
@@ -117,6 +131,8 @@ export function EditUserModal({ isOpen, onClose, user }: EditUserModalProps) {
           </button>
         </form>
       </div>
+
+      <NeoProgressIndicator isLoading={isLoading} message={"Updating user..."} />
     </div>
   );
 }

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Package, AlertTriangle } from "lucide-react";
 import { getStockItems } from "@/server/actions";
+import { format } from "date-fns-tz";
 
 interface StockData {
   id: number;
@@ -60,6 +61,16 @@ export function InventoryManagement() {
     );
   }
 
+  const formatDate = (dateString: string) => {
+    try {
+      const date = new Date(dateString);
+      return format(date, 'dd MMMM yyyy, HH:mm:ss');
+    } catch (error) {
+      console.log(error)
+      return dateString; // Kembalikan string asli jika format salah
+    }
+  };
+
   return (
     <div className="relative bg-white border-4 h-[600px] overflow-y-scroll overflow-x-hidden border-black p-6 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] transform -rotate-1">
       <h2 className="text-2xl font-bold mb-4">Inventory Management</h2>
@@ -85,7 +96,7 @@ export function InventoryManagement() {
                 {expandedProductId === product.id && (
                   <div className="mt-2 text-sm">
                     <p>Category: {product.category}</p>
-                    <p>Last Updated: {product.lastUpdated}</p>
+                    <p>Last Updated: {formatDate(product.lastUpdated)}</p>
                   </div>
                 )}
               </div>

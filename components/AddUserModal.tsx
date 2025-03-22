@@ -1,7 +1,7 @@
 "use client"
 
-import React from 'react';
-import { X } from 'lucide-react';
+import React, { useState } from 'react';
+import { X, Eye, EyeOff } from 'lucide-react';
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import * as z from "zod"
@@ -25,18 +25,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { NeoProgressIndicator } from './NeoProgresIndicator';
 
-// Define the form schema with Zod
 const userFormSchema = z.object({
   username: z.string().min(1, { message: "Username required " }),
   password: z.string().min(8, { message: "Password must be at least 8 characters " }),
   level: z.enum(["PETUGAS", "ADMIN"], {
     required_error: "Level harus dipilih",
   }),
-})
+});
 
 // Type for the form values
-type UserFormValues = z.infer<typeof userFormSchema>
+type UserFormValues = z.infer<typeof userFormSchema>;
 
 interface AddUserModalProps {
   isOpen: boolean;
@@ -44,7 +44,9 @@ interface AddUserModalProps {
 }
 
 export function AddUserModal({ isOpen, onClose }: AddUserModalProps) {
-  // Define form with React Hook Form
+  const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  
   const form = useForm<UserFormValues>({
     resolver: zodResolver(userFormSchema),
     defaultValues: {
@@ -52,9 +54,14 @@ export function AddUserModal({ isOpen, onClose }: AddUserModalProps) {
       password: "",
       level: "PETUGAS",
     },
-  })
+  });
+
+  const togglePasswordVisibility = () => {
+    setShowPassword((prev) => !prev);
+  };
 
   const onSubmit = async (data: UserFormValues) => {
+    setIsLoading(true);
     try {
       const response = await addUser({
         username: data.username,
@@ -66,10 +73,10 @@ export function AddUserModal({ isOpen, onClose }: AddUserModalProps) {
         toast({
           title: "Success",
           description: "User successfully added",
+          duration: 3000
         });
-        onClose();
-        // Reset form
         form.reset();
+        onClose();
       } else {
         toast({
           title: "Error",
@@ -85,6 +92,12 @@ export function AddUserModal({ isOpen, onClose }: AddUserModalProps) {
         variant: "destructive",
       });
     }
+    setIsLoading(false);
+  };
+
+  const handleClose = () => {
+    form.reset();
+    onClose();
   };
 
   if (!isOpen) return null;
@@ -94,7 +107,7 @@ export function AddUserModal({ isOpen, onClose }: AddUserModalProps) {
       <div className="bg-white border-[3px] border-black p-6 rounded-lg shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] w-full max-w-md">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-2xl font-bold">Add New User</h2>
-          <button onClick={onClose} className="p-1 hover:bg-gray-200 rounded">
+          <button onClick={handleClose} className="p-1 hover:bg-gray-200 rounded">
             <X size={24} />
           </button>
         </div>
@@ -108,10 +121,7 @@ export function AddUserModal({ isOpen, onClose }: AddUserModalProps) {
                 <FormItem>
                   <FormLabel className="font-bold">Username</FormLabel>
                   <FormControl>
-                    <Input
-                      {...field}
-                      className="p-2 border-[3px] border-black rounded focus:outline-none focus:ring-2 focus:ring-[#93B8F3]"
-                    />
+                    <Input {...field} className="p-2 border-[3px] border-black rounded" />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -124,13 +134,22 @@ export function AddUserModal({ isOpen, onClose }: AddUserModalProps) {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel className="font-bold">Password</FormLabel>
-                  <FormControl>
-                    <Input
-                      {...field}
-                      type="password"
-                      className="p-2 border-[3px] border-black rounded focus:outline-none focus:ring-2 focus:ring-[#93B8F3]"
-                    />
-                  </FormControl>
+                  <div className="relative">
+                    <FormControl>
+                      <Input
+                        {...field}
+                        type={showPassword ? "text" : "password"}
+                        className="p-2 border-[3px] border-black rounded w-full"
+                      />
+                    </FormControl>
+                    <button
+                      type="button"
+                      onClick={togglePasswordVisibility}
+                      className="absolute inset-y-0 right-3 flex items-center"
+                    >
+                      {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                    </button>
+                  </div>
                   <FormMessage />
                 </FormItem>
               )}
@@ -142,16 +161,13 @@ export function AddUserModal({ isOpen, onClose }: AddUserModalProps) {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel className="font-bold">Level</FormLabel>
-                  <Select
-                    onValueChange={field.onChange}
-                    defaultValue={field.value}
-                  >
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
                     <FormControl>
-                      <SelectTrigger className="p-2 border-[3px] border-black rounded focus:outline-none focus:ring-2 focus:ring-[#93B8F3]">
+                      <SelectTrigger className="p-2 border-[3px] border-black rounded">
                         <SelectValue placeholder="Select level" />
                       </SelectTrigger>
                     </FormControl>
-                    <SelectContent className='w-full p-2 border-[3px] border-black bg-white rounded focus:outline-none focus:ring-2 focus:ring-[#93B8F3]'>
+                    <SelectContent className='bg-white rounded border border-black shadow-sm '>
                       <SelectItem value="PETUGAS" className='cursor-pointer'>Petugas</SelectItem>
                       <SelectItem value="ADMIN" className='cursor-pointer'>Admin</SelectItem>
                     </SelectContent>
@@ -161,15 +177,12 @@ export function AddUserModal({ isOpen, onClose }: AddUserModalProps) {
               )}
             />
             
-            <Button
-              type="submit"
-              className="w-full px-4 py-2 bg-[#93B8F3] font-bold border-[3px] border-black rounded shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none transition-all"
-            >
-              Add User
-            </Button>
+            <Button type="submit" className="w-full px-4 py-2 bg-[#93B8F3] font-bold border-[3px] border-black rounded">Add User</Button>
           </form>
         </Form>
       </div>
+
+      <NeoProgressIndicator isLoading={isLoading} message={"Adding user..."} />
     </div>
   );
 }

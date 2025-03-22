@@ -98,9 +98,9 @@ export function TransactionManagement() {
         : "No Refunds";
 
       // Add point discount information
-      const pointDiscountInfo = transaction.diskonPoin ? 
-        `Points Discount: ${formatRupiah(transaction.diskonPoin)}` : 
-        "No Points Discount";
+      // const pointDiscountInfo = transaction.diskonPoin ? 
+      //   `Points Discount: ${formatRupiah(transaction.diskonPoin)}` : 
+      //   "No Points Discount";
 
       return {
         "Transaction ID": transaction.penjualanId,
@@ -185,7 +185,7 @@ export function TransactionManagement() {
                     {(transaction.diskonPoin ?? 0) > 0 && (
                       <span className="flex items-center text-sm text-green-600">
                         <CreditCard size={16} className="mr-1" />
-                        Points: -{formatRupiah(transaction.diskonPoin)}
+                        Points: -{formatRupiah(transaction.diskonPoin ?? 0)}
                       </span>
                     )}
                   </div>
@@ -213,7 +213,7 @@ export function TransactionManagement() {
           transaction={selectedTransaction} 
         />
       )}
-      <NeoProgressIndicator isLoading={isLoading} message="Fetching transactions..." />
+      <NeoProgressIndicator isLoading={isLoading} message="Loading transactions..." />
     </div>
   );
 }

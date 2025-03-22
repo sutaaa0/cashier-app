@@ -70,7 +70,7 @@ model DetailPenjualan {
 
 model Kategori {
   kategoriId Int         @id @default(autoincrement())
-  nama       String      @unique
+  nama       String      
   icon       String
   produk     Produk[]
   isDeleted  Boolean     @default(false)  // Tambahkan field ini

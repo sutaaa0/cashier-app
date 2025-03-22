@@ -39,7 +39,7 @@ interface StockProduct {
   statusStok: string; // "LOW", "OUT_OF_STOCK", "NORMAL"
   stockValue: number;
   daysOnHand: number;
-  stockTurnoverRate: number;
+  // stockTurnoverRate removed as requested
   lastRestockDate?: Date;
   salesVelocity: number; // Average units sold per day
   estimatedStockOutDate?: Date;
@@ -61,7 +61,7 @@ interface InventoryReport {
   generatedDate: string;
   totalProducts: number;
   totalStockValue: number;
-  avgStockTurnover: number;
+  totalStockCount: number; // Changed from avgStockTurnover
   stockProductRatio: number; // Ratio of stock to unique products
   alerts: InventoryAlerts;
   categoryBreakdown: ProductCategory[];
@@ -155,7 +155,7 @@ const InventoryStockDashboard: React.FC<InventoryStockDashboardProps> = ({ repor
       "Status": product.statusStok,
       "Stock Value": formatRupiah(product.stockValue),
       "Sales Velocity": `${product.salesVelocity.toFixed(1)} units/day`,
-      "Stock Turnover": product.stockTurnoverRate.toFixed(2),
+      // "Stock Turnover" removed as requested
       "Days On Hand": Math.round(product.daysOnHand),
       "Reorder Recommended": product.reorderRecommended ? "YES" : "NO",
       "Reorder Quantity": product.reorderQuantity || "-"
@@ -185,7 +185,7 @@ const InventoryStockDashboard: React.FC<InventoryStockDashboardProps> = ({ repor
       "Generated Date": new Date(report.generatedDate).toLocaleString(),
       "Total Products": report.totalProducts,
       "Total Stock Value": formatRupiah(report.totalStockValue),
-      "Avg Stock Turnover": report.avgStockTurnover.toFixed(2),
+      "Total Stock Count": report.totalStockCount, // Changed from Avg Stock Turnover
       "Stock Product Ratio": report.stockProductRatio.toFixed(2),
       "Out of Stock Items": report.alerts.outOfStockCount,
       "Low Stock Items": report.alerts.lowStockCount,
@@ -238,8 +238,8 @@ const InventoryStockDashboard: React.FC<InventoryStockDashboardProps> = ({ repor
       { header: 'Min Stock', dataKey: 'minStock', width: 20 },
       { header: 'Status', dataKey: 'status', width: 25 },
       { header: 'Stock Value', dataKey: 'value', width: 30 },
-      { header: 'Turnover', dataKey: 'turnover', width: 20 },
       { header: 'Days On Hand', dataKey: 'days', width: 25 }
+      // Removed Turnover column
     ];
     
     // Prepare inventory data
@@ -252,8 +252,8 @@ const InventoryStockDashboard: React.FC<InventoryStockDashboardProps> = ({ repor
         product.minimumStok,
         product.statusStok,
         formatRupiah(product.stockValue),
-        product.stockTurnoverRate.toFixed(2),
         Math.round(product.daysOnHand)
+        // Removed turnover rate
       ];
     });
     
@@ -284,12 +284,11 @@ const InventoryStockDashboard: React.FC<InventoryStockDashboardProps> = ({ repor
         4: { halign: 'right', cellWidth: inventoryTableColumns[4].width },
         5: { cellWidth: inventoryTableColumns[5].width },
         6: { halign: 'right', cellWidth: inventoryTableColumns[6].width },
-        7: { halign: 'right', cellWidth: inventoryTableColumns[7].width },
-        8: { halign: 'right', cellWidth: inventoryTableColumns[8].width }
+        7: { halign: 'right', cellWidth: inventoryTableColumns[7].width }
       },
       didParseCell: (data) => {
         // Mark products with stock issues with different background colors
-        const productData = data.row.raw as [string, string, string, number, number, string, string, string, number];
+        const productData = data.row.raw as [string, string, string, number, number, string, string, number];
         if (productData) {
           if (productData[3] === 0) { // Out of stock
             data.cell.styles.fillColor = [255, 230, 230];
@@ -328,7 +327,7 @@ const InventoryStockDashboard: React.FC<InventoryStockDashboardProps> = ({ repor
     const summaryPoints = [
       `• Total Products: ${report.totalProducts.toLocaleString()}`,
       `• Total Stock Value: ${formatRupiah(report.totalStockValue)}`,
-      `• Avg Turnover Rate: ${report.avgStockTurnover.toFixed(2)}`,
+      `• Total Stock Count: ${report.totalStockCount.toLocaleString()}`, // Changed this line
       `• Out of Stock: ${report.alerts.outOfStockCount}`,
       `• Low Stock: ${report.alerts.lowStockCount}`,
       `• Excess Stock: ${report.alerts.excessStockCount}`,
@@ -559,10 +558,10 @@ const InventoryStockDashboard: React.FC<InventoryStockDashboardProps> = ({ repor
             </div>
             
             <div className="bg-white border-4 border-black p-6 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] transform -rotate-1">
-              <h3 className="text-xl font-black mb-4">Avg Stock Turnover</h3>
-              <p className="text-3xl font-black">{report.avgStockTurnover.toFixed(2)}</p>
+              <h3 className="text-xl font-black mb-4">Total Stock Count</h3>
+              <p className="text-3xl font-black">{report.totalStockCount}</p>
               <p className="font-bold mt-2 text-sm">
-                {report.avgStockTurnover > 6 ? "Healthy turnover" : "Slow-moving inventory"}
+                Units across all products
               </p>
             </div>
             
@@ -640,7 +639,7 @@ const InventoryStockDashboard: React.FC<InventoryStockDashboardProps> = ({ repor
                   <th className="py-3 px-4 text-right">Stock Value</th>
                   <th className="py-3 px-4 text-right">Sales Velocity</th>
                   <th className="py-3 px-4 text-right">Days On Hand</th>
-                  <th className="py-3 px-4 text-right">Turnover Rate</th>
+                  {/* Removed the Turnover Rate column */}
                   <th className="py-3 px-4 text-center">Reorder</th>
                   <th className="py-3 px-4 text-right">Reorder Qty</th>
                 </tr>
@@ -671,7 +670,7 @@ const InventoryStockDashboard: React.FC<InventoryStockDashboardProps> = ({ repor
                         {Math.round(product.daysOnHand)}
                       </span>
                     </td>
-                    <td className="py-2 px-4 text-right border-r border-gray-200">{product.stockTurnoverRate.toFixed(2)}</td>
+                    {/* Removed the Turnover Rate column */}
                     <td className="py-2 px-4 text-center border-r border-gray-200">
                       {product.reorderRecommended && (
                         <span className="inline-block px-2 py-1 bg-teal-100 text-teal-800 border border-teal-200 rounded text-xs font-bold">

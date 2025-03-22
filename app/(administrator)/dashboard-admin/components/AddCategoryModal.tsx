@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef } from "react"
+import { useState, useRef, useEffect } from "react"
 import { toast } from "@/hooks/use-toast"
 import { addCategory } from "@/server/actions"
 import { X, Upload } from "lucide-react"
@@ -17,6 +17,21 @@ export function AddCategoryModal({ isOpen, onClose, onCategoryAdded }: AddCatego
   const [iconFile, setIconFile] = useState<File | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // Reset form when modal is closed
+  const handleClose = () => {
+    setCategoryName("")
+    setIconFile(null)
+    onClose()
+  }
+
+  // Reset form when isOpen changes from true to false
+  useEffect(() => {
+    if (!isOpen) {
+      setCategoryName("")
+      setIconFile(null)
+    }
+  }, [isOpen])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -69,10 +84,8 @@ export function AddCategoryModal({ isOpen, onClose, onCategoryAdded }: AddCatego
           title: "Success", 
           description: "Category added successfully" 
         })
-        onClose()
+        handleClose()
         onCategoryAdded()
-        setCategoryName("")
-        setIconFile(null)
       } else {
         toast({ 
           title: "Error", 
@@ -100,7 +113,7 @@ export function AddCategoryModal({ isOpen, onClose, onCategoryAdded }: AddCatego
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-3xl font-black transform -rotate-2">ADD NEW CATEGORY</h2>
           <button
-            onClick={onClose}
+            onClick={handleClose}
             className="p-2 bg-[#F44336] text-white font-bold border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] 
                        hover:translate-x-[3px] hover:translate-y-[3px] hover:shadow-none transition-all"
           >
@@ -159,7 +172,7 @@ export function AddCategoryModal({ isOpen, onClose, onCategoryAdded }: AddCatego
                        hover:translate-x-[3px] hover:translate-y-[3px] hover:shadow-none transition-all
                        disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {isLoading ? "Adding..." : "Add Category"}
+           Add Category
           </button>
         </form>
       </div>

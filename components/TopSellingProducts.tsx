@@ -3,8 +3,8 @@
 import { useQuery } from '@tanstack/react-query';
 import { formatRupiah } from "@/lib/formatIdr";
 import { getTopSellingProducts } from "@/server/actions";
-import { TrendingUp } from "lucide-react";
-import React from "react";
+import { TrendingUp, Calendar } from "lucide-react";
+import React, { useState } from "react";
 
 interface Product {
   name: string;
@@ -14,20 +14,38 @@ interface Product {
 }
 
 const TopSellingProducts = () => {
-  const { 
-    data: topSellingProducts = [], 
-    isLoading, 
-    error 
+  // State for date range selection
+  const [startDate, setStartDate] = useState(() => {
+    const date = new Date();
+    date.setDate(date.getDate() - 30); // Default: 30 days ago
+    return date.toISOString().split('T')[0]; // Format as YYYY-MM-DD
+  });
+  
+  const [endDate, setEndDate] = useState(() => {
+    const date = new Date();
+    return date.toISOString().split('T')[0]; // Format as YYYY-MM-DD
+  });
+
+  // React Query with date range parameters
+  const {
+    data: topSellingProducts = [],
+    isLoading,
+    error,
+    refetch
   } = useQuery<Product[]>({
-    queryKey: ['topSellingProducts'],
-    queryFn: getTopSellingProducts,
-    // Refresh data every 3 seconds
+    queryKey: ['topSellingProducts', startDate, endDate],
+    queryFn: () => getTopSellingProducts(startDate, endDate),
     refetchInterval: 3000,
-    // Keep previous data during loading to prevent UI flicker
     placeholderData: (previousData) => previousData,
   });
 
-  if (isLoading) {
+  // Handle form submission
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    refetch();
+  };
+
+  if (isLoading && topSellingProducts.length === 0) {
     return (
       <div className="bg-white border-4 border-black p-6 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] transform rotate-1">
         <p>Loading data...</p>
@@ -49,26 +67,67 @@ const TopSellingProducts = () => {
         <h2 className="text-2xl font-bold">Best Selling Products</h2>
         <TrendingUp size={24} className="text-green-500" />
       </div>
-      <div className="space-y-4 overflow-y-auto h-full">
-        {topSellingProducts.map((product) => (
-          <div 
-            key={product.name} 
-            className="flex items-center justify-between p-3 border-2 border-black hover:bg-gray-50 transition-colors"
-          >
-            <div>
-              <p className="font-bold">{product.name}</p>
-              <p className="text-sm">Sold out: {product.sold} unit</p>
-              <p className="text-sm">{formatRupiah(product.revenue)}</p>
-            </div>
+      
+      {/* Date range selection form */}
+      <form onSubmit={handleSubmit} className="mb-4 flex flex-wrap items-center gap-2 border-2 border-black p-3 bg-gray-50">
+        <div className="flex items-center">
+          <Calendar size={16} className="mr-1" />
+          <label htmlFor="startDate" className="font-bold mr-2">From:</label>
+          <input 
+            type="date" 
+            id="startDate"
+            value={startDate}
+            onChange={(e) => setStartDate(e.target.value)}
+            className="border-2 border-black px-2 py-1"
+          />
+        </div>
+        
+        <div className="flex items-center ml-2">
+          <Calendar size={16} className="mr-1" />
+          <label htmlFor="endDate" className="font-bold mr-2">To:</label>
+          <input 
+            type="date" 
+            id="endDate"
+            value={endDate}
+            onChange={(e) => setEndDate(e.target.value)}
+            className="border-2 border-black px-2 py-1"
+          />
+        </div>
+        
+        <button 
+          type="submit" 
+          className="bg-black text-white font-bold px-4 py-1 ml-auto hover:bg-gray-800 transition-colors"
+        >
+          Apply Filter
+        </button>
+      </form>
+      
+      <div className="space-y-4 overflow-y-auto h-[calc(100%-140px)]">
+        {topSellingProducts.length > 0 ? (
+          topSellingProducts.map((product) => (
             <div
-              className={`px-2 py-1 font-bold border-2 border-black transform rotate-1
-              ${product.growth >= 0 ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}
+              key={product.name}
+              className="flex items-center justify-between p-3 border-2 border-black hover:bg-gray-50 transition-colors"
             >
-              {product.growth >= 0 ? "+" : ""}
-              {product.growth}%
+              <div>
+                <p className="font-bold">{product.name}</p>
+                <p className="text-sm">Sold out: {product.sold} unit</p>
+                <p className="text-sm">{formatRupiah(product.revenue)}</p>
+              </div>
+              <div
+                className={`px-2 py-1 font-bold border-2 border-black transform rotate-1
+                ${product.growth >= 0 ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}
+              >
+                {product.growth >= 0 ? "+" : ""}
+                {product.growth}%
+              </div>
             </div>
+          ))
+        ) : (
+          <div className="text-center py-8">
+            <p>No products found for the selected date range.</p>
           </div>
-        ))}
+        )}
       </div>
     </div>
   );

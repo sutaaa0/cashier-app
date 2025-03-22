@@ -4,6 +4,9 @@ import { RevenueByCategoryChart } from "./RevenueByCategoryChart";
 import { TopSellingProducts } from "./TopSellingProduct";
 import SalesOverTime from "./SalesOverTime";
 
+  // Profit Margin (%) = (Profit / Total Sales) * 100
+  // profit = total sales - total modal
+
 export function AnalyticsPage() {
   return (
     <div className="space-y-6">
@@ -16,11 +19,13 @@ export function AnalyticsPage() {
           <SalesOverTime />
         </div>
         <div className="cursor-pointer">
+          {/* Mengambil total penjualan produk dalam 1 bulan terakhir */}
           <TopSellingProducts />
         </div>
         <div className="grid md:grid-cols-2 gap-4">
           <div className="cursor-pointer">
             <CustomerTransactionsChart />
+            {/* Data saat ini (30 hari terakhir) */}
           </div>
           <div className="cursor-pointer">
             <LowStockProductsChart />
@@ -29,6 +34,7 @@ export function AnalyticsPage() {
       </div>
       <div className="cursor-pointer">
         <RevenueByCategoryChart />
+        {/* data diambil dari awal bulan berjalan hingga saat ini */}
       </div>
     </div>
   );
