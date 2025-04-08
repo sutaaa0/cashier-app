@@ -70,7 +70,7 @@ export default function CategorySalesSummary() {
               <Sparkles className="text-yellow-400" size={20} />
               <h3 className="font-black text-xl">{payload[0].name}</h3>
             </div>
-            <div className="font-mono bg-black text-white p-2 transform rotate-1">{payload[0].value} ITEMS</div>
+            <div className="font-mono bg-black text-white p-2 transform rotate-1">{payload[0].value} ITEM</div>
           </div>
         </div>
       );
@@ -104,7 +104,7 @@ export default function CategorySalesSummary() {
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div className="transform -rotate-2 bg-gradient-to-r from-yellow-300 to-yellow-400 border-4 border-black p-3 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-            <h2 className="text-2xl font-black tracking-tighter">CATEGORY SALES</h2>
+            <h2 className="text-2xl font-black tracking-tighter">PENJUALAN KATEGORI</h2>
           </div>
           <div className="bg-black text-white p-3 transform rotate-3 hover:rotate-6 transition-transform">
             <ChartPie size={28} />
@@ -116,19 +116,19 @@ export default function CategorySalesSummary() {
           {isLoading ? (
             <div className="h-full flex items-center justify-center">
               <div className="animate-bounce bg-black text-white border-4 border-white p-4 transform -rotate-3">
-                <p className="font-bold text-xl">LOADING DATA...</p>
+                <p className="font-bold text-xl">MEMUAT DATA...</p>
               </div>
             </div>
           ) : error ? (
             <div className="h-full flex items-center justify-center">
               <div className="bg-red-400 border-4 border-black p-4 transform rotate-2">
-                <p className="font-bold text-xl">ERROR LOADING DATA!</p>
+                <p className="font-bold text-xl">ERROR MEMUAT DATA!</p>
               </div>
             </div>
           ) : categoryData.length === 0 ? (
             <div className="h-full flex items-center justify-center">
               <div className="bg-red-400 border-4 border-black p-4 transform rotate-2">
-                <p className="font-bold text-xl">NO DATA FOUND!</p>
+                <p className="font-bold text-xl">DATA TIDAK DITEMUKAN!</p>
               </div>
             </div>
           ) : (

@@ -48,7 +48,7 @@ const TopSellingProducts = () => {
   if (isLoading && topSellingProducts.length === 0) {
     return (
       <div className="bg-white border-4 border-black p-6 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] transform rotate-1">
-        <p>Loading data...</p>
+        <p>Memuat data...</p>
       </div>
     );
   }
@@ -56,7 +56,7 @@ const TopSellingProducts = () => {
   if (error) {
     return (
       <div className="bg-white border-4 border-black p-6 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] transform rotate-1">
-        <p className="text-red-500">Failed to retrieve best-selling product data</p>
+        <p className="text-red-500">Gagal mengambil data produk terlaris</p>
       </div>
     );
   }
@@ -64,7 +64,7 @@ const TopSellingProducts = () => {
   return (
     <div className="h-[650px] bg-white border-4 border-black p-6 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] transform rotate-1">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-2xl font-bold">Best Selling Products</h2>
+        <h2 className="text-2xl font-bold">Produk Terlaris</h2>
         <TrendingUp size={24} className="text-green-500" />
       </div>
       
@@ -72,7 +72,7 @@ const TopSellingProducts = () => {
       <form onSubmit={handleSubmit} className="mb-4 flex flex-wrap items-center gap-2 border-2 border-black p-3 bg-gray-50">
         <div className="flex items-center">
           <Calendar size={16} className="mr-1" />
-          <label htmlFor="startDate" className="font-bold mr-2">From:</label>
+          <label htmlFor="startDate" className="font-bold mr-2">Dari:</label>
           <input 
             type="date" 
             id="startDate"
@@ -80,11 +80,11 @@ const TopSellingProducts = () => {
             onChange={(e) => setStartDate(e.target.value)}
             className="border-2 border-black px-2 py-1"
           />
-        </div>
+        </div> 
         
         <div className="flex items-center ml-2">
           <Calendar size={16} className="mr-1" />
-          <label htmlFor="endDate" className="font-bold mr-2">To:</label>
+          <label htmlFor="endDate" className="font-bold mr-2">Ke:</label>
           <input 
             type="date" 
             id="endDate"
@@ -98,7 +98,7 @@ const TopSellingProducts = () => {
           type="submit" 
           className="bg-black text-white font-bold px-4 py-1 ml-auto hover:bg-gray-800 transition-colors"
         >
-          Apply Filter
+          Terapkan Filter 
         </button>
       </form>
       
@@ -111,7 +111,7 @@ const TopSellingProducts = () => {
             >
               <div>
                 <p className="font-bold">{product.name}</p>
-                <p className="text-sm">Sold out: {product.sold} unit</p>
+                <p className="text-sm">Habis terjual: {product.sold} unit</p>
                 <p className="text-sm">{formatRupiah(product.revenue)}</p>
               </div>
               <div
@@ -125,7 +125,7 @@ const TopSellingProducts = () => {
           ))
         ) : (
           <div className="text-center py-8">
-            <p>No products found for the selected date range.</p>
+            <p>Tidak ada produk yang ditemukan untuk rentang tanggal yang dipilih.</p>
           </div>
         )}
       </div>

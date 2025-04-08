@@ -79,7 +79,7 @@ export function SalesTrend() {
   }
 
   // Memastikan data hanya untuk satu minggu
-  const weekDays = ['Mon', 'Tue', 'Sad', 'Thu', 'Fri', 'Sat', 'Sun']
+  const weekDays = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab']
   const combinedData = weekDays.map((day, index) => ({
     day,
     thisWeek: data.thisWeek[index]?.sales || 0,
@@ -89,7 +89,7 @@ export function SalesTrend() {
   return (
     <div className="bg-white border-4 border-black p-6 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] transform rotate-1">
       <div className="flex justify-between items-center mb-4">
-        <h2 className="text-2xl font-bold">Weekly Sales Analysis</h2>
+        <h2 className="text-2xl font-bold">Analisis Penjualan Mingguan</h2>
       </div>
       <div className="mb-4">
         <p className="text-3xl font-bold">{formatRupiah(thisWeekSales)}</p>
@@ -100,8 +100,8 @@ export function SalesTrend() {
             <ArrowDown className="text-red-500 mr-1" />
           )}
           <span className={isPositiveGrowth ? "text-green-500" : "text-red-500"}>
-            {growthDisplay}% vs Last week
-            {lastWeekSales === 0 && thisWeekSales > 0 && " (no transactions last week)"}
+            {growthDisplay}% vs Minggu lalu
+            {lastWeekSales === 0 && thisWeekSales > 0 && " (tidak ada transaksi minggu lalu)"}
           </span>
         </div>
       </div>
@@ -124,7 +124,7 @@ export function SalesTrend() {
               dataKey="thisWeek"
               stroke="#8884d8"
               strokeWidth={2}
-              name="This Week"
+              name="Minggu ini"
               dot={{ strokeWidth: 2 }}
             />
             <Line
@@ -133,15 +133,15 @@ export function SalesTrend() {
               stroke="#82ca9d"
               strokeWidth={2}
               strokeDasharray="5 5"
-              name="Last Week"
+              name="Minggu lalu"
               dot={{ strokeWidth: 2 }}
             />
           </LineChart>
         </ResponsiveContainer>
       </div>
       <div className="mt-4 text-sm text-gray-600">
-        <p>Solid line: This week </p>
-        <p>Dotted line: Last week </p>
+        <p>Garis padat: Minggu ini</p>
+        <p>Garis putus-putus: Minggu lalu</p>
       </div>
     </div>
   )

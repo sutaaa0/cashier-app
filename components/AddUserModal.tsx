@@ -28,8 +28,8 @@ import {
 import { NeoProgressIndicator } from './NeoProgresIndicator';
 
 const userFormSchema = z.object({
-  username: z.string().min(1, { message: "Username required " }),
-  password: z.string().min(8, { message: "Password must be at least 8 characters " }),
+  username: z.string().min(1, { message: "Nama pengguna diperlukan " }),
+  password: z.string().min(8, { message: "Kata sandi harus minimal 8 karakter " }),
   level: z.enum(["PETUGAS", "ADMIN"], {
     required_error: "Level harus dipilih",
   }),
@@ -71,8 +71,8 @@ export function AddUserModal({ isOpen, onClose }: AddUserModalProps) {
 
       if (response.status === "Success") {
         toast({
-          title: "Success",
-          description: "User successfully added",
+          title: "Berhasil",
+          description: "Pengguna berhasil ditambahkan",
           duration: 3000
         });
         form.reset();
@@ -88,7 +88,7 @@ export function AddUserModal({ isOpen, onClose }: AddUserModalProps) {
       console.log(error)
       toast({
         title: "Error",
-        description: "Failed to add user",
+        description: "Gagal menambahkan pengguna",
         variant: "destructive",
       });
     }
@@ -106,7 +106,7 @@ export function AddUserModal({ isOpen, onClose }: AddUserModalProps) {
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white border-[3px] border-black p-6 rounded-lg shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] w-full max-w-md">
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-2xl font-bold">Add New User</h2>
+          <h2 className="text-2xl font-bold">Tambahkan Pengguna Baru</h2>
           <button onClick={handleClose} className="p-1 hover:bg-gray-200 rounded">
             <X size={24} />
           </button>
@@ -177,12 +177,12 @@ export function AddUserModal({ isOpen, onClose }: AddUserModalProps) {
               )}
             />
             
-            <Button type="submit" className="w-full px-4 py-2 bg-[#93B8F3] font-bold border-[3px] border-black rounded">Add User</Button>
+            <Button type="submit" className="w-full px-4 py-2 bg-[#93B8F3] font-bold border-[3px] border-black rounded">Tambah Pengguna</Button>
           </form>
         </Form>
       </div>
 
-      <NeoProgressIndicator isLoading={isLoading} message={"Adding user..."} />
+      <NeoProgressIndicator isLoading={isLoading} message={"Menambahkan pengguna..."} />
     </div>
   );
 }

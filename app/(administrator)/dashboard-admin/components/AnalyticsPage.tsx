@@ -11,7 +11,7 @@ export function AnalyticsPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-3xl font-black">ANALYTICS</h2>
+        <h2 className="text-3xl font-black">ANALISIS</h2>
       </div>
 
       <div className="flex flex-col gap-4">

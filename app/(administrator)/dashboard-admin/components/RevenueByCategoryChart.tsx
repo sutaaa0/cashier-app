@@ -108,7 +108,7 @@ export function RevenueByCategoryChart() {
           <div className="transform -rotate-2 bg-gradient-to-r from-green-400 to-blue-400 border-4 border-black p-3 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
             <h2 className="text-2xl font-black tracking-tighter flex items-center gap-2">
               <BarChartIcon size={24} />
-              REVENUE BY CATEGORY
+              PENDAPATAN BERDASARKAN KATEGORI
             </h2>
           </div>
           <div className="bg-black text-white p-3 transform rotate-3 hover:rotate-6 transition-transform">
@@ -118,7 +118,7 @@ export function RevenueByCategoryChart() {
 
         {/* Subtitle */}
         <div className="mb-6 font-mono text-sm transform -rotate-1 inline-block bg-black text-white px-4 py-2">
-          Revenue breakdown by product category
+        Perincian pendapatan berdasarkan kategori produk
         </div>
 
         {/* Chart */}

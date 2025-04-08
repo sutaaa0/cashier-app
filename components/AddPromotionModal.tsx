@@ -35,27 +35,27 @@ export function AddPromotionModal({ products, onClose, onSuccess }: AddPromotion
     
     // Basic validation
     if (!formData.title.trim()) {
-      errors.push("Title is required");
+      errors.push("Judul diperlukan");
     }
     
     if (!formData.startDate) {
-      errors.push("Start date is required");
+      errors.push("Tanggal mulai diperlukan");
     }
     
     if (!formData.endDate) {
-      errors.push("End date is required");
+      errors.push("Tanggal akhir diperlukan");
     }
     
     if (formData.discountValue <= 0) {
-      errors.push("Discount value must be greater than 0");
+      errors.push("Nilai diskon harus lebih besar dari 0");
     }
     
     if (formData.type === PromotionType.PRODUCT_SPECIFIC && formData.selectedProductIds.length === 0) {
-      errors.push("At least one product must be selected for product-specific promotions");
+      errors.push("Setidaknya satu produk harus dipilih untuk promosi khusus produk");
     }
     
     if (formData.type === PromotionType.QUANTITY_BASED && formData.minQuantity <= 0) {
-      errors.push("Minimum quantity must be greater than 0 for quantity-based promotions");
+      errors.push("Kuantitas minimum harus lebih besar dari 0 untuk promosi berbasis kuantitas");
     }
     
     // Date validation
@@ -64,7 +64,7 @@ export function AddPromotionModal({ products, onClose, onSuccess }: AddPromotion
       const end = new Date(`${formData.endDate}T${formData.endTime}:00`);
       
       if (end <= start) {
-        errors.push("End date must be after start date");
+        errors.push("Tanggal akhir harus setelah tanggal mulai");
       }
     }
     
@@ -78,7 +78,7 @@ export function AddPromotionModal({ products, onClose, onSuccess }: AddPromotion
     if (!validateForm()) {
       // Show validation errors
       toast({
-        title: "Validation Error",
+        title: "Error",
         description: validationErrors.join(", "),
         variant: "destructive",
       });

@@ -42,7 +42,7 @@ const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?:
           </div>
           {payload.map((entry, index) => (
             <div key={index} className="font-mono bg-black text-white p-2 transform rotate-1 mt-2">
-              {entry.name === "sales" ? "Sales" : entry.name === "profit" ? "Profit" : entry.name === "traffic" ? "Traffic" : entry.name}:{" "}
+              {entry.name === "sales" ? "Penjualan" : entry.name === "profit" ? "Keuntungan" : entry.name === "transactions" ? "Transaksi" : entry.name}:{" "}
               {["sales", "profit"].includes(entry.name)
                 ? new Intl.NumberFormat("id-ID", {
                     style: "currency",
@@ -60,10 +60,10 @@ const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?:
 
 const TimeRangeSelector = ({ activeRange, onChange }: { activeRange: TimeRange; onChange: (range: TimeRange) => void }) => {
   const ranges: { label: string; value: TimeRange }[] = [
-    { label: "Daily", value: "daily" },
-    { label: "Weekly", value: "weekly" },
-    { label: "Monthly", value: "monthly" },
-    { label: "Yearly", value: "yearly" },
+    { label: "Harian", value: "daily" },
+    { label: "Mingguan", value: "weekly" },
+    { label: "Bulanan", value: "monthly" },
+    { label: "Tahunan", value: "yearly" },
   ];
 
   return (
@@ -98,17 +98,17 @@ export default function ProfitAnalytics() {
     staleTime: 2000,
   });
 
-  console.log("data dari server", data)
+  console.log("data dari server", data);
 
   // Set default empty data array if data is not available yet
   const profitData: ProfitData[] = data || [];
 
   /**
- * Menghitung statistik untuk periode saat ini (data terbaru).
- * Jika terdapat data dalam profitData, ambil elemen terakhir (data terbaru)
- * untuk mendapatkan nilai sales, profit, dan transactions.
- * Jika tidak ada data, kembalikan nilai default (0) untuk semua metrik.
- */
+   * Menghitung statistik untuk periode saat ini (data terbaru).
+   * Jika terdapat data dalam profitData, ambil elemen terakhir (data terbaru)
+   * untuk mendapatkan nilai sales, profit, dan transactions.
+   * Jika tidak ada data, kembalikan nilai default (0) untuk semua metrik.
+   */
 
   const currentPeriodStats =
     profitData.length > 0
@@ -119,12 +119,12 @@ export default function ProfitAnalytics() {
         }
       : { sales: 0, profit: 0, transactions: 0 };
 
-/**
- * Menghitung statistik untuk periode sebelumnya.
- * Jika profitData memiliki lebih dari satu data, ambil elemen kedua dari terakhir
- * yang merepresentasikan data periode sebelumnya.
- * Jika tidak ada data yang cukup, kembalikan nilai default (0) untuk semua metrik.
- */
+  /**
+   * Menghitung statistik untuk periode sebelumnya.
+   * Jika profitData memiliki lebih dari satu data, ambil elemen kedua dari terakhir
+   * yang merepresentasikan data periode sebelumnya.
+   * Jika tidak ada data yang cukup, kembalikan nilai default (0) untuk semua metrik.
+   */
 
   const previousPeriodStats =
     profitData.length > 1
@@ -136,18 +136,18 @@ export default function ProfitAnalytics() {
       : { sales: 0, profit: 0, transactions: 0 };
 
   /**
- * Fungsi untuk menghitung persentase kenaikan atau penurunan dari dua nilai.
- * @param {number} current - Nilai periode saat ini.
- * @param {number} previous - Nilai periode sebelumnya.
- * @returns {number} - Persentase perubahan antara nilai current dan previous.
- *
- * Penjelasan:
- * - Jika nilai previous adalah 0:
- *   - Jika current juga 0, maka tidak ada perubahan (0%).
- *   - Jika current tidak 0, dianggap terjadi peningkatan 100% untuk menghindari pembagian dengan nol.
- * - Jika previous tidak 0, hitung persentase perubahan menggunakan rumus:
- *   ((current - previous) / previous) * 100.
- */
+   * Fungsi untuk menghitung persentase kenaikan atau penurunan dari dua nilai.
+   * @param {number} current - Nilai periode saat ini.
+   * @param {number} previous - Nilai periode sebelumnya.
+   * @returns {number} - Persentase perubahan antara nilai current dan previous.
+   *
+   * Penjelasan:
+   * - Jika nilai previous adalah 0:
+   *   - Jika current juga 0, maka tidak ada perubahan (0%).
+   *   - Jika current tidak 0, dianggap terjadi peningkatan 100% untuk menghindari pembagian dengan nol.
+   * - Jika previous tidak 0, hitung persentase perubahan menggunakan rumus:
+   *   ((current - previous) / previous) * 100.
+   */
 
   const calculateIncrease = (current: number, previous: number) => {
     if (previous === 0) return current === 0 ? 0 : 100;
@@ -168,15 +168,15 @@ export default function ProfitAnalytics() {
   const getTimeRangeLabel = () => {
     switch (timeRange) {
       case "daily":
-        return "Daily";
+        return "Harian";
       case "weekly":
-        return "Weekly";
+        return "Mingguan";
       case "monthly":
-        return "Monthly";
+        return "Bulanan";
       case "yearly":
-        return "Yearly";
+        return "Tahunan";
       default:
-        return "Daily";
+        return "Harian";
     }
   };
 
@@ -204,13 +204,13 @@ export default function ProfitAnalytics() {
 
     switch (timeRange) {
       case "daily":
-        return `Today (${formatDate(latestDate)})`;
+        return `Hari Ini (${formatDate(latestDate)})`;
       case "weekly":
-        return `This Week (${formatDate(latestDate)})`;
+        return `Minggu Ini (${formatDate(latestDate)})`;
       case "monthly":
-        return `This Month (${formatDate(latestDate)})`;
+        return `Bulan Ini (${formatDate(latestDate)})`;
       case "yearly":
-        return `This Year (${formatDate(latestDate)})`;
+        return `Tahun Ini (${formatDate(latestDate)})`;
       default:
         return formatDate(latestDate);
     }
@@ -242,7 +242,7 @@ export default function ProfitAnalytics() {
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div className="transform -rotate-2 bg-gradient-to-r from-yellow-300 to-yellow-400 border-4 border-black p-3 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-            <h2 className="text-2xl font-black tracking-tighter">PROFIT ANALYSIS</h2>
+            <h2 className="text-2xl font-black tracking-tighter">ANALISIS KEUNTUNGAN</h2>
           </div>
           <div className="bg-black text-white p-3 transform rotate-3 hover:rotate-6 transition-transform">
             <LineChartIcon size={28} />
@@ -256,9 +256,9 @@ export default function ProfitAnalytics() {
           {/* Stats Grid */}
           {profitData.length > 0 && (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-              <StatCard title={`Sales ${getTimePeriodLabel()}`} value={formatCurrency(currentPeriodStats.sales)} increase={calculateIncrease(currentPeriodStats.sales, previousPeriodStats.sales)} icon={DollarSign} />
-              <StatCard title={`Profit ${getTimePeriodLabel()}`} value={formatCurrency(currentPeriodStats.profit)} increase={calculateIncrease(currentPeriodStats.profit, previousPeriodStats.profit)} icon={Sparkles} />
-              <StatCard title={`Transactions ${getTimePeriodLabel()}`} value={currentPeriodStats.transactions.toString()} increase={calculateIncrease(currentPeriodStats.transactions, previousPeriodStats.transactions)} icon={TrendingUp} />
+              <StatCard title={`Penjualan ${getTimePeriodLabel()}`} value={formatCurrency(currentPeriodStats.sales)} increase={calculateIncrease(currentPeriodStats.sales, previousPeriodStats.sales)} icon={DollarSign} />
+              <StatCard title={`Keuntungan ${getTimePeriodLabel()}`} value={formatCurrency(currentPeriodStats.profit)} increase={calculateIncrease(currentPeriodStats.profit, previousPeriodStats.profit)} icon={Sparkles} />
+              <StatCard title={`Transaksi ${getTimePeriodLabel()}`} value={currentPeriodStats.transactions.toString()} increase={calculateIncrease(currentPeriodStats.transactions, previousPeriodStats.transactions)} icon={TrendingUp} />
             </div>
           )}
 
@@ -268,7 +268,7 @@ export default function ProfitAnalytics() {
               <h3 className="font-black text-lg transform -rotate-1 bg-white border-2 border-black p-2 inline-block">
                 <span className="inline-flex items-center gap-2">
                   <Calendar className="w-5 h-5" />
-                  Report  {getTimeRangeLabel()}
+                  Laporan {getTimeRangeLabel()}
                 </span>
               </h3>
             </div>
@@ -386,41 +386,41 @@ export default function ProfitAnalytics() {
           {profitData.length > 0 && (
             <div className="mt-6">
               <div className="mb-4 transform -rotate-1 bg-white border-4 border-black p-3 inline-block shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-                <h3 className="font-black text-xl">SUMMARY STATISTICS</h3>
+                <h3 className="font-black text-xl">RINGKASAN STATISTIK</h3>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                 <div className="bg-white border-4 border-black p-4">
-                  <h4 className="text-lg font-bold mb-2">Profit Analysis</h4>
+                  <h4 className="text-lg font-bold mb-2">Analisis Keuntungan</h4>
                   <ul className="space-y-2">
                     <li className="flex justify-between">
-                      <span>Total Sales:</span>
+                      <span>Total Penjualan:</span>
                       <span className="font-mono font-bold">{formatCurrency(profitData.reduce((sum, item) => sum + item.sales, 0))}</span>
                     </li>
                     <li className="flex justify-between">
-                      <span>Total Profit:</span>
+                      <span>Total Keuntungan:</span>
                       <span className="font-mono font-bold">{formatCurrency(profitData.reduce((sum, item) => sum + item.profit, 0))}</span>
                     </li>
                     <li className="flex justify-between">
-                      <span>Profit Margin:</span>
+                      <span>Margin Keuntungan:</span>
                       <span className="font-mono font-bold">{((profitData.reduce((sum, item) => sum + item.profit, 0) / profitData.reduce((sum, item) => sum + item.sales, 0)) * 100).toFixed(2)}%</span>
                     </li>
                   </ul>
                 </div>
 
                 <div className="bg-white border-4 border-black p-4">
-                  <h4 className="text-lg font-bold mb-2">Transaction Analysis</h4>
+                  <h4 className="text-lg font-bold mb-2">Analisis Transaksi</h4>
                   <ul className="space-y-2">
                     <li className="flex justify-between">
-                      <span>Total Transactions:</span>
+                      <span>Total Transaksi:</span>
                       <span className="font-mono font-bold">{profitData.reduce((sum, item) => sum + item.transactions, 0)}</span>
                     </li>
                     <li className="flex justify-between">
-                      <span>Average Transaction Value:</span>
+                      <span>Nilai Transaksi Rata-Rata:</span>
                       <span className="font-mono font-bold">{formatCurrency(profitData.reduce((sum, item) => sum + item.sales, 0) / profitData.reduce((sum, item) => sum + item.transactions, 0))}</span>
                     </li>
                     <li className="flex justify-between">
-                      <span>Profit per Transaction:</span>
+                      <span>Keuntungan per Transaksi:</span>
                       <span className="font-mono font-bold">{formatCurrency(profitData.reduce((sum, item) => sum + item.profit, 0) / profitData.reduce((sum, item) => sum + item.transactions, 0))}</span>
                     </li>
                   </ul>
@@ -448,7 +448,7 @@ export default function ProfitAnalytics() {
                         backgroundColor: index === 0 ? "#FF6B6B" : index === 1 ? "#4ECDC4" : "#FFD166",
                       }}
                     />
-                    <span className="font-bold text-lg capitalize">{metric === "sales" ? "Sales" : metric === "profit" ? "Profit" : "Transactions"}</span>
+                    <span className="font-bold text-lg capitalize">{metric === "sales" ? "Penjualan" : metric === "profit" ? "Keuntungan" : "Transaksi"}</span>
                     <span className="ml-auto font-mono bg-white text-black px-2 py-1 border-2 border-black">
                       {["sales", "profit"].includes(metric) ? formatCurrency(profitData[activeIndex]?.[metric] || 0) : profitData[activeIndex]?.[metric]}
                     </span>

@@ -13,8 +13,8 @@ const LogoutBtnP = ({label} : {label : string}) => {
 
       if (log.status === "Success") {
         toast({
-          title: "Logout success",
-          description: "You have been logged out",
+          title: "Logout Sukses",
+          description: "Anda telah keluar dari akun",
         });
 
         // Use router.push instead of redirect
@@ -26,7 +26,7 @@ const LogoutBtnP = ({label} : {label : string}) => {
       if (error) {
         toast({
           title: "Error",
-          description: "Something went wrong while logging out",
+          description: "Terjadi kesalahan saat logout",
           variant: "destructive",
         });
       }

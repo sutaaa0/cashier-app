@@ -95,16 +95,16 @@ const StockPieTooltip = ({ active, payload }: StockPieTooltipProps) => {
             {formatRupiah(category.stockValue)}
           </div>
           <div className="font-mono bg-white text-black p-2 border-2 border-black transform -rotate-1">
-            {category.stockValuePercentage.toFixed(1)}% of total value
+            {category.stockValuePercentage.toFixed(1)}% dari total nilai
           </div>
           <div className="grid grid-cols-2 gap-2 mt-3">
-            <div className="font-mono text-sm">Products: {category.productCount}</div>
-            <div className="font-mono text-sm">Avg Stock: {category.avgStockLevel}</div>
+            <div className="font-mono text-sm">Produk: {category.productCount}</div>
+            <div className="font-mono text-sm">Rata-rata Stok: {category.avgStockLevel}</div>
             <div className={`font-mono text-sm ${category.lowStockCount > 0 ? "text-orange-500 font-bold" : ""}`}>
-              Low Stock: {category.lowStockCount}
+              Stok Rendah: {category.lowStockCount}
             </div>
             <div className={`font-mono text-sm ${category.outOfStockCount > 0 ? "text-red-500 font-bold" : ""}`}>
-              Out of Stock: {category.outOfStockCount}
+              Stok Habis: {category.outOfStockCount}
             </div>
           </div>
         </div>
@@ -146,56 +146,56 @@ const InventoryStockDashboard: React.FC<InventoryStockDashboardProps> = ({ repor
     
     // Create Products sheet
     const productsData = report.products.map((product) => ({
-      "Product ID": product.produkId,
-      "Product": product.productName,
-      "Category": product.category,
-      "Unit Cost": formatRupiah(product.hargaModal),
-      "Stock Level": product.stok,
-      "Min Stock": product.minimumStok,
+      "ID Produk": product.produkId,
+      "Produk": product.productName,
+      "Kategori": product.category,
+      "Harga Modal": formatRupiah(product.hargaModal),
+      "Jumlah Stok": product.stok,
+      "Stok Minimum": product.minimumStok,
       "Status": product.statusStok,
-      "Stock Value": formatRupiah(product.stockValue),
-      "Sales Velocity": `${product.salesVelocity.toFixed(1)} units/day`,
+      "Nilai Stok": formatRupiah(product.stockValue),
+      "Kecepatan Penjualan": `${product.salesVelocity.toFixed(1)} unit/hari`,
       // "Stock Turnover" removed as requested
-      "Days On Hand": Math.round(product.daysOnHand),
-      "Reorder Recommended": product.reorderRecommended ? "YES" : "NO",
-      "Reorder Quantity": product.reorderQuantity || "-"
+      "Perkiraan Habis": Math.round(product.daysOnHand),
+      "Perlu Restock": product.reorderRecommended ? "YA" : "TIDAK",
+      "Jumlah Restock": product.reorderQuantity || "-"
     }));
     
     const ws1 = XLSX.utils.json_to_sheet(productsData);
-    XLSX.utils.book_append_sheet(wb, ws1, "Inventory Items");
+    XLSX.utils.book_append_sheet(wb, ws1, "Item Inventaris");
     
     // Create Category sheet
     const categoryData = report.categoryBreakdown.map((category) => ({
-      "Category": category.categoryName,
-      "Product Count": category.productCount,
-      "Stock Value": formatRupiah(category.stockValue),
-      "Value %": `${category.stockValuePercentage.toFixed(1)}%`,
-      "Avg Stock Level": category.avgStockLevel.toFixed(1),
-      "Low Stock Count": category.lowStockCount,
-      "Out of Stock Count": category.outOfStockCount
+      "Kategori": category.categoryName,
+      "Jumlah Produk": category.productCount,
+      "Nilai Stok": formatRupiah(category.stockValue),
+      "Persentase Nilai": `${category.stockValuePercentage.toFixed(1)}%`,
+      "Rata-rata Stok": category.avgStockLevel.toFixed(1),
+      "Jumlah Stok Rendah": category.lowStockCount,
+      "Jumlah Stok Habis": category.outOfStockCount
     }));
     
     const ws2 = XLSX.utils.json_to_sheet(categoryData);
-    XLSX.utils.book_append_sheet(wb, ws2, "Category Breakdown");
+    XLSX.utils.book_append_sheet(wb, ws2, "Breakdown Kategori");
     
     // Create Summary sheet
     const summaryData = [{
-      "Report Name": report.name,
-      "Period": report.period,
-      "Generated Date": new Date(report.generatedDate).toLocaleString(),
-      "Total Products": report.totalProducts,
-      "Total Stock Value": formatRupiah(report.totalStockValue),
-      "Total Stock Count": report.totalStockCount, // Changed from Avg Stock Turnover
-      "Stock Product Ratio": report.stockProductRatio.toFixed(2),
-      "Out of Stock Items": report.alerts.outOfStockCount,
-      "Low Stock Items": report.alerts.lowStockCount,
-      "Excess Stock Items": report.alerts.excessStockCount,
-      "Items Needing Reorder": report.alerts.reorderItemCount,
-      "Total Reorder Value": formatRupiah(report.alerts.totalReorderValue)
+      "Nama Laporan": report.name,
+      "Periode": report.period,
+      "Tanggal Dibuat": new Date(report.generatedDate).toLocaleString(),
+      "Total Produk": report.totalProducts,
+      "Total Nilai Stok": formatRupiah(report.totalStockValue),
+      "Total Jumlah Stok": report.totalStockCount, // Changed from Avg Stock Turnover
+      "Rasio Stok:Produk": report.stockProductRatio.toFixed(2),
+      "Item Stok Habis": report.alerts.outOfStockCount,
+      "Item Stok Rendah": report.alerts.lowStockCount,
+      "Item Stok Berlebih": report.alerts.excessStockCount,
+      "Item Perlu Restock": report.alerts.reorderItemCount,
+      "Total Nilai Restock": formatRupiah(report.alerts.totalReorderValue)
     }];
     
     const ws3 = XLSX.utils.json_to_sheet(summaryData);
-    XLSX.utils.book_append_sheet(wb, ws3, "Summary");
+    XLSX.utils.book_append_sheet(wb, ws3, "Ringkasan");
     
     // Write the file
     const excelBuffer = XLSX.write(wb, { bookType: "xlsx", type: "array" });
@@ -218,8 +218,8 @@ const InventoryStockDashboard: React.FC<InventoryStockDashboardProps> = ({ repor
     
     doc.setFontSize(9);
     doc.setFont("helvetica", "normal");
-    doc.text(`Period: ${report.period}`, margin, 22);
-    doc.text(`Created: ${new Date(report.generatedDate).toLocaleString()}`, margin, 27);
+    doc.text(`Periode: ${report.period}`, margin, 22);
+    doc.text(`Dibuat: ${new Date(report.generatedDate).toLocaleString()}`, margin, 27);
     
     // Separator line
     doc.setDrawColor(0, 0, 0);
@@ -231,14 +231,14 @@ const InventoryStockDashboard: React.FC<InventoryStockDashboardProps> = ({ repor
     
     // Prepare columns as needed
     const inventoryTableColumns = [
-      { header: 'Product', dataKey: 'name', width: 60 },
-      { header: 'Category', dataKey: 'category', width: 40 },
-      { header: 'Unit Cost', dataKey: 'cost', width: 28 },
-      { header: 'Stock', dataKey: 'stock', width: 20 },
-      { header: 'Min Stock', dataKey: 'minStock', width: 20 },
+      { header: 'Produk', dataKey: 'name', width: 60 },
+      { header: 'Kategori', dataKey: 'category', width: 40 },
+      { header: 'Harga Modal', dataKey: 'cost', width: 28 },
+      { header: 'Stok', dataKey: 'stock', width: 20 },
+      { header: 'Stok Min', dataKey: 'minStock', width: 20 },
       { header: 'Status', dataKey: 'status', width: 25 },
-      { header: 'Stock Value', dataKey: 'value', width: 30 },
-      { header: 'Days On Hand', dataKey: 'days', width: 25 }
+      { header: 'Nilai Stok', dataKey: 'value', width: 30 },
+      { header: 'Perkiraan Habis', dataKey: 'days', width: 25 }
       // Removed Turnover column
     ];
     
@@ -317,7 +317,7 @@ const InventoryStockDashboard: React.FC<InventoryStockDashboardProps> = ({ repor
     // Summary section
     doc.setFontSize(10);
     doc.setFont("helvetica", "bold");
-    doc.text("Inventory Summary", margin, footerY);
+    doc.text("Ringkasan Inventaris", margin, footerY);
     
     footerY += 6;
     doc.setFontSize(8);
@@ -325,13 +325,13 @@ const InventoryStockDashboard: React.FC<InventoryStockDashboardProps> = ({ repor
     
     // Summary points in compact format
     const summaryPoints = [
-      `• Total Products: ${report.totalProducts.toLocaleString()}`,
-      `• Total Stock Value: ${formatRupiah(report.totalStockValue)}`,
-      `• Total Stock Count: ${report.totalStockCount.toLocaleString()}`, // Changed this line
-      `• Out of Stock: ${report.alerts.outOfStockCount}`,
-      `• Low Stock: ${report.alerts.lowStockCount}`,
-      `• Excess Stock: ${report.alerts.excessStockCount}`,
-      `• Items Needing Reorder: ${report.alerts.reorderItemCount}`
+      `• Total Produk: ${report.totalProducts.toLocaleString()}`,
+      `• Total Nilai Stok: ${formatRupiah(report.totalStockValue)}`,
+      `• Total Jumlah Stok: ${report.totalStockCount.toLocaleString()}`, // Changed this line
+      `• Stok Habis: ${report.alerts.outOfStockCount}`,
+      `• Stok Rendah: ${report.alerts.lowStockCount}`,
+      `• Stok Berlebih: ${report.alerts.excessStockCount}`,
+      `• Item Perlu Restock: ${report.alerts.reorderItemCount}`
     ];
     
     // Split into 3 columns to save space
@@ -360,7 +360,7 @@ const InventoryStockDashboard: React.FC<InventoryStockDashboardProps> = ({ repor
       doc.setFont("helvetica", "italic");
       doc.setTextColor(100, 100, 100);
       doc.text(
-        `${report.name} - ${report.period} | Page ${i} of ${totalPages}`,
+        `${report.name} - ${report.period} | Halaman ${i} dari ${totalPages}`,
         pageWidth / 2,
         pageHeight - 8,
         { align: 'center' }
@@ -409,7 +409,7 @@ const InventoryStockDashboard: React.FC<InventoryStockDashboardProps> = ({ repor
         <button
           onClick={handleDownloadExcel}
           className="px-4 py-2 bg-[#4DB6AC] font-black border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none transition-all flex items-center gap-2"
-          title="Download Excel"
+          title="Unduh Excel"
         >
           <FileText size={20} />
           EXCEL
@@ -417,7 +417,7 @@ const InventoryStockDashboard: React.FC<InventoryStockDashboardProps> = ({ repor
         <button
           onClick={handleDownloadPDF}
           className="px-4 py-2 bg-[#FF8A65] font-black border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none transition-all flex items-center gap-2 text-white"
-          title="Download PDF"
+          title="Unduh PDF"
         >
           <FileDown size={20} />
           PDF
@@ -430,13 +430,13 @@ const InventoryStockDashboard: React.FC<InventoryStockDashboardProps> = ({ repor
           className={`px-6 py-3 mr-2 font-black text-lg transform ${activeTab === 'overview' ? 'bg-black text-white -rotate-2' : 'bg-white rotate-1'} border-4 border-black transition-all`}
           onClick={() => setActiveTab('overview')}
         >
-          OVERVIEW
+          RINGKASAN
         </button>
         <button
           className={`px-6 py-3 mr-2 font-black text-lg transform ${activeTab === 'inventory' ? 'bg-black text-white -rotate-2' : 'bg-white rotate-1'} border-4 border-black transition-all`}
           onClick={() => setActiveTab('inventory')}
         >
-          INVENTORY
+          INVENTARIS
         </button>
       </div>
       
@@ -448,37 +448,37 @@ const InventoryStockDashboard: React.FC<InventoryStockDashboardProps> = ({ repor
             <div className="bg-white border-4 border-red-500 p-6 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] transform -rotate-1">
               <div className="flex items-center gap-3 mb-3">
                 <AlertTriangle size={24} className="text-red-500" />
-                <h3 className="text-xl font-black">Out of Stock</h3>
+                <h3 className="text-xl font-black">Stok Habis</h3>
               </div>
               <p className="text-4xl font-black">{report.alerts.outOfStockCount}</p>
-              <p className="text-sm mt-2">Products with zero inventory</p>
+              <p className="text-sm mt-2">Produk dengan inventaris nol</p>
             </div>
             
             <div className="bg-white border-4 border-orange-500 p-6 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] transform rotate-1">
               <div className="flex items-center gap-3 mb-3">
                 <TrendingDown size={24} className="text-orange-500" />
-                <h3 className="text-xl font-black">Low Stock</h3>
+                <h3 className="text-xl font-black">Stok Rendah</h3>
               </div>
               <p className="text-4xl font-black">{report.alerts.lowStockCount}</p>
-              <p className="text-sm mt-2">Products below minimum level</p>
+              <p className="text-sm mt-2">Produk di bawah level minimum</p>
             </div>
             
             <div className="bg-white border-4 border-blue-500 p-6 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] transform -rotate-1">
               <div className="flex items-center gap-3 mb-3">
                 <PackageOpen size={24} className="text-blue-500" />
-                <h3 className="text-xl font-black">Excess Stock</h3>
+                <h3 className="text-xl font-black">Stok Berlebih</h3>
               </div>
               <p className="text-4xl font-black">{report.alerts.excessStockCount}</p>
-              <p className="text-sm mt-2">Products with high inventory levels</p>
+              <p className="text-sm mt-2">Produk dengan level inventaris tinggi</p>
             </div>
             
             <div className="bg-white border-4 border-teal-500 p-6 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] transform rotate-1">
               <div className="flex items-center gap-3 mb-3">
                 <Truck size={24} className="text-teal-500" />
-                <h3 className="text-xl font-black">Need Reorder</h3>
+                <h3 className="text-xl font-black">Perlu Restock</h3>
               </div>
               <p className="text-4xl font-black">{report.alerts.reorderItemCount}</p>
-              <p className="text-sm mt-2">Est. Value: {formatRupiah(report.alerts.totalReorderValue)}</p>
+              <p className="text-sm mt-2">Estimasi Nilai: {formatRupiah(report.alerts.totalReorderValue)}</p>
             </div>
           </div>
           
@@ -491,7 +491,7 @@ const InventoryStockDashboard: React.FC<InventoryStockDashboardProps> = ({ repor
                 {/* Header */}
                 <div className="flex items-center justify-between mb-6">
                   <div className="transform -rotate-2 bg-gradient-to-r from-orange-400 to-teal-400 border-4 border-black p-3 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-                    <h2 className="text-xl font-black tracking-tighter">INVENTORY VALUE BY CATEGORY</h2>
+                    <h2 className="text-xl font-black tracking-tighter">NILAI INVENTARIS PER KATEGORI</h2>
                   </div>
                 </div>
                 
@@ -550,26 +550,26 @@ const InventoryStockDashboard: React.FC<InventoryStockDashboardProps> = ({ repor
           {/* Summary metrics cards */}
           <div className="grid grid-cols-2 md:grid-cols-3 gap-6 mb-8">
             <div className="bg-white border-4 border-black p-6 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] transform rotate-1">
-              <h3 className="text-xl font-black mb-4">Total Stock Value</h3>
+              <h3 className="text-xl font-black mb-4">Total Nilai Stok</h3>
               <p className="text-3xl font-black">{formatRupiah(report.totalStockValue)}</p>
               <p className="font-bold mt-2 text-sm">
-                Across {report.totalProducts} products
+                Dari {report.totalProducts} produk
               </p>
             </div>
             
             <div className="bg-white border-4 border-black p-6 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] transform -rotate-1">
-              <h3 className="text-xl font-black mb-4">Total Stock Count</h3>
+              <h3 className="text-xl font-black mb-4">Total Jumlah Stok</h3>
               <p className="text-3xl font-black">{report.totalStockCount}</p>
               <p className="font-bold mt-2 text-sm">
-                Units across all products
+                Unit dari semua produk
               </p>
             </div>
             
             <div className="bg-white border-4 border-black p-6 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] transform rotate-1">
-              <h3 className="text-xl font-black mb-4">Stock:Product Ratio</h3>
+              <h3 className="text-xl font-black mb-4">Rasio Stok:Produk</h3>
               <p className="text-3xl font-black">{report.stockProductRatio.toFixed(2)}</p>
               <p className="font-bold mt-2 text-sm">
-                Average units per product
+                Rata-rata unit per produk
               </p>
             </div>
           </div>
@@ -585,7 +585,7 @@ const InventoryStockDashboard: React.FC<InventoryStockDashboardProps> = ({ repor
               className={`px-3 py-2 font-bold border-2 border-black ${stockFilter === 'all' ? 'bg-black text-white' : 'bg-white hover:bg-gray-100'}`}
               onClick={() => setStockFilter('all')}
             >
-              All Items
+              Semua Item
             </button>
             <button
               className={`px-3 py-2 font-bold border-2 border-black ${stockFilter === 'low' ? 'bg-orange-500 text-white' : 'bg-white hover:bg-orange-100'}`}
@@ -593,7 +593,7 @@ const InventoryStockDashboard: React.FC<InventoryStockDashboardProps> = ({ repor
             >
               <span className="flex items-center gap-1">
                 <TrendingDown size={16} />
-                Low Stock ({report.alerts.lowStockCount})
+                Stok Rendah ({report.alerts.lowStockCount})
               </span>
             </button>
             <button
@@ -602,7 +602,7 @@ const InventoryStockDashboard: React.FC<InventoryStockDashboardProps> = ({ repor
             >
               <span className="flex items-center gap-1">
                 <AlertTriangle size={16} />
-                Out of Stock ({report.alerts.outOfStockCount})
+                Stok Habis ({report.alerts.outOfStockCount})
               </span>
             </button>
             <button
@@ -611,7 +611,7 @@ const InventoryStockDashboard: React.FC<InventoryStockDashboardProps> = ({ repor
             >
               <span className="flex items-center gap-1">
                 <PackageOpen size={16} />
-                Excess Stock ({report.alerts.excessStockCount})
+                Stok Berlebih ({report.alerts.excessStockCount})
               </span>
             </button>
             <button
@@ -620,7 +620,7 @@ const InventoryStockDashboard: React.FC<InventoryStockDashboardProps> = ({ repor
             >
               <span className="flex items-center gap-1">
                 <Truck size={16} />
-                Need Reorder ({report.alerts.reorderItemCount})
+                Perlu Restock ({report.alerts.reorderItemCount})
               </span>
             </button>
           </div>
@@ -630,18 +630,18 @@ const InventoryStockDashboard: React.FC<InventoryStockDashboardProps> = ({ repor
             <table className="min-w-full bg-white">
               <thead className="bg-black text-white">
                 <tr>
-                  <th className="py-3 px-4 text-left">Product</th>
-                  <th className="py-3 px-4 text-left">Category</th>
-                  <th className="py-3 px-4 text-right">Unit Cost</th>
-                  <th className="py-3 px-4 text-right">Stock</th>
-                  <th className="py-3 px-4 text-right">Min Stock</th>
+                  <th className="py-3 px-4 text-left">Produk</th>
+                  <th className="py-3 px-4 text-left">Kategori</th>
+                  <th className="py-3 px-4 text-right">Harga Modal</th>
+                  <th className="py-3 px-4 text-right">Stok</th>
+                  <th className="py-3 px-4 text-right">Stok Min</th>
                   <th className="py-3 px-4 text-center">Status</th>
-                  <th className="py-3 px-4 text-right">Stock Value</th>
-                  <th className="py-3 px-4 text-right">Sales Velocity</th>
-                  <th className="py-3 px-4 text-right">Days On Hand</th>
+                  <th className="py-3 px-4 text-right">Nilai Stok</th>
+                  <th className="py-3 px-4 text-right">Kecepatan Penjualan</th>
+                  <th className="py-3 px-4 text-right">Perkiraan Habis</th>
                   {/* Removed the Turnover Rate column */}
-                  <th className="py-3 px-4 text-center">Reorder</th>
-                  <th className="py-3 px-4 text-right">Reorder Qty</th>
+                  <th className="py-3 px-4 text-center">Restock</th>
+                  <th className="py-3 px-4 text-right">Jumlah Restock</th>
                 </tr>
               </thead>
               <tbody>
@@ -654,13 +654,13 @@ const InventoryStockDashboard: React.FC<InventoryStockDashboardProps> = ({ repor
                     <td className="py-2 px-4 text-right border-r border-gray-200">{product.minimumStok}</td>
                     <td className="py-2 px-4 text-center border-r border-gray-200">
                       <span className={`inline-block px-2 py-1 rounded text-xs font-bold ${getStockStatusClass(product.statusStok, product.stok, product.minimumStok)}`}>
-                        {product.stok === 0 ? "OUT OF STOCK" : 
-                         product.stok <= product.minimumStok ? "LOW STOCK" :
-                         product.stok > product.minimumStok * 3 ? "EXCESS" : "NORMAL"}
+                        {product.stok === 0 ? "STOK HABIS" : 
+                         product.stok <= product.minimumStok ? "STOK RENDAH" :
+                         product.stok > product.minimumStok * 3 ? "BERLEBIH" : "NORMAL"}
                       </span>
                     </td>
                     <td className="py-2 px-4 text-right border-r border-gray-200">{formatRupiah(product.stockValue)}</td>
-                    <td className="py-2 px-4 text-right border-r border-gray-200">{product.salesVelocity.toFixed(1)} units/day</td>
+                    <td className="py-2 px-4 text-right border-r border-gray-200">{product.salesVelocity.toFixed(1)} unit/hari</td>
                     <td className="py-2 px-4 text-right border-r border-gray-200">
                       <span className={
                         product.daysOnHand < 7 ? "text-red-600 font-bold" :
@@ -674,7 +674,7 @@ const InventoryStockDashboard: React.FC<InventoryStockDashboardProps> = ({ repor
                     <td className="py-2 px-4 text-center border-r border-gray-200">
                       {product.reorderRecommended && (
                         <span className="inline-block px-2 py-1 bg-teal-100 text-teal-800 border border-teal-200 rounded text-xs font-bold">
-                          REORDER NOW
+                          PERLU RESTOCK
                         </span>
                       )}
                     </td>

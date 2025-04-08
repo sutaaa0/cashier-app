@@ -4,7 +4,6 @@ import { X, Upload } from "lucide-react";
 import Image from "next/image";
 import { toast } from "@/hooks/use-toast";
 import { Produk, Kategori } from "@prisma/client";
-import { NeoProgressIndicator } from "./NeoProgresIndicator";
 
 interface EditProductModalProps {
   isOpen: boolean;
@@ -88,7 +87,7 @@ export function EditProductModal({ isOpen, onClose, product, categories: initial
       console.error(error);
       toast({
         title: "Error",
-        description: "Failed to update product",
+        description: "Gagal memperbarui produk",
         variant: "destructive",
       });
     } finally {
@@ -108,7 +107,7 @@ export function EditProductModal({ isOpen, onClose, product, categories: initial
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white border-[3px] border-black p-6 rounded-lg shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] w-full max-w-md">
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-2xl font-bold">Edit Product</h2>
+          <h2 className="text-2xl font-bold">Edit Produk</h2>
           <button onClick={onClose} className="p-1 hover:bg-gray-200 rounded">
             <X size={24} />
           </button>
@@ -116,13 +115,13 @@ export function EditProductModal({ isOpen, onClose, product, categories: initial
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label htmlFor="productName" className="block mb-1 font-bold">
-              Product Name
+              Nama Produk
             </label>
             <input type="text" id="productName" value={productName} onChange={(e) => setProductName(e.target.value)} className="w-full p-2 border-[3px] border-black rounded focus:outline-none focus:ring-2 focus:ring-[#93B8F3]" required />
           </div>
           <div>
             <label htmlFor="price" className="block mb-1 font-bold">
-              Selling Price
+              Harga Jual
             </label>
             <input
               type="number"
@@ -138,7 +137,7 @@ export function EditProductModal({ isOpen, onClose, product, categories: initial
           {/* Add Cost Price Field */}
           <div>
             <label htmlFor="costPrice" className="block mb-1 font-bold">
-              Cost Price
+              Harga Biaya
             </label>
             <input
               type="number"
@@ -153,23 +152,23 @@ export function EditProductModal({ isOpen, onClose, product, categories: initial
           </div>
           <div>
             <label htmlFor="stock" className="block mb-1 font-bold">
-              Stock
+              Stok
             </label>
             <input type="number" id="stock" value={stock} onChange={(e) => setStock(e.target.value)} min="0" className="w-full p-2 border-[3px] border-black rounded focus:outline-none focus:ring-2 focus:ring-[#93B8F3]" required />
           </div>
           <div>
             <label htmlFor="minStock" className="block mb-1 font-bold">
-              Minimum Stock
+              Minimum Stok
             </label>
             <input type="number" id="minStock" value={minStock} onChange={(e) => setMinStock(e.target.value)} min="0" className="w-full p-2 border-[3px] border-black rounded focus:outline-none focus:ring-2 focus:ring-[#93B8F3]" required />
           </div>
           <div>
             <label htmlFor="category" className="block mb-1 font-bold">
-              Category
+              Kategori
             </label>
             <select id="category" value={category} onChange={(e) => setCategory(e.target.value)} className="w-full p-2 border-[3px] border-black rounded focus:outline-none focus:ring-2 focus:ring-[#93B8F3]" required>
               <option value="" disabled>
-                Select Category
+                Pilih Kategori
               </option>
               {localCategories.map((cat) => (
                 <option key={cat.kategoriId} value={cat.nama}>
@@ -180,7 +179,7 @@ export function EditProductModal({ isOpen, onClose, product, categories: initial
           </div>
           <div>
             <label htmlFor="image" className="block mb-1 font-bold">
-              Current Image
+              Gambar saat ini
             </label>
             {currentImageUrl && (
               <div className="mb-2">
@@ -194,7 +193,7 @@ export function EditProductModal({ isOpen, onClose, product, categories: initial
               className="w-full px-4 py-2 bg-white font-bold border-[3px] border-black rounded shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none transition-all flex items-center justify-center gap-2"
             >
               <Upload size={20} />
-              Change Image
+              Ubah Gambar
             </button>
             {image && <p className="mt-2 text-sm">{image.name}</p>}
           </div>
@@ -202,7 +201,7 @@ export function EditProductModal({ isOpen, onClose, product, categories: initial
             type="submit"
             className="w-full px-4 py-2 bg-[#93B8F3] font-bold border-[3px] border-black rounded shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none transition-all"
           >
-            Update Product
+            Perbarui Produk
           </button>
         </form>
       </div>

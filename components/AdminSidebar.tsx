@@ -2,15 +2,15 @@ import { Users, ShoppingBag, UsersIcon as Customers, FileText, Package, BarChart
 
 const menuItems = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboardIcon },
-  { id: 'users', label: 'Users', icon: Users },
-  { id: 'products', label: 'Products', icon: ShoppingBag },
-  { id: 'categories', label: 'Categories', icon: Tag },
+  { id: 'users', label: 'Pengguna', icon: Users },
+  { id: 'products', label: 'Produk', icon: ShoppingBag },
+  { id: 'categories', label: 'Kategori', icon: Tag },
   { id: 'member', label: 'Member', icon: Customers },
-  { id: 'transactions', label: 'Transactions', icon: FileText },
-  { id: 'stock', label: 'Stock', icon: Package },
-  { id: 'promotion', label: 'Promotion', icon:  CalendarRange },
-  { id: 'reports', label: 'Reports', icon: BarChart },
-  { id: 'analytics', label: 'Analytics', icon: BarChart2 },
+  { id: 'transactions', label: 'Transaksi', icon: FileText },
+  { id: 'stock', label: 'Stok', icon: Package },
+  { id: 'promotion', label: 'Promosi', icon:  CalendarRange },
+  { id: 'reports', label: 'Laporan', icon: BarChart },
+  { id: 'analytics', label: 'Analisis', icon: BarChart2 },
 ]
 
 interface AdminSidebarProps {

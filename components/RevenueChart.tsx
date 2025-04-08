@@ -49,21 +49,21 @@ const RevenueChart = () => {
           onChange={(e) => setSelectedTimePeriod(e.target.value as ChartPeriod["period"])} 
           className="border-2 border-black px-2 py-1"
         >
-          <option value="daily">Daily</option>
-          <option value="weekly">Weekly</option>
-          <option value="monthly">Monthly</option>
-          <option value="yearly">Yearly</option>
+          <option value="daily">Harian</option>
+          <option value="weekly">Mingguan</option>
+          <option value="monthly">Bulanan</option>
+          <option value="yearly">Tahunan</option>
         </select>
       </div>
       
       <div className="h-[400px]">
         {isLoadingChart ? (
           <div className="h-full flex items-center justify-center">
-            <p>Loading chart data...</p>
+            <p>Memuat data chart...</p>
           </div>
         ) : error ? (
           <div className="h-full flex items-center justify-center text-red-500">
-            <p>Error loading chart data</p>
+            <p>Error memuat data chart</p>
           </div>
         ) : (
           <ResponsiveContainer width="100%" height="100%">

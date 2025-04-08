@@ -239,21 +239,12 @@ export const NeoOrderSummary = forwardRef<{ resetCustomerData: () => void }, Ord
       setMemberPoints(points);
     }
     toast({
-      title: "Success",
-      description: "Customer data saved successfully",
+      title: "Sukses",
+      description: "Data pelanggan berhasil disimpan",
     });
   };
 
   const handlePlaceOrder = () => {
-    if (!user) {
-      toast({
-        title: "Error",
-        description: "Please log in first",
-        variant: "destructive",
-      });
-      return;
-    }
-
     // Hitung total setelah diskon promosi dan diskon poin
     const totalAfterPromotions = order.total_harga - totalDiscount;
     const finalTotal = Math.max(totalAfterPromotions - redeemedPoints, 0);
@@ -263,7 +254,7 @@ export const NeoOrderSummary = forwardRef<{ resetCustomerData: () => void }, Ord
       const shortage = finalTotal - amountReceived;
       toast({
         title: "Error",
-        description: `Insufficient entry money for payment. You are short by ${shortage.toLocaleString("id-ID", { style: "currency", currency: "IDR" })}`,
+        description: `Uang masuk tidak mencukupi untuk pembayaran. Anda kekurangan uang sebesar ${shortage.toLocaleString("id-ID", { style: "currency", currency: "IDR" })}`,
         variant: "destructive",
       });
       return;
@@ -284,7 +275,7 @@ export const NeoOrderSummary = forwardRef<{ resetCustomerData: () => void }, Ord
       pelangganId: customerData?.pelangganId ?? null,
       guestId: customerData?.guestId ?? null,
       redeemedPoints: redeemedPoints, // Ini akan dipetakan ke diskonPoin di server
-      userId: user.id,
+      userId: user?.id ?? 0,
       uangMasuk: amountReceived,
       kembalian: change,
       customerName: customerData?.nama || "Guest",
@@ -308,7 +299,7 @@ export const NeoOrderSummary = forwardRef<{ resetCustomerData: () => void }, Ord
           if (maxRedeemable < 5000) {
             toast({
               title: "Error",
-              description: "Minimum points redemption is 5000 points",
+              description: "Penukaran poin minimum adalah 5000 poin",
               variant: "destructive",
             });
             return;
@@ -319,13 +310,13 @@ export const NeoOrderSummary = forwardRef<{ resetCustomerData: () => void }, Ord
           setMemberPoints(points - redeemed);
           setPointsToRedeem(0); // Reset input setelah redeem
           toast({
-            title: "Success",
-            description: `${redeemed} points successfully redeemed`,
+            title: "Sukses",
+            description: `${redeemed} poin berhasil ditukarkan`,
           });
         } else {
           toast({
             title: "Error",
-            description: "Insufficient points",
+            description: "Poin tidak mencukupi",
             variant: "destructive",
           });
         }
@@ -333,7 +324,7 @@ export const NeoOrderSummary = forwardRef<{ resetCustomerData: () => void }, Ord
         console.error("Error redeeming points:", error);
         toast({
           title: "Error",
-          description: "Failed to redeem points",
+          description: "Gagal menukarkan poin",
           variant: "destructive",
         });
       }
@@ -351,20 +342,19 @@ export const NeoOrderSummary = forwardRef<{ resetCustomerData: () => void }, Ord
         setRedeemedPoints(0);
 
         toast({
-          title: "Success",
-          description: "Points redemption canceled",
+          title: "Sukes",
+          description: "Penukaran poin dibatalkan",
         });
       } catch (error) {
         console.error("Error restoring points:", error);
         toast({
           title: "Error",
-          description: "Failed to cancel points redemption",
+          description: "Gagal membatalkan penukaran poin",
           variant: "destructive",
         });
       }
     }
   }, [customerData, redeemedPoints]);
-
 
   // Replace the existing hasQuantityPromotion function with this more general function
   const hasActivePromotion = (item: DetailPenjualan & { produk: Produk }) => {
@@ -555,14 +545,14 @@ export const NeoOrderSummary = forwardRef<{ resetCustomerData: () => void }, Ord
 
         {totalDiscount > 0 && (
           <div className="flex justify-between text-red-600 font-bold">
-            <span>Promo Discounts</span>
+            <span>Diskon Promo</span>
             <span>-{formatTotal(totalDiscount)}</span>
           </div>
         )}
 
         {redeemedPoints > 0 && (
           <div className="flex justify-between text-green-600 font-bold">
-            <span>Point Deductions</span>
+            <span>Pengurangan Poin</span>
             <span>-{formatTotal(redeemedPoints)}</span>
           </div>
         )}
@@ -575,14 +565,14 @@ export const NeoOrderSummary = forwardRef<{ resetCustomerData: () => void }, Ord
         {/* Change suggestion - show when amount received is greater than total */}
         {amountReceived > 0 && (
           <div className="flex justify-between font-bold text-lg text-green-600">
-            <span>Change:</span>
+            <span>kembalian:</span>
             <span>{formatTotal(Math.max(0, amountReceived - (order.total_harga - totalDiscount - redeemedPoints)))}</span>
           </div>
         )}
 
         {/* Input untuk Uang Masuk */}
         <div className="flex flex-col">
-          <label className="block mb-2 font-bold">Paid Amount:</label>
+          <label className="block mb-2 font-bold">Jumlah yang Dibayar:</label>
           <input
             type="text"
             value={formattedAmount}
@@ -598,14 +588,14 @@ export const NeoOrderSummary = forwardRef<{ resetCustomerData: () => void }, Ord
                 setFormattedAmount("");
               }
             }}
-            placeholder="Enter the amount of money received"
+            placeholder="Masukkan jumlah uang yang diterima"
             className="p-2 border-2 border-black rounded w-full"
           />
         </div>
 
         {customerData && (
           <div className="bg-white border-2 border-black p-2 mt-2">
-            <h3 className="font-bold text-lg">Customer Information:</h3>
+            <h3 className="font-bold text-lg">Informasi Pelanggan:</h3>
             <p>{customerData.nama}</p>
             {customerData.pelangganId ? <p className="text-green-600">Member</p> : <p className="text-blue-600">Guest</p>}
             {customerData.nomorTelepon && <p>Phone Number: {customerData.nomorTelepon}</p>}
@@ -614,18 +604,18 @@ export const NeoOrderSummary = forwardRef<{ resetCustomerData: () => void }, Ord
         {customerData?.pelangganId && (
           <div className="bg-white border-2 border-black p-2 mt-2">
             <div className="flex justify-between items-center">
-              <span className="font-bold">Member Points: {memberPoints}</span>
+              <span className="font-bold">Member Poin: {memberPoints}</span>
               <span className="text-sm text-gray-500">1 poin = Rp 1</span>
             </div>
 
             {redeemedPoints > 0 ? (
               <div className="mt-2">
                 <div className="flex justify-between items-center mb-2">
-                  <span>Points Redeemed:</span>
-                  <span className="font-bold text-green-600">{redeemedPoints} points</span>
+                  <span>Penukaran Poin:</span>
+                  <span className="font-bold text-green-600">{redeemedPoints} point</span>
                 </div>
                 <button onClick={handleCancelRedeemPoints} className="w-full px-4 py-2 bg-red-500 text-white font-bold border-2 border-black hover:bg-white hover:text-red-500 transition-colors">
-                  Cancel Point Redemption
+                  Batalkan Penukaran Poin
                 </button>
               </div>
             ) : (
@@ -647,19 +637,19 @@ export const NeoOrderSummary = forwardRef<{ resetCustomerData: () => void }, Ord
                   disabled={memberPoints < 5000}
                   className="w-full px-4 py-2 bg-black text-white font-bold border-2 border-black hover:bg-white hover:text-black transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Redeem Points
+                  Tukarkan Poin
                 </button>
-                <p className="text-xs text-gray-500 mt-1">A minimum of 5,000 points is required for redemption</p>
+                <p className="text-xs text-gray-500 mt-1">Minimal 5.000 poin diperlukan untuk penukaran</p>
               </div>
             )}
           </div>
         )}
         <Button onClick={handlePlaceOrder} className="w-full" disabled={isLoading}>
-          {isLoading ? "Processing..." : "Pay"}
+          {isLoading ? "Memproses..." : "Bayar"}
         </Button>
         {!showCustomerInput && (
           <Button onClick={() => setShowCustomerInput(true)} className="w-full">
-            {customerData ? "Edit Customer Data" : "Select Member"}
+            {customerData ? "Edit Data Pelanggan" : "Pilih Member"}
           </Button>
         )}
         {showCustomerInput && <CustomerInputForm onSubmit={handleCustomerSubmit} onCancel={() => setShowCustomerInput(false)} />}

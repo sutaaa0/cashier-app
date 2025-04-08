@@ -43,7 +43,7 @@ export function StockManagement() {
       } else {
         toast({
           title: "Error",
-          description: "Failed to fetch stock items",
+          description: "Gagal mengambil stok produk",
           variant: "destructive",
         });
       }
@@ -51,7 +51,7 @@ export function StockManagement() {
       console.error(error);
       toast({
         title: "Error",
-        description: "An error occurred while fetching stock items",
+        description: "Terjadi kesalahan saat mengambil stok produk",
         variant: "destructive",
       });
     } finally {
@@ -245,13 +245,13 @@ export function StockManagement() {
         setDraftChanges({}); // Reset draft changes
         setDraftInputs({}); // Reset draft inputs
         toast({
-          title: "Success",
-          description: "All changes saved successfully",
+          title: "Berhasil",
+          description: "Semua perubahan berhasil disimpan",
         });
       } else {
         toast({
           title: "Error",
-          description: "Some changes failed to save",
+          description: "Beberapa perubahan gagal disimpan",
           variant: "destructive",
         });
       }
@@ -259,7 +259,7 @@ export function StockManagement() {
       console.error(error);
       toast({
         title: "Error",
-        description: "An error occurred while saving changes",
+        description: "Terjadi kesalahan saat menyimpan perubahan",
         variant: "destructive",
       });
     } finally {
@@ -273,7 +273,7 @@ export function StockManagement() {
     setInputMode({});
     toast({
       title: "Draft Reset",
-      description: "All draft changes have been discarded",
+      description: "Semua rancangan perubahan telah dibuang",
     });
   };
 
@@ -286,7 +286,7 @@ export function StockManagement() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-3xl font-black">STOCK MANAGEMENT</h2>
+        <h2 className="text-3xl font-black">MANAJEMEN STOK</h2>
         <div className="flex gap-2">
           {hasPendingChanges && (
             <>
@@ -296,7 +296,7 @@ export function StockManagement() {
                 className="px-4 py-2 bg-green-500 text-white font-bold border-[3px] border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none transition-all flex items-center gap-2"
               >
                 <Save size={20} />
-                {isSaving ? "Saving..." : "Save Changes"}
+                {isSaving ? "Menabung..." : "Menyimpan Perubahan"}
               </button>
               <button
                 onClick={handleResetDraft}
@@ -315,7 +315,7 @@ export function StockManagement() {
       <div className="relative">
         <input
           type="text"
-          placeholder="Search stock items by name, category, current stock, or min stock"
+          placeholder="Cari stok produk berdasarkan nama, kategori, stok saat ini, atau stok minimum"
           value={searchTerm}
           onChange={handleSearchChange}
           className="w-full px-4 py-2 border-[3px] border-black rounded shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] focus:outline-none focus:ring-2 focus:ring-[#93B8F3]"
@@ -334,8 +334,8 @@ export function StockManagement() {
             <div className="bg-white border-[3px] border-black p-4 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
               <p className="text-center text-gray-500">
                 {searchTerm 
-                  ? `No stock items found for "${searchTerm}"` 
-                  : "No stock items found"
+                  ? `Tidak ada stok barang yang ditemukan untuk "${searchTerm}"` 
+                  : "Tidak ada stok barang yang ditemukan"
                 }
               </p>
             </div>
@@ -368,11 +368,11 @@ export function StockManagement() {
                       <h3 className="font-bold text-lg">{item.name}</h3>
                       <span className="inline-block px-2 py-1 bg-black text-white text-sm">{item.category}</span>
                       <div className="flex items-center gap-2 mt-2">
-                        <span className="text-sm">Last Updated: {new Date(item.lastUpdated).toLocaleString()}</span>
+                        <span className="text-sm">Terakhir Diperbaharui: {new Date(item.lastUpdated).toLocaleString()}</span>
                         {currentStockWithDraft <= item.minStock && (
                           <span className="flex items-center text-red-500 text-sm font-bold">
                             <AlertTriangle size={16} className="mr-1" />
-                            Low Stock
+                            Stok rendah 
                           </span>
                         )}
                         {draftChange !== 0 && (
@@ -399,7 +399,7 @@ export function StockManagement() {
                           type="text" 
                           value={draftInput}
                           onChange={(e) => handleDraftInputChange(item.id, e.target.value)}
-                          placeholder={mode === 'relative' ? "+/-" : "Set to"}
+                          placeholder={mode === 'relative' ? "+/-" : "Atur ke"}
                           className="w-24 text-center border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-[#93B8F3]"
                         />
                         <button 
@@ -418,7 +418,7 @@ export function StockManagement() {
                         <Plus size={20} />
                       </button>
                       <div className="flex flex-col items-center ml-2">
-                        <span className="text-xs text-gray-600">Current</span>
+                        <span className="text-xs text-gray-600">saat ini</span>
                         <span className="font-bold text-lg">{currentStockWithDraft}</span>
                       </div>
                     </div>

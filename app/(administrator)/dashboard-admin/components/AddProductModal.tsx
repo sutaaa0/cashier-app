@@ -71,12 +71,12 @@ export function AddProductModal({ isOpen, onClose, onProductAdded }: AddProductM
     e.preventDefault();
 
     if (!image) {
-      toast({ title: "Error", description: "Please select a product image", variant: "destructive" });
+      toast({ title: "Error", description: "Silakan pilih gambar produk", variant: "destructive" });
       return;
     }
 
     if (!selectedCategoryId) {
-      toast({ title: "Error", description: "Please select a category", variant: "destructive" });
+      toast({ title: "Error", description: "Silakan pilih kategori", variant: "destructive" });
       return;
     }
 
@@ -88,7 +88,7 @@ export function AddProductModal({ isOpen, onClose, onProductAdded }: AddProductM
       formData.append("file", image);
 
       const uploadResponse = await fetch("/api/upload", { method: "POST", body: formData });
-      if (!uploadResponse.ok) throw new Error("Failed to upload image");
+      if (!uploadResponse.ok) throw new Error("Gagal mengunggah gambar");
       const uploadResult = await uploadResponse.json();
 
       const result = await addProduct({
@@ -102,7 +102,7 @@ export function AddProductModal({ isOpen, onClose, onProductAdded }: AddProductM
       });
 
       if (result.status === "Success") {
-        toast({ title: "Success", description: "Product added successfully" });
+        toast({ title: "Success", description: "Produk berhasil ditambahkan" });
         handleClose();
         onProductAdded();
       } else {
@@ -112,7 +112,7 @@ export function AddProductModal({ isOpen, onClose, onProductAdded }: AddProductM
       console.error(error);
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Failed to add product",
+        description: error instanceof Error ? error.message : "Gagal menambahkan produk",
         variant: "destructive",
       });
     } finally {
@@ -126,7 +126,7 @@ export function AddProductModal({ isOpen, onClose, onProductAdded }: AddProductM
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white border-[3px] border-black p-6 rounded-lg shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] w-full max-w-md">
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-2xl font-bold">Add New Product</h2>
+          <h2 className="text-2xl font-bold">Tambahkan Produk Baru</h2>
           <button onClick={handleClose} className="p-1 hover:bg-gray-200 rounded">
             <X size={24} />
           </button>
@@ -135,7 +135,7 @@ export function AddProductModal({ isOpen, onClose, onProductAdded }: AddProductM
           {/* Product Name */}
           <div>
             <label htmlFor="productName" className="block mb-1 font-bold">
-              Product Name
+              Nama Produk
             </label>
             <input type="text" id="productName" value={productName} onChange={(e) => setProductName(e.target.value)} className="w-full p-2 border-[3px] border-black rounded focus:outline-none focus:ring-2 focus:ring-[#93B8F3]" required />
           </div>
@@ -143,7 +143,7 @@ export function AddProductModal({ isOpen, onClose, onProductAdded }: AddProductM
           {/* Selling Price (Harga Jual) */}
           <div>
             <label htmlFor="sellingPrice" className="block mb-1 font-bold">
-              Selling Price
+              Harga Jual
             </label>
             <input
               type="number"
@@ -159,7 +159,7 @@ export function AddProductModal({ isOpen, onClose, onProductAdded }: AddProductM
           {/* Cost Price (Harga Modal) */}
           <div>
             <label htmlFor="costPrice" className="block mb-1 font-bold">
-              Cost Price
+              Harga Biaya
             </label>
             <input
               type="number"
@@ -175,7 +175,7 @@ export function AddProductModal({ isOpen, onClose, onProductAdded }: AddProductM
           {/* Stock */}
           <div>
             <label htmlFor="stock" className="block mb-1 font-bold">
-              Initial Stock
+              Stok Awal
             </label>
             <input type="number" id="stock" value={stock} onChange={(e) => setStock(e.target.value)} min="0" className="w-full p-2 border-[3px] border-black rounded focus:outline-none focus:ring-2 focus:ring-[#93B8F3]" required />
           </div>
@@ -183,7 +183,7 @@ export function AddProductModal({ isOpen, onClose, onProductAdded }: AddProductM
           {/* Minimum Stock */}
           <div>
             <label htmlFor="minStock" className="block mb-1 font-bold">
-              Minimum Stock
+              Stok Minimum
             </label>
             <input type="number" id="minStock" value={minStock} onChange={(e) => setMinStock(e.target.value)} min="0" className="w-full p-2 border-[3px] border-black rounded focus:outline-none focus:ring-2 focus:ring-[#93B8F3]" />
           </div>
@@ -191,7 +191,7 @@ export function AddProductModal({ isOpen, onClose, onProductAdded }: AddProductM
           {/* Category */}
           <div>
             <label htmlFor="category" className="block mb-1 font-bold">
-              Category
+              Kategori
             </label>
             <select
               id="category"
@@ -200,7 +200,7 @@ export function AddProductModal({ isOpen, onClose, onProductAdded }: AddProductM
               className="w-full p-2 border-[3px] border-black rounded focus:outline-none focus:ring-2 focus:ring-[#93B8F3]"
               required
             >
-              <option value="">Select Category</option>
+              <option value="">Pilih Kategori</option>
               {categories.map((cat) => (
                 <option key={cat.kategoriId} value={cat.kategoriId}>
                   {cat.nama}
@@ -212,7 +212,7 @@ export function AddProductModal({ isOpen, onClose, onProductAdded }: AddProductM
           {/* Product Image */}
           <div>
             <label htmlFor="image" className="block mb-1 font-bold">
-              Product Image
+              Gambar Produk
             </label>
             <input
               type="file"
@@ -229,7 +229,7 @@ export function AddProductModal({ isOpen, onClose, onProductAdded }: AddProductM
             disabled={isLoading}
             className="w-full px-4 py-2 bg-[#93B8F3] font-bold border-[3px] border-black rounded shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Add Product
+            Tambahkan Produk
           </button>
         </form>
       </div>

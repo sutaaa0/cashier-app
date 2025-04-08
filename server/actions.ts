@@ -2,7 +2,7 @@
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/db";
 import bcrypt from "bcryptjs";
-import * as jose from "jose";
+import * as jose from "jose";     
 import { DetailPenjualan, Pelanggan, Produk, Prisma } from "@prisma/client";
 import { CreateOrderDetail, CustomerTransactionData } from "@/types/types";
 import { revalidatePath } from "next/cache";
@@ -2240,38 +2240,83 @@ export async function getLowStockProductsDashboard() {
   }
 }
 
-export async function getTopCustomers() {
+export async function getTopCustomers(period: "all" | "month" | "year" = "all") {
   try {
+    // Menentukan filter tanggal berdasarkan periode
+    let dateFilter = {};
+    if (period === "month") {
+      const today = new Date();
+      const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+      dateFilter = {
+        tanggalPenjualan: {
+          gte: firstDayOfMonth
+        }
+      };
+    } else if (period === "year") {
+      const today = new Date();
+      const firstDayOfYear = new Date(today.getFullYear(), 0, 1);
+      dateFilter = {
+        tanggalPenjualan: {
+          gte: firstDayOfYear
+        }
+      };
+    }
+
     // Mengambil data pelanggan dengan total pembelian tertinggi
     const customers = await prisma.pelanggan.findMany({
       where: {
         NOT: {
           nama: "Guest", // Mengabaikan pelanggan Guest
         },
+        penjualan: {
+          some: dateFilter // Hanya pelanggan dengan transaksi & filter periode
+        }
       },
       select: {
         pelangganId: true,
         nama: true,
         points: true,
         penjualan: {
+          where: dateFilter,
           select: {
             total_harga: true,
+            tanggalPenjualan: true,
           },
+          orderBy: {
+            tanggalPenjualan: "desc"
+          }
         },
-      },
-      orderBy: {
-        points: "desc",
+        _count: {
+          select: {
+            penjualan: {
+              where: dateFilter
+            }
+          }
+        }
       },
       take: 5, // Mengambil 5 pelanggan teratas
     });
 
-    // Memproses data untuk mendapatkan total pembelian
-    const processedCustomers = customers.map((customer) => ({
-      id: customer.pelangganId,
-      nama: customer.nama,
-      totalSpent: customer.penjualan.reduce((sum, sale) => sum + sale.total_harga, 0),
-      points: customer.points,
-    }));
+    // Memproses data untuk mendapatkan format yang diinginkan
+    const processedCustomers = customers.map((customer) => {
+      const totalSpent = customer.penjualan.reduce(
+        (sum, sale) => sum + Number(sale.total_harga), 
+        0
+      );
+      
+      const lastPurchaseDate = customer.penjualan.length > 0 
+        ? formatDate(customer.penjualan[0].tanggalPenjualan)
+        : "Tidak ada";
+
+      return {
+        id: customer.pelangganId,
+        nama: customer.nama,
+        totalSpent,
+        points: customer.points,
+        transactionCount: customer._count.penjualan,
+        lastPurchaseDate
+      };
+    });
 
     // Mengurutkan berdasarkan total pembelian
     return processedCustomers.sort((a, b) => b.totalSpent - a.totalSpent);
@@ -2279,6 +2324,18 @@ export async function getTopCustomers() {
     console.error("Error fetching top customers:", error);
     return [];
   }
+}
+
+// Helper function untuk format tanggal
+function formatDate(date: string | Date) {
+  if (!date) return "Tidak ada";
+  
+  const d = new Date(date);
+  return new Intl.DateTimeFormat('id-ID', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric'
+  }).format(d);
 }
 
 export async function getCashierPerformance(startDate?: Date, endDate?: Date) {

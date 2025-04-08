@@ -11,7 +11,7 @@ import { NeoSearchInput } from "./InputSearch";
 import { NeoOrderSummary } from "./order-summary";
 import { NeoProgressIndicator } from "./NeoProgresIndicator";
 import { ReceiptModal } from "./ReceiptModal";
-import { Button } from "./ui/button";
+// import { Button } from "./ui/button";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 
@@ -459,7 +459,7 @@ const Pos = (): JSX.Element => {
       console.error("Error creating order:", error);
       toast({
         title: "Error",
-        description: "Failed to create order. Please try again.",
+        description: "Gagal membuat pesanan. Silakan coba lagi.",
         variant: "destructive",
       });
     }
@@ -480,10 +480,7 @@ const Pos = (): JSX.Element => {
     );
   }
 
-  const filteredProducts = products.filter((product) => 
-    (product?.nama || "").toLowerCase().includes(searchQuery.toLowerCase()) && 
-    (selectedCategory === "All Menu" || product?.kategori?.nama === selectedCategory)
-  );
+  const filteredProducts = products.filter((product) => (product?.nama || "").toLowerCase().includes(searchQuery.toLowerCase()) && (selectedCategory === "All Menu" || product?.kategori?.nama === selectedCategory));
 
   return (
     <div className="h-screen flex flex-col bg-white">
@@ -510,11 +507,11 @@ const Pos = (): JSX.Element => {
       )}
 
       {/* Refund Button */}
-      <div className="fixed bottom-4 right-4">
+      {/* <div className="fixed bottom-4 right-4">
         <Button onClick={() => router.push("/kasir/return")} className="mb-3 px-4 py-2 bg-red-500 text-white font-bold border-2 border-black hover:bg-black hover:text-red-500">
-          Refund
+          Pengembalian
         </Button>
-      </div>
+      </div> */}
     </div>
   );
 };

@@ -51,7 +51,7 @@ export function LowStockProductsChart() {
               <h3 className="font-black text-xl">{label}</h3>
             </div>
             <div className="font-mono bg-black text-white p-2 transform -rotate-1">
-              {payload[0].value} UNITS LEFT
+              {payload[0].value} UNIT TERSISA
             </div>
           </div>
         </div>
@@ -88,7 +88,7 @@ export function LowStockProductsChart() {
           <div className="transform -rotate-2 bg-gradient-to-r from-red-400 to-orange-400 border-4 border-black p-3 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
             <h2 className="text-2xl font-black tracking-tighter flex items-center gap-2">
               <Package2 size={24} />
-              LOW STOCK ALERT
+              PERINGATAN STOK RENDAH
             </h2>
           </div>
           <div className="bg-black text-white p-3 transform rotate-3 hover:rotate-6 transition-transform">

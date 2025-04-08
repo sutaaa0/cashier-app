@@ -1,7 +1,7 @@
 "use client";
 
 import React, { memo } from "react";
-import { Edit, Trash2, Calendar, Tag, Percent, DollarSign } from "lucide-react";
+import { Trash2, Calendar, Tag, Percent, DollarSign } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { formatRupiah } from "@/lib/formatIdr";
 import { Promotion } from "@/types/promotion";
@@ -57,7 +57,7 @@ const PromotionCard = memo(({ promotion, onEdit, onDelete, disabled }: Promotion
             {promotion.minQuantity && (
               <div className="flex items-center gap-1 bg-orange-100 px-3 py-1 border-2 border-black">
                 <Tag size={16} className="text-orange-500" />
-                <span className="font-bold">Min. {promotion.minQuantity} items</span>
+                <span className="font-bold">Min. {promotion.minQuantity} item</span>
               </div>
             )}
           </div>
@@ -65,7 +65,7 @@ const PromotionCard = memo(({ promotion, onEdit, onDelete, disabled }: Promotion
           {/* Display related products if any */}
           {promotion.products && promotion.products.length > 0 && (
             <div className="mt-2">
-              <p className="text-sm font-bold">Products:</p>
+              <p className="text-sm font-bold">Produk:</p>
               <div className="flex flex-wrap gap-2">
                 {promotion.products.map((product) => (
                   <span key={product.produkId} className="px-2 py-1 text-xs bg-gray-100 border-2 border-black font-bold transform -rotate-1">
@@ -103,18 +103,18 @@ function getPromotionStatus(startDate: string | Date, endDate: string | Date): s
   const start = new Date(startDate);
   const end = new Date(endDate);
 
-  if (now < start) return "WILL COME";
-  if (now > end) return "ENDED";
-  return "ACTIVE";
+  if (now < start) return "AKAN DATANG";
+  if (now > end) return "BERAKHIR";
+  return "AKTIF";
 }
 
 function getPromotionStatusColor(status: string): string {
   switch (status) {
-    case "ACTIVE":
+    case "AKTIF":
       return "bg-[#4ECDC4] text-black";
-    case "WILL COME":
+    case "AKAN DATANG":
       return "bg-[#FFD93D] text-black";
-    case "ENDED":
+    case "BERAKHIR":
       return "bg-gray-200 text-black";
     default:
       return "bg-gray-200 text-black";

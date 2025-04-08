@@ -25,7 +25,7 @@ export function ProductManagement() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<ProductWithKategori | null>(null);
-  const [loadingMessage, setLoadingMessage] = useState("Loading Products...");
+  const [loadingMessage, setLoadingMessage] = useState("Loading Produk...");
   const [searchTerm, setSearchTerm] = useState("");
 
   // Get QueryClient instance
@@ -86,14 +86,14 @@ export function ProductManagement() {
       if (result.status === "Success") {
         toast({
           title: "Success",
-          description: "Product deleted successfully",
+          description: "Produk berhasil dihapus",
         });
         // Invalidate and refetch products query
         queryClient.invalidateQueries({ queryKey: ["products"] });
       } else {
         toast({
           title: "Error",
-          description: "Failed to delete product",
+          description: "Gagal menghapus produk",
           variant: "destructive",
         });
       }
@@ -102,7 +102,7 @@ export function ProductManagement() {
       console.error(error);
       toast({
         title: "Error",
-        description: "An error occurred while deleting the product",
+        description: "Terjadi kesalahan saat menghapus produk",
         variant: "destructive",
       });
     },
@@ -116,13 +116,13 @@ export function ProductManagement() {
   const updateProductMutation = useMutation({
     mutationFn: (updatedProduct: { id: number; name: string; price: number; costPrice: number; stock: number; minimumStok: number; category: string; imageUrl: string }) => updateProduct(updatedProduct),
     onMutate: () => {
-      setLoadingMessage("Updating product...");
+      setLoadingMessage("Memperbarui produk...");
     },
     onSuccess: (result) => {
       if (result.status === "Success") {
         toast({
-          title: "Success",
-          description: "Product updated successfully",
+          title: "Berhasil",
+          description: "Produk berhasil diperbarui",
         });
         // Invalidate and refetch products query
         queryClient.invalidateQueries({ queryKey: ["products"] });
@@ -130,7 +130,7 @@ export function ProductManagement() {
       } else {
         toast({
           title: "Error",
-          description: result.message ?? "Failed to update product" ,
+          description: result.message ?? "Gagal memperbarui produk",
           variant: "destructive",
         });
       }
@@ -139,7 +139,7 @@ export function ProductManagement() {
       console.error(error);
       toast({
         title: "Error",
-        description: "An error occurred while updating the product",
+        description: "Terjadi kesalahan saat memperbarui produk",
         variant: "destructive",
       });
     },
@@ -155,7 +155,7 @@ export function ProductManagement() {
       deleteProductMutation.mutate(selectedProduct.produkId);
     }
 
-    setLoadingMessage("Deleting product...");
+    setLoadingMessage("Menghapus produk...");
     // Both invalidate and explicitly refetch
     await queryClient.invalidateQueries({ queryKey: ["products"] });
     await refetchProducts(); // Use the explicit refetch function
@@ -178,14 +178,14 @@ export function ProductManagement() {
       imageUrl: updatedProduct.imageUrl || "",
     });
 
-    setLoadingMessage("Updating new product...");
+    setLoadingMessage("Memperbarui produk...");
     // Both invalidate and explicitly refetch
     await queryClient.invalidateQueries({ queryKey: ["products"] });
     await refetchProducts(); // Use the explicit refetch function
   };
 
   const handleAddProduct = async () => {
-    setLoadingMessage("Adding new product...");
+    setLoadingMessage("Menambahkan produk baru...");
     // Both invalidate and explicitly refetch
     await queryClient.invalidateQueries({ queryKey: ["products"] });
     await refetchProducts(); // Use the explicit refetch function
@@ -206,7 +206,7 @@ export function ProductManagement() {
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchTerm(e.target.value);
-    setLoadingMessage("Searching product...");
+    setLoadingMessage("Mencari produk...");
   };
 
   // Calculate overall loading state
@@ -215,13 +215,13 @@ export function ProductManagement() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-3xl font-black">PRODUCT MANAGEMENT</h2>
+        <h2 className="text-3xl font-black">MANAJEMEN PRODUK</h2>
         <button
           onClick={() => setIsAddModalOpen(true)}
           className="px-4 py-2 bg-[#93B8F3] font-bold border-[3px] border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none transition-all flex items-center gap-2"
         >
           <Plus size={20} />
-          Add New Product
+          Tambahkan Produk Baru
         </button>
       </div>
 
@@ -229,7 +229,7 @@ export function ProductManagement() {
       <div className="relative">
         <input
           type="text"
-          placeholder="Search products by name, category, status, or price"
+          placeholder="Cari produk berdasarkan nama, kategori, status, atau harga"
           value={searchTerm}
           onChange={handleSearchChange}
           className="w-full px-4 py-2 border-[3px] border-black rounded shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] focus:outline-none focus:ring-2 focus:ring-[#93B8F3]"
@@ -240,7 +240,7 @@ export function ProductManagement() {
       <div className="grid gap-4">
         {produk.length === 0 && !isLoading && (
           <div className="bg-white border-[3px] border-black p-4 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-            <p className="text-center text-gray-500">{searchTerm ? `No products found for "${searchTerm}"` : "No products found"}</p>
+            <p className="text-center text-gray-500">{searchTerm ? `Tidak ada produk yang ditemukan untuk  "${searchTerm}"` : "Tidak ada produk yang ditemukan"}</p>
           </div>
         )}
 
@@ -254,21 +254,21 @@ export function ProductManagement() {
                 <div>
                   <h3 className="font-bold text-lg">{product.nama}</h3>
                   <p className="text-sm">
-                    Price:{" "}
+                    Harga:{" "}
                     {new Intl.NumberFormat("id-ID", {
                       style: "currency",
                       currency: "IDR",
                     }).format(product.harga)}
                   </p>
                   <p className="text-sm">
-                    Cost Price:{" "}
+                    Harga Biaya:{" "}
                     {new Intl.NumberFormat("id-ID", {
                       style: "currency",
                       currency: "IDR",
                     }).format(product.hargaModal)}
                   </p>
                   <p className="text-sm">
-                    Stock: {product.stok} | Min Stock: {product.minimumStok}
+                    Stok: {product.stok} | Min Stok: {product.minimumStok}
                     <span className={`ml-2 font-medium ${getStockStatusColor(product.statusStok)}`}>({product.statusStok})</span>
                   </p>
                   <div className="flex items-center mt-1">
@@ -299,7 +299,7 @@ export function ProductManagement() {
       </div>
       <AddProductModal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} onProductAdded={handleAddProduct} />
       {selectedProduct && <EditProductModal categories={category} isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} product={selectedProduct} onEditProduct={handleEditProduct} />}
-      <DeleteConfirmModal isOpen={isDeleteModalOpen} onClose={() => setIsDeleteModalOpen(false)} onConfirm={handleDeleteProduct} itemName={selectedProduct?.nama || ""} subject="Product" />
+      <DeleteConfirmModal isOpen={isDeleteModalOpen} onClose={() => setIsDeleteModalOpen(false)} onConfirm={handleDeleteProduct} itemName={selectedProduct?.nama || ""} subject="Produk" />
       <NeoProgressIndicator isLoading={isLoading} message={loadingMessage} />
     </div>
   );

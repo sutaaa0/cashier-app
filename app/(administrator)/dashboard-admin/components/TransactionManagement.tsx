@@ -64,7 +64,7 @@ export function TransactionManagement() {
       } else {
         toast({
           title: "Error",
-          description: "Failed to fetch transactions",
+          description: "Gagal mengambil transaksi",
           variant: "destructive",
         });
       }
@@ -72,7 +72,7 @@ export function TransactionManagement() {
       console.error(error);
       toast({
         title: "Error",
-        description: "An error occurred while fetching transactions",
+        description: "Terjadi kesalahan saat mengambil transaksi",
         variant: "destructive",
       });
     } finally {
@@ -142,7 +142,7 @@ export function TransactionManagement() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-3xl font-black">TRANSACTION HISTORY</h2>
+        <h2 className="text-3xl font-black">RIWAYAT TRANSAKSI</h2>
         <div className="flex items-center gap-2">
           <button
             onClick={fetchTransactions}
@@ -169,10 +169,10 @@ export function TransactionManagement() {
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
-                    <h3 className="font-bold text-lg">Transaction #{transaction.penjualanId}</h3>
+                    <h3 className="font-bold text-lg">Transaksi #{transaction.penjualanId}</h3>
                     {transaction.returns.length > 0 && (
                       <span className="text-red-500 text-sm">
-                        ({transaction.returns.length} Refund{transaction.returns.length > 1 ? 's' : ''})
+                        ({transaction.returns.length} Pengembalian{transaction.returns.length > 1 ? 's' : ''})
                       </span>
                     )}
                   </div>
@@ -185,12 +185,12 @@ export function TransactionManagement() {
                     {(transaction.diskonPoin ?? 0) > 0 && (
                       <span className="flex items-center text-sm text-green-600">
                         <CreditCard size={16} className="mr-1" />
-                        Points: -{formatRupiah(transaction.diskonPoin ?? 0)}
+                        Poin: -{formatRupiah(transaction.diskonPoin ?? 0)}
                       </span>
                     )}
                   </div>
                   <p className="text-sm mt-1">
-                    {transaction.pelanggan ? transaction.pelanggan.nama : `Guest ${transaction.guest?.guestId}`} • {transaction.detailPenjualan.length} items
+                    {transaction.pelanggan ? transaction.pelanggan.nama : `Guest ${transaction.guest?.guestId}`} • {transaction.detailPenjualan.length} item
                   </p>
                 </div>
               </div>
@@ -213,7 +213,7 @@ export function TransactionManagement() {
           transaction={selectedTransaction} 
         />
       )}
-      <NeoProgressIndicator isLoading={isLoading} message="Loading transactions..." />
+      <NeoProgressIndicator isLoading={isLoading} message="Loading transaksi..." />
     </div>
   );
 }

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { CheckCircle2, Download, ShoppingBag, Clock, Calendar, User, CreditCard, Coins } from "lucide-react";
+import { CheckCircle2, Download, ShoppingBag, Clock, Calendar, User, CreditCard, Coins, Printer } from "lucide-react";
 import { getCustomerById, getPetugasById } from "@/server/actions";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
@@ -255,9 +255,11 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ receiptData, onClose
       doc.setTextColor(0, 0, 0); // Reset text color
     }
 
-    // Show subtotal after promotion discounts
-    leftRightText("Subtotal setelah promosi:", formatCurrency(receiptData.totalBeforePointsDiscount || receiptData.finalTotal), yPos);
-    yPos += lineHeight;
+    // if((calculateTotalSavings() > 0 || (receiptData.redeemedPoints || 0) > 0)) {
+    //   // Show subtotal after promotion discounts
+    //   leftRightText("Subtotal setelah promosi:", formatCurrency(receiptData.totalBeforePointsDiscount || receiptData.finalTotal), yPos);
+    //   yPos += lineHeight;
+    // }
 
     // Show points redemption if available
     if (receiptData.redeemedPoints && receiptData.redeemedPoints > 0) {
@@ -343,6 +345,29 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ receiptData, onClose
     yPos += lineHeight * 2;
 
     return doc;
+  };
+
+  const handlePrintPDF = () => {
+    try {
+      const doc = generatePDF();
+      const blob = doc.output("blob");
+      const url = URL.createObjectURL(blob);
+
+      // Open in new window and print
+      const printWindow = window.open(url);
+
+      if (printWindow) {
+        printWindow.onload = function () {
+          printWindow.print();
+          URL.revokeObjectURL(url);
+        };
+      } else {
+        alert("Mohon izinkan pop-up untuk mencetak struk.");
+      }
+    } catch (error) {
+      console.error("Error printing PDF:", error);
+      alert("Gagal mencetak struk. Silakan coba lagi.");
+    }
   };
 
   const handleDownloadPDF = () => {
@@ -497,10 +522,13 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ receiptData, onClose
                 </div>
               )}
 
-              <div className="flex justify-between mb-2">
-                <span className="text-gray-600">Subtotal After Promotions:</span>
-                <span className="font-medium">{formatCurrency(receiptData.totalBeforePointsDiscount || receiptData.finalTotal)}</span>
-              </div>
+              {/* Only show Subtotal After Promotions if there are any discounts */}
+              {/* {(calculateTotalSavings() > 0 ) && (
+                <div className="flex justify-between mb-2">
+                  <span className="text-gray-600">Subtotal After Promotions:</span>
+                  <span className="font-medium">{formatCurrency(receiptData.totalBeforePointsDiscount || receiptData.finalTotal)}</span>
+                </div>
+              )} */}
 
               {/* Points redemption information */}
               {(receiptData.redeemedPoints || 0) > 0 && (
@@ -566,10 +594,14 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ receiptData, onClose
 
           {/* Fixed footer */}
           <div className="px-6 pb-6 pt-2 border-t border-gray-200">
-            <div className="grid grid-cols-2 gap-3 mb-3">
+            <div className="grid grid-cols-3 gap-3 mb-3">
               <button onClick={handleDownloadPDF} className="bg-green-500 text-white py-3 rounded-lg hover:bg-green-600 transition-colors flex items-center justify-center gap-2 font-medium">
                 <Download className="w-5 h-5" />
-                Download Receipt
+                Download
+              </button>
+              <button onClick={handlePrintPDF} className="bg-blue-500 text-white py-3 rounded-lg hover:bg-blue-600 transition-colors flex items-center justify-center gap-2 font-medium">
+                <Printer className="w-5 h-5" />
+                Print
               </button>
               <button onClick={onClose} className="bg-gray-800 text-white py-3 rounded-lg hover:bg-black transition-colors font-medium">
                 Close

@@ -43,7 +43,7 @@ export function EditUserModal({ isOpen, onClose, user }: EditUserModalProps) {
       if (response.status === "Success") {
         toast({
           title: "Success",
-          description: "User successfully updated",
+          description: "Pengguna berhasil diperbarui",
         });
         onClose();
       } else {
@@ -57,7 +57,7 @@ export function EditUserModal({ isOpen, onClose, user }: EditUserModalProps) {
       console.log(error);
       toast({
         title: "Error",
-        description: "Failed to update user",
+        description: "Gagal memperbarui pengguna",
         variant: "destructive",
       });
     }
@@ -70,7 +70,7 @@ export function EditUserModal({ isOpen, onClose, user }: EditUserModalProps) {
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white border-[3px] border-black p-6 rounded-lg shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] w-full max-w-md">
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-2xl font-bold">Update User</h2>
+          <h2 className="text-2xl font-bold">Perbarui Pengguna</h2>
           <button onClick={onClose} className="p-1 hover:bg-gray-200 rounded">
             <X size={24} />
           </button>
@@ -80,18 +80,11 @@ export function EditUserModal({ isOpen, onClose, user }: EditUserModalProps) {
             <label htmlFor="username" className="block mb-1 font-bold">
               Username
             </label>
-            <input
-              type="text"
-              id="username"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              className="w-full p-2 border-[3px] border-black rounded focus:outline-none focus:ring-2 focus:ring-[#93B8F3]"
-              required
-            />
+            <input type="text" id="username" value={username} onChange={(e) => setUsername(e.target.value)} className="w-full p-2 border-[3px] border-black rounded focus:outline-none focus:ring-2 focus:ring-[#93B8F3]" required />
           </div>
           <div className="relative">
             <label htmlFor="password" className="block mb-1 font-bold">
-              New Password (leave blank to keep current)
+              Kata Sandi Baru (biarkan kosong agar tetap terkini)
             </label>
             <input
               type={showPassword ? "text" : "password"}
@@ -100,11 +93,7 @@ export function EditUserModal({ isOpen, onClose, user }: EditUserModalProps) {
               onChange={(e) => setPassword(e.target.value)}
               className="w-full p-2 border-[3px] border-black rounded focus:outline-none focus:ring-2 focus:ring-[#93B8F3] pr-10"
             />
-            <button
-              type="button"
-              onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-3 top-[65%] transform  text-gray-500 hover:text-black"
-            >
+            <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-[65%] transform  text-gray-500 hover:text-black">
               {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
             </button>
           </div>
@@ -112,13 +101,7 @@ export function EditUserModal({ isOpen, onClose, user }: EditUserModalProps) {
             <label htmlFor="level" className="block mb-1 font-bold">
               Level
             </label>
-            <select
-              id="level"
-              value={level}
-              onChange={(e) => setLevel(e.target.value)}
-              className="w-full p-2 border-[3px] border-black rounded focus:outline-none focus:ring-2 focus:ring-[#93B8F3]"
-              required
-            >
+            <select id="level" value={level} onChange={(e) => setLevel(e.target.value)} className="w-full p-2 border-[3px] border-black rounded focus:outline-none focus:ring-2 focus:ring-[#93B8F3]" required>
               <option value="PETUGAS">PETUGAS</option>
               <option value="ADMIN">ADMIN</option>
             </select>
@@ -127,7 +110,7 @@ export function EditUserModal({ isOpen, onClose, user }: EditUserModalProps) {
             type="submit"
             className="w-full px-4 py-2 bg-[#93B8F3] font-bold border-[3px] border-black rounded shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none transition-all"
           >
-            Update User
+            Perbarui Pengguna 
           </button>
         </form>
       </div>

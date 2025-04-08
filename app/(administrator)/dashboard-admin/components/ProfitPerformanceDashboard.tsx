@@ -309,18 +309,18 @@ const ProfitPerformanceDashboard: React.FC<MonthlyProfitReportProps> = ({ report
     // Create Profit Summary sheet
     const summaryData = [
       {
-        "Report Name": report.name,
-        Period: report.period,
-        "Generated Date": new Date(report.generatedDate).toLocaleString(),
-        "Total Sales": formatRupiah(report.totalAmount),
-        "Total Cost": formatRupiah(report.totalAmount - report.totalProfit),
-        "Total Profit": formatRupiah(report.totalProfit),
-        "Avg. Profit Margin": `${(report.profitMargin * 100).toFixed(2)}%`,
-        "Overall Growth": overallGrowth ? `${overallGrowth.toFixed(2)}%` : "0%",
-        "Highest Profit Period": highestProfitPeriod.periodLabel || "0%",
-        "Highest Profit Amount": formatRupiah(highestProfitPeriod.profit || 0),
-        "Lowest Profit Period": lowestProfitPeriod.periodLabel || "0%",
-        "Lowest Profit Amount": formatRupiah(lowestProfitPeriod.profit || 0),
+        "Nama Laporan": report.name,
+        Periode: report.period,
+        "Tanggal Dibuat": new Date(report.generatedDate).toLocaleString(),
+        "Total Penjualan": formatRupiah(report.totalAmount),
+        "Total Biaya": formatRupiah(report.totalAmount - report.totalProfit),
+        "Total Keuntungan": formatRupiah(report.totalProfit),
+        "Rata-rata Margin Keuntungan": `${(report.profitMargin * 100).toFixed(2)}%`,
+        "Pertumbuhan Keseluruhan": overallGrowth ? `${overallGrowth.toFixed(2)}%` : "0%",
+        "Periode Keuntungan Tertinggi": highestProfitPeriod.periodLabel || "0%",
+        "Jumlah Keuntungan Tertinggi": formatRupiah(highestProfitPeriod.profit || 0),
+        "Periode Keuntungan Terendah": lowestProfitPeriod.periodLabel || "0%",
+        "Jumlah Keuntungan Terendah": formatRupiah(lowestProfitPeriod.profit || 0),
       },
     ];
 
@@ -338,60 +338,60 @@ const ProfitPerformanceDashboard: React.FC<MonthlyProfitReportProps> = ({ report
       popGrowth?: number | null;
     }
 
-    interface DetailedDataEntry {
-      Period: string;
-      "Total Sales": string;
-      "Total Cost": string;
-      Profit: string;
-      "Profit Margin": string;
-      Orders: number;
-      "Growth (vs Previous)": string;
+    interface DataEntriRinci {
+      Periode: string;
+      "Total Penjualan": string;
+      "Total Biaya": string;
+      Keuntungan: string;
+      "Margin Keuntungan": string;
+      Pesanan: number;
+      "Pertumbuhan (vs Sebelumnya)": string;
     }
 
-    const detailedData: DetailedDataEntry[] = report.data.map((period: IReportPeriod) => ({
-      Period: period.periodLabel,
-      "Total Sales": formatRupiah(period.totalSales),
-      "Total Cost": formatRupiah(period.totalModal),
-      Profit: formatRupiah(period.profit),
-      "Profit Margin": `${period.profitMargin.toFixed(2)}%`,
-      Orders: period.totalOrders,
-      "Growth (vs Previous)": period.popGrowth ? `${period.popGrowth.toFixed(2)}%` : "0%",
+    const dataRinci: DataEntriRinci[] = report.data.map((period: IReportPeriod) => ({
+      Periode: period.periodLabel,
+      "Total Penjualan": formatRupiah(period.totalSales),
+      "Total Biaya": formatRupiah(period.totalModal),
+      Keuntungan: formatRupiah(period.profit),
+      "Margin Keuntungan": `${period.profitMargin.toFixed(2)}%`,
+      Pesanan: period.totalOrders,
+      "Pertumbuhan (vs Sebelumnya)": period.popGrowth ? `${period.popGrowth.toFixed(2)}%` : "0%",
     }));
 
-    const ws2 = XLSX.utils.json_to_sheet(detailedData);
-    XLSX.utils.book_append_sheet(wb, ws2, "Detailed Profit Data");
+    const ws2 = XLSX.utils.json_to_sheet(dataRinci);
+    XLSX.utils.book_append_sheet(wb, ws2, "Data Keuntungan Rinci");
 
-    // Create projections sheet if available
+    // Membuat sheet proyeksi jika tersedia
     if (projectedData.length > 0) {
-      const projectionData = projectedData.map((period) => ({
-        Period: period.periodLabel,
-        "Projected Sales": formatRupiah(period.totalSales),
-        "Projected Cost": formatRupiah(period.totalModal),
-        "Projected Profit": formatRupiah(period.profit),
-        "Projected Margin": `${period.profitMargin.toFixed(2)}%`,
-        "Based On": "Historical trend analysis",
+      const dataProyeksi = projectedData.map((period) => ({
+        Periode: period.periodLabel,
+        "Proyeksi Penjualan": formatRupiah(period.totalSales),
+        "Proyeksi Biaya": formatRupiah(period.totalModal),
+        "Proyeksi Keuntungan": formatRupiah(period.profit),
+        "Proyeksi Margin": `${period.profitMargin.toFixed(2)}%`,
+        Berdasarkan: "Analisis tren historis",
       }));
 
-      const ws3 = XLSX.utils.json_to_sheet(projectionData);
-      XLSX.utils.book_append_sheet(wb, ws3, "Projections");
+      const ws3 = XLSX.utils.json_to_sheet(dataProyeksi);
+      XLSX.utils.book_append_sheet(wb, ws3, "Proyeksi");
     }
 
-    // Create significant changes sheet if available
+    // Membuat sheet perubahan signifikan jika tersedia
     if (significantChanges.length > 0) {
-      const changesData = significantChanges.map((period) => ({
-        Period: period.periodLabel,
-        "Change Type": period.changeType === "positive" ? "Improvement" : "Decline",
-        "Profit Change": `${period.popGrowth?.toFixed(2)}%`,
-        "Sales Change": `${period.salesGrowth ? period.salesGrowth.toFixed(2) : "0"}%`,
-        "Cost Change": `${period.costGrowth ? period.costGrowth.toFixed(2) : "0"}%`,
-        "Margin Change": `${period.marginGrowth ? period.marginGrowth.toFixed(2) : "0"}%`,
-        "Total Sales": formatRupiah(period.totalSales),
-        "Total Cost": formatRupiah(period.totalModal),
-        Profit: formatRupiah(period.profit),
+      const dataPerubahan = significantChanges.map((period) => ({
+        Periode: period.periodLabel,
+        "Jenis Perubahan": period.changeType === "positive" ? "Peningkatan" : "Penurunan",
+        "Perubahan Keuntungan": `${period.popGrowth?.toFixed(2)}%`,
+        "Perubahan Penjualan": `${period.salesGrowth ? period.salesGrowth.toFixed(2) : "0"}%`,
+        "Perubahan Biaya": `${period.costGrowth ? period.costGrowth.toFixed(2) : "0"}%`,
+        "Perubahan Margin": `${period.marginGrowth ? period.marginGrowth.toFixed(2) : "0"}%`,
+        "Total Penjualan": formatRupiah(period.totalSales),
+        "Total Biaya": formatRupiah(period.totalModal),
+        Keuntungan: formatRupiah(period.profit),
       }));
 
-      const ws4 = XLSX.utils.json_to_sheet(changesData);
-      XLSX.utils.book_append_sheet(wb, ws4, "Significant Changes");
+      const ws4 = XLSX.utils.json_to_sheet(dataPerubahan);
+      XLSX.utils.book_append_sheet(wb, ws4, "Perubahan Signifikan");
     }
 
     // Write the file
@@ -408,36 +408,36 @@ const ProfitPerformanceDashboard: React.FC<MonthlyProfitReportProps> = ({ report
     const pageHeight = doc.internal.pageSize.getHeight();
     const margin = 10;
 
-    // Header with smaller font size
+    // Header dengan ukuran font lebih kecil
     doc.setFontSize(16);
     doc.setFont("helvetica", "bold");
     doc.text(report.name, margin, 15);
 
     doc.setFontSize(9);
     doc.setFont("helvetica", "normal");
-    doc.text(`Period: ${report.period}`, margin, 22);
-    doc.text(`Created: ${new Date(report.generatedDate).toLocaleString()}`, margin, 27);
+    doc.text(`Periode: ${report.period}`, margin, 22);
+    doc.text(`Dibuat: ${new Date(report.generatedDate).toLocaleString()}`, margin, 27);
 
-    // Separator line
+    // Garis pemisah
     doc.setDrawColor(0, 0, 0);
     doc.setLineWidth(0.5);
     doc.line(margin, 30, pageWidth - margin, 30);
 
-    // Start profit table
+    // Mulai tabel keuntungan
     const startY = 35;
 
-    // Prepare columns
+    // Persiapkan kolom
     const profitTableColumns = [
-      { header: "Period", dataKey: "period", width: 45 },
-      { header: "Total Sales", dataKey: "sales", width: 35 },
-      { header: "Total Cost", dataKey: "cost", width: 35 },
-      { header: "Profit", dataKey: "profit", width: 35 },
+      { header: "Periode", dataKey: "period", width: 45 },
+      { header: "Total Penjualan", dataKey: "sales", width: 35 },
+      { header: "Total Biaya", dataKey: "cost", width: 35 },
+      { header: "Keuntungan", dataKey: "profit", width: 35 },
       { header: "Margin", dataKey: "margin", width: 25 },
-      { header: "Orders", dataKey: "orders", width: 20 },
-      { header: "Growth", dataKey: "growth", width: 25 },
+      { header: "Pesanan", dataKey: "orders", width: 20 },
+      { header: "Pertumbuhan", dataKey: "growth", width: 25 },
     ];
 
-    // Prepare data
+    // Persiapkan data
     const profitData = popGrowthData.map((period) => {
       return [
         period.periodLabel,
@@ -479,23 +479,23 @@ const ProfitPerformanceDashboard: React.FC<MonthlyProfitReportProps> = ({ report
         6: { halign: "right", cellWidth: profitTableColumns[6].width },
       },
       didParseCell: (data) => {
-        // Highlight highest and lowest profit periods
+        // Sorot periode keuntungan tertinggi dan terendah
         const periodData = data.row.raw;
         if (periodData && Array.isArray(periodData)) {
-          // Period label is at index 0, profit at index 3
+          // Label periode ada di indeks 0, keuntungan di indeks 3
           if (periodData[0] === highestProfitPeriod.periodLabel) {
-            data.cell.styles.fillColor = [230, 255, 230]; // Light green
+            data.cell.styles.fillColor = [230, 255, 230]; // Hijau muda
           } else if (periodData[0] === lowestProfitPeriod.periodLabel) {
-            data.cell.styles.fillColor = [255, 235, 235]; // Light red
+            data.cell.styles.fillColor = [255, 235, 235]; // Merah muda
           }
 
-          // Highlight growth cells based on positive/negative values
+          // Sorot sel pertumbuhan berdasarkan nilai positif/negatif
           if (data.column.index === 6 && periodData[6] !== "0%" && periodData[6] != null) {
             const growthValue = parseFloat(String(periodData[6]));
             if (growthValue > 0) {
-              data.cell.styles.textColor = [0, 150, 0]; // Green for positive
+              data.cell.styles.textColor = [0, 150, 0]; // Hijau untuk positif
             } else if (growthValue < 0) {
-              data.cell.styles.textColor = [200, 0, 0]; // Red for negative
+              data.cell.styles.textColor = [200, 0, 0]; // Merah untuk negatif
             }
           }
         }
@@ -506,36 +506,36 @@ const ProfitPerformanceDashboard: React.FC<MonthlyProfitReportProps> = ({ report
       margin: { left: margin, right: margin },
     });
 
-    // Add summary section
+    // Tambahkan bagian ringkasan
     let footerY = (doc.lastAutoTable?.finalY ?? startY) + 10;
 
-    // Check if a new page is needed for the summary
+    // Periksa apakah halaman baru diperlukan untuk ringkasan
     if (footerY > pageHeight - 40) {
       doc.addPage("landscape");
       footerY = 15;
     }
 
-    // Summary section
+    // Bagian ringkasan
     doc.setFontSize(10);
     doc.setFont("helvetica", "bold");
-    doc.text("Profit Report Summary", margin, footerY);
+    doc.text("Ringkasan Laporan Keuntungan", margin, footerY);
 
     footerY += 6;
     doc.setFontSize(8);
     doc.setFont("helvetica", "normal");
 
-    // Summary points in compact format
+    // Poin-poin ringkasan dalam format ringkas
     const summaryPoints = [
-      `• Total Sales: ${formatRupiah(report.totalAmount)}`,
-      `• Total Cost: ${formatRupiah(report.totalAmount - report.totalProfit)}`,
-      `• Total Profit: ${formatRupiah(report.totalProfit)}`,
-      `• Average Margin: ${(report.profitMargin * 100).toFixed(2)}%`,
-      `• Overall Growth: ${overallGrowth ? `${overallGrowth.toFixed(2)}%` : "0%"}`,
-      `• Highest Profit: ${highestProfitPeriod.periodLabel || "0%"} (${formatRupiah(highestProfitPeriod.profit || 0)})`,
-      `• Lowest Profit: ${lowestProfitPeriod.periodLabel || "0%"} (${formatRupiah(lowestProfitPeriod.profit || 0)})`,
+      `• Total Penjualan: ${formatRupiah(report.totalAmount)}`,
+      `• Total Biaya: ${formatRupiah(report.totalAmount - report.totalProfit)}`,
+      `• Total Keuntungan: ${formatRupiah(report.totalProfit)}`,
+      `• Rata-rata Margin: ${(report.profitMargin * 100).toFixed(2)}%`,
+      `• Pertumbuhan Keseluruhan: ${overallGrowth ? `${overallGrowth.toFixed(2)}%` : "0%"}`,
+      `• Keuntungan Tertinggi: ${highestProfitPeriod.periodLabel || "0%"} (${formatRupiah(highestProfitPeriod.profit || 0)})`,
+      `• Keuntungan Terendah: ${lowestProfitPeriod.periodLabel || "0%"} (${formatRupiah(lowestProfitPeriod.profit || 0)})`,
     ];
 
-    // Split into columns to save space
+    // Bagi menjadi kolom untuk menghemat ruang
     const colWidth = Math.ceil(summaryPoints.length / 3);
     const col1Points = summaryPoints.slice(0, colWidth);
     const col2Points = summaryPoints.slice(colWidth, colWidth * 2);
@@ -553,14 +553,14 @@ const ProfitPerformanceDashboard: React.FC<MonthlyProfitReportProps> = ({ report
       doc.text(point, margin + 200, footerY + index * 5);
     });
 
-    // Footer with page number
+    // Footer dengan nomor halaman
     const totalPages = doc.internal.pages.length;
     for (let i = 1; i <= totalPages; i++) {
       doc.setPage(i);
       doc.setFontSize(8);
       doc.setFont("helvetica", "italic");
       doc.setTextColor(100, 100, 100);
-      doc.text(`${report.name} - ${report.period} | Page ${i} of ${totalPages}`, pageWidth / 2, pageHeight - 8, { align: "center" });
+      doc.text(`${report.name} - ${report.period} | Halaman ${i} dari ${totalPages}`, pageWidth / 2, pageHeight - 8, { align: "center" });
     }
 
     doc.save(`${report.name}-${report.period}.pdf`);
@@ -607,16 +607,16 @@ const ProfitPerformanceDashboard: React.FC<MonthlyProfitReportProps> = ({ report
       {/* Tab navigation - Neo-Brutalist Style */}
       <div className="flex border-b-4 border-black mb-6">
         <button className={`px-6 py-3 mr-2 font-black text-lg transform ${activeTab === "overview" ? "bg-black text-white -rotate-2" : "bg-white rotate-1"} border-4 border-black transition-all`} onClick={() => setActiveTab("overview")}>
-          OVERVIEW
+          GAMBARAN UMUM
         </button>
         <button className={`px-6 py-3 mr-2 font-black text-lg transform ${activeTab === "trends" ? "bg-black text-white -rotate-2" : "bg-white rotate-1"} border-4 border-black transition-all`} onClick={() => setActiveTab("trends")}>
-          TRENDS
+          TREN
         </button>
         <button
           className={`px-6 py-3 mr-2 font-black text-lg transform ${activeTab === "projections" ? "bg-black text-white -rotate-2" : "bg-white rotate-1"} border-4 border-black transition-all`}
           onClick={() => setActiveTab("projections")}
         >
-          PROJECTIONS
+          PROYEKSI
         </button>
       </div>
 
@@ -626,7 +626,7 @@ const ProfitPerformanceDashboard: React.FC<MonthlyProfitReportProps> = ({ report
           {/* Metrics Cards */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-8">
             <div className="bg-white border-4 border-black p-6 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] transform rotate-1">
-              <h3 className="text-xl font-black mb-4">Total Sales</h3>
+              <h3 className="text-xl font-black mb-4">Total Penjualan</h3>
               <p className="text-3xl font-black">{formatRupiah(report.totalAmount)}</p>
               {overallGrowth && (
                 <div className="mt-2">
@@ -636,19 +636,19 @@ const ProfitPerformanceDashboard: React.FC<MonthlyProfitReportProps> = ({ report
             </div>
 
             <div className="bg-white border-4 border-black p-6 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] transform -rotate-1">
-              <h3 className="text-xl font-black mb-4">Total Profit</h3>
+              <h3 className="text-xl font-black mb-4">Total Keuntungan</h3>
               <p className="text-3xl font-black">{formatRupiah(report.totalProfit)}</p>
               <p className="font-bold mt-2">Margin: {(report.profitMargin * 100).toFixed(2)}%</p>
             </div>
 
             <div className="bg-white border-4 border-black p-6 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] transform rotate-1">
-              <h3 className="text-xl font-black mb-4">Total Cost</h3>
+              <h3 className="text-xl font-black mb-4">Total Biaya</h3>
               <p className="text-3xl font-black">{formatRupiah(report.totalAmount - report.totalProfit)}</p>
-              <p className="font-bold mt-2">of total sales</p>
+              <p className="font-bold mt-2">dari total penjualan</p>
             </div>
 
             <div className="bg-white border-4 border-black p-6 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] transform -rotate-1">
-              <h3 className="text-xl font-black mb-4">Best Period</h3>
+              <h3 className="text-xl font-black mb-4">Periode Terbaik</h3>
               <p className="text-xl font-black truncate">{highestProfitPeriod.periodLabel || "0%"}</p>
               <p className="font-bold mt-2 text-green-600">{formatRupiah(highestProfitPeriod.profit || 0)}</p>
             </div>
@@ -664,7 +664,7 @@ const ProfitPerformanceDashboard: React.FC<MonthlyProfitReportProps> = ({ report
                 {/* Header */}
                 <div className="flex items-center justify-between mb-6">
                   <div className="transform -rotate-2 bg-gradient-to-r from-purple-400 to-blue-400 border-4 border-black p-3 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-                    <h2 className="text-xl font-black tracking-tighter">SALES vs COST</h2>
+                    <h2 className="text-xl font-black tracking-tighter">PENJUALAN vs BIAYA</h2>
                   </div>
                   <div className="bg-black text-white p-3 transform rotate-3 hover:rotate-6 transition-transform">
                     <DollarSign size={24} />
@@ -687,12 +687,12 @@ const ProfitPerformanceDashboard: React.FC<MonthlyProfitReportProps> = ({ report
                         fontWeight: "bold",
                       }}
                     />
-                    <Bar yAxisId="left" dataKey="totalSales" name="Sales" fill={TOTAL_SALES_COLOR} stroke="#000" strokeWidth={2} radius={[4, 4, 0, 0]} />
-                    <Bar yAxisId="left" dataKey="totalModal" name="Cost" fill={TOTAL_COST_COLOR} stroke="#000" strokeWidth={2} radius={[4, 4, 0, 0]} />
+                    <Bar yAxisId="left" dataKey="totalSales" name="Penjualan" fill={TOTAL_SALES_COLOR} stroke="#000" strokeWidth={2} radius={[4, 4, 0, 0]} />
+                    <Bar yAxisId="left" dataKey="totalModal" name="Biaya" fill={TOTAL_COST_COLOR} stroke="#000" strokeWidth={2} radius={[4, 4, 0, 0]} />
                     <Line
                       yAxisId="left"
                       dataKey="profit"
-                      name="Profit"
+                      name="Keuntungan"
                       stroke="#000"
                       strokeWidth={3}
                       dot={{ fill: PROFIT_COLOR, stroke: "#000", strokeWidth: 2, r: 6 }}
@@ -720,7 +720,7 @@ const ProfitPerformanceDashboard: React.FC<MonthlyProfitReportProps> = ({ report
                 {/* Header */}
                 <div className="flex items-center justify-between mb-6">
                   <div className="transform -rotate-2 bg-gradient-to-r from-yellow-300 to-yellow-400 border-4 border-black p-3 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-                    <h2 className="text-xl font-black tracking-tighter">PROFIT MARGIN</h2>
+                    <h2 className="text-xl font-black tracking-tighter">MARGIN KEUNTUNGAN</h2>
                   </div>
                   <div className="bg-black text-white p-3 transform rotate-3 hover:rotate-6 transition-transform">
                     <Percent size={24} />
@@ -770,7 +770,7 @@ const ProfitPerformanceDashboard: React.FC<MonthlyProfitReportProps> = ({ report
           {/* Significant Changes */}
           {significantChanges.length > 0 && (
             <div className="mb-8">
-              <h3 className="text-xl font-black mb-4 transform -rotate-1 inline-block bg-black text-white border-4 border-black p-3">SIGNIFICANT PERIOD CHANGES</h3>
+              <h3 className="text-xl font-black mb-4 transform -rotate-1 inline-block bg-black text-white border-4 border-black p-3">PERUBAHAN PERIODE YANG SIGNIFIKAN</h3>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {significantChanges.map((period, index) => (
@@ -778,25 +778,25 @@ const ProfitPerformanceDashboard: React.FC<MonthlyProfitReportProps> = ({ report
                     <h4 className="font-bold text-lg">{period.periodLabel}</h4>
                     <div className="mt-3 space-y-2">
                       <div className="flex justify-between items-center">
-                        <span className="font-medium">Profit Change:</span>
+                        <span className="font-medium">Perubahan Keuntungan:</span>
                         <GrowthIndicator value={period.popGrowth as number} size="md" />
                       </div>
                       <div className="flex justify-between items-center">
-                        <span className="font-medium">Sales Change:</span>
+                        <span className="font-medium">Perubahan Penjualan:</span>
                         <GrowthIndicator value={period.salesGrowth as number} size="sm" />
                       </div>
                       <div className="flex justify-between items-center">
-                        <span className="font-medium">Cost Change:</span>
+                        <span className="font-medium">Perubahan Biaya:</span>
                         <GrowthIndicator value={period.costGrowth as number} size="sm" />
                       </div>
                       <div className="flex justify-between items-center">
-                        <span className="font-medium">Margin Change:</span>
+                        <span className="font-medium">Perubahan Margin :</span>
                         <GrowthIndicator value={period.marginGrowth as number} size="sm" />
                       </div>
                     </div>
                     <div className="mt-3 p-2 bg-white border-2 border-black">
                       <div className="flex justify-between">
-                        <span>Profit:</span>
+                        <span>Keuntungan:</span>
                         <span className="font-bold">{formatRupiah(period.profit)}</span>
                       </div>
                       <div className="flex justify-between">
@@ -823,7 +823,7 @@ const ProfitPerformanceDashboard: React.FC<MonthlyProfitReportProps> = ({ report
               {/* Header */}
               <div className="flex items-center justify-between mb-6">
                 <div className="transform -rotate-2 bg-gradient-to-r from-blue-400 to-green-400 border-4 border-black p-3 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-                  <h2 className="text-xl font-black tracking-tighter">PROFIT TREND</h2>
+                  <h2 className="text-xl font-black tracking-tighter">TREN KEUNTUNGAN</h2>
                 </div>
                 <div className="bg-black text-white p-3 transform rotate-3 hover:rotate-6 transition-transform">
                   <TrendingUp size={24} />
@@ -889,7 +889,7 @@ const ProfitPerformanceDashboard: React.FC<MonthlyProfitReportProps> = ({ report
               </ResponsiveContainer>
             </div>
           </div>
-          
+
           {/* Growth Rate Chart */}
           <div className="relative bg-white border-4 border-black p-6 transition-all duration-300 group mb-6">
             <div className="absolute -inset-1 bg-gradient-to-r from-pink-400 via-purple-500 to-red-600 rounded-lg blur opacity-0 group-hover:opacity-20 transition duration-1000 group-hover:duration-200" />
@@ -898,7 +898,7 @@ const ProfitPerformanceDashboard: React.FC<MonthlyProfitReportProps> = ({ report
               {/* Header */}
               <div className="flex items-center justify-between mb-6">
                 <div className="transform -rotate-2 bg-gradient-to-r from-pink-400 to-purple-400 border-4 border-black p-3 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-                  <h2 className="text-xl font-black tracking-tighter">GROWTH RATES</h2>
+                  <h2 className="text-xl font-black tracking-tighter">TINGKAT PERTUMBUHAN</h2>
                 </div>
                 <div className="bg-black text-white p-3 transform rotate-3 hover:rotate-6 transition-transform">
                   <TrendingUp size={24} />
@@ -950,13 +950,13 @@ const ProfitPerformanceDashboard: React.FC<MonthlyProfitReportProps> = ({ report
             <table className="min-w-full bg-white">
               <thead className="bg-black text-white">
                 <tr>
-                  <th className="py-3 px-4 text-left">Period</th>
-                  <th className="py-3 px-4 text-right">Total Sales</th>
-                  <th className="py-3 px-4 text-right">Total Cost</th>
-                  <th className="py-3 px-4 text-right">Profit</th>
+                  <th className="py-3 px-4 text-left">Periode</th>
+                  <th className="py-3 px-4 text-right">Total Penjualan </th>
+                  <th className="py-3 px-4 text-right">Total Biaya</th>
+                  <th className="py-3 px-4 text-right">Keuntungan</th>
                   <th className="py-3 px-4 text-right">Margin</th>
-                  <th className="py-3 px-4 text-right">Orders</th>
-                  <th className="py-3 px-4 text-right">Growth</th>
+                  <th className="py-3 px-4 text-right">Pesanan</th>
+                  <th className="py-3 px-4 text-right">Pertumbuhan</th>
                 </tr>
               </thead>
               <tbody>
@@ -988,7 +988,7 @@ const ProfitPerformanceDashboard: React.FC<MonthlyProfitReportProps> = ({ report
               {/* Header */}
               <div className="flex items-center justify-between mb-6">
                 <div className="transform -rotate-2 bg-gradient-to-r from-purple-400 to-blue-400 border-4 border-black p-3 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-                  <h2 className="text-xl font-black tracking-tighter">PROFIT PROJECTIONS</h2>
+                  <h2 className="text-xl font-black tracking-tighter">PROYEKSI KEUNTUNGAN</h2>
                 </div>
                 <div className="bg-black text-white p-3 transform rotate-3 hover:rotate-6 transition-transform">
                   <Sparkles size={24} />
@@ -998,7 +998,7 @@ const ProfitPerformanceDashboard: React.FC<MonthlyProfitReportProps> = ({ report
               <div className="p-3 bg-yellow-100 border-2 border-black mb-4">
                 <p className="font-medium text-sm flex items-center">
                   <Sparkles size={16} className="mr-2" />
-                  Projections are based on historical trends and should be used as estimates only. Actual results may vary.
+                  Proyeksi didasarkan pada tren historis dan harus digunakan sebagai perkiraan saja.Hasil yang sebenarnya dapat bervariasi.
                 </p>
               </div>
 
@@ -1037,7 +1037,7 @@ const ProfitPerformanceDashboard: React.FC<MonthlyProfitReportProps> = ({ report
                   <Line
                     type="monotone"
                     dataKey="profit"
-                    name="Profit"
+                    name="Keuntungan"
                     stroke="#000"
                     strokeWidth={3}
                     dot={(props) => {
@@ -1059,7 +1059,7 @@ const ProfitPerformanceDashboard: React.FC<MonthlyProfitReportProps> = ({ report
                   <Line
                     type="monotone"
                     dataKey="totalSales"
-                    name="Sales"
+                    name="Penjualan"
                     stroke={TOTAL_SALES_COLOR}
                     strokeWidth={2}
                     dot={(props) => {
@@ -1079,7 +1079,7 @@ const ProfitPerformanceDashboard: React.FC<MonthlyProfitReportProps> = ({ report
                   <Line
                     type="monotone"
                     dataKey="totalModal"
-                    name="Cost"
+                    name="Biaya"
                     stroke={TOTAL_COST_COLOR}
                     strokeWidth={2}
                     dot={(props) => {
@@ -1103,16 +1103,16 @@ const ProfitPerformanceDashboard: React.FC<MonthlyProfitReportProps> = ({ report
           {/* Projection Data */}
           {projectedData.length > 0 && (
             <div className="bg-white border-4 border-black p-4 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]">
-              <h3 className="font-bold text-xl mb-4">Projected Performance</h3>
+              <h3 className="font-bold text-xl mb-4">Proyeksi Kinerja</h3>
 
               <table className="min-w-full bg-white">
                 <thead className="bg-black text-white">
                   <tr>
-                    <th className="py-3 px-4 text-left">Period</th>
-                    <th className="py-3 px-4 text-right">Projected Sales</th>
-                    <th className="py-3 px-4 text-right">Projected Cost</th>
-                    <th className="py-3 px-4 text-right">Projected Profit</th>
-                    <th className="py-3 px-4 text-right">Projected Margin</th>
+                    <th className="py-3 px-4 text-left">Periode</th>
+                    <th className="py-3 px-4 text-right">Proyeksi Penjualan</th>
+                    <th className="py-3 px-4 text-right">Proyeksi Biaya</th>
+                    <th className="py-3 px-4 text-right">Proyeksi Keuntungan</th>
+                    <th className="py-3 px-4 text-right">Margin yang Diproyeksikan</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1129,10 +1129,9 @@ const ProfitPerformanceDashboard: React.FC<MonthlyProfitReportProps> = ({ report
               </table>
 
               <div className="mt-4 p-3 bg-yellow-100 border-2 border-black">
-                <h4 className="font-bold mb-1">Projection Methodology</h4>
+                <h4 className="font-bold mb-1">Metodologi Proyeksi</h4>
                 <p className="text-sm">
-                  These projections are calculated based on historical growth trends from the most recent periods. The projection model analyzes your past performance pattern and estimates future performance, assuming similar market
-                  conditions continue. Business decisions, market changes, or seasonal variations may affect actual outcomes.
+                  Proyeksi ini dihitung berdasarkan tren pertumbuhan historis dari periode terakhir. Model proyeksi menganalisis pola kinerja masa lalu Anda dan memperkirakan kinerja masa depan, dengan asumsi kondisi pasar yang sama terus berlanjut. Keputusan bisnis, perubahan pasar, atau variasi musiman dapat memengaruhi hasil aktual.
                 </p>
               </div>
             </div>

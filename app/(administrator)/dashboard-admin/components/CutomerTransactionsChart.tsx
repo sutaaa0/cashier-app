@@ -90,7 +90,7 @@ const CustomerTransactionsChart = () => {
           <div className="transform -rotate-2 bg-gradient-to-r from-blue-300 to-purple-400 border-4 border-black p-3 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
             <div className="flex items-center gap-2">
               <Users className="text-black" size={24} />
-              <h2 className="text-2xl font-black tracking-tighter">CUSTOMER ANALYTICS</h2>
+              <h2 className="text-2xl font-black tracking-tighter">ANALISIS PELANGGAN</h2>
             </div>
           </div>
           <div className="bg-black text-white p-3 transform rotate-3 hover:rotate-6 transition-transform">
@@ -101,7 +101,7 @@ const CustomerTransactionsChart = () => {
         {/* Total Transactions Indicator */}
         <div className="flex items-center justify-center mb-6 bg-white border-4 border-black p-4 transform -rotate-1">
           <div className="text-3xl font-black mr-4">{totalTransactions.toLocaleString()}</div>
-          <div className="text-lg font-bold">TOTAL TRANSACTIONS</div>
+          <div className="text-lg font-bold">TOTAL TRANSAKSI</div>
         </div>
 
         {/* Chart */}
@@ -152,7 +152,7 @@ const CustomerTransactionsChart = () => {
                 <div className="w-8 h-8 border-3 border-black transform rotate-45 transition-transform group-hover/item:rotate-0" style={{ backgroundColor: COLORS[index] }} />
                 <span className="font-bold text-lg">{customer.name}</span>
                 <div className="ml-auto flex items-center gap-2">
-                  <span className="font-mono bg-white text-black px-2 py-1 border-2 border-black">{customer.transactions} TRANS</span>
+                  <span className="font-mono bg-white text-black px-2 py-1 border-2 border-black">{customer.transactions} TRAN</span>
                   <span className={`flex items-center ${customer.growthColor} font-bold`}>
                     <Zap size={16} className="mr-1" />
                     {customer.growth}

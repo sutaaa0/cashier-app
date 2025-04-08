@@ -83,8 +83,8 @@ export default function LoginPage() {
 
       if (newUser.status === "Success") {
         toast({
-          title: "Success",
-          description: "Login successful!",
+          title: "Berhasil",
+          description: "Login berhasil!",
         });
         // Redirect based on user role
         if (newUser.data?.user?.level === "ADMIN") {
@@ -97,7 +97,7 @@ export default function LoginPage() {
       } else {
         toast({
           title: "Error",
-          description: newUser.message || "Invalid username or password.",
+          description: newUser.message || "Username atau password tidak valid .",
           variant: "destructive",
         });
       }
@@ -105,7 +105,7 @@ export default function LoginPage() {
       console.log(error);
       toast({
         title: "Error",
-        description: "Something went wrong. Please try again.",
+        description: "Ada yang tidak beres. Silakan coba lagi.",
         variant: "destructive",
       });
     }
@@ -121,7 +121,7 @@ export default function LoginPage() {
       {/* Header with POS Elements */}
       <div className="w-full p-4">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <h1 className="text-3xl font-black font-mono text-black transform rotate-1 shadow-lg">CASHIER SYSTEM</h1>
+          <h1 className="text-3xl font-black font-mono text-black transform rotate-1 shadow-lg">SISTEM KASIR</h1>
           <div className="flex space-x-4 shadow-lg">
             <CreditCard size={32} className="text-black transform -rotate-3" />
             <Receipt size={32} className="text-black transform rotate-6" />
@@ -154,8 +154,8 @@ export default function LoginPage() {
               <Image alt="money" src="/money.png" fill />
               </div>
             </div>
-            <h1 className="text-4xl font-black font-mono text-black">CASHIER LOGIN</h1>
-            <p className="text-lg font-mono border-b-4 border-[#FF6B35] pb-2 inline-block">Enter credentials to access POS system</p>
+            <h1 className="text-4xl font-black font-mono text-black">KASIR LOGIN</h1>
+            <p className="text-lg font-mono border-b-4 border-[#FF6B35] pb-2 inline-block">Masukkan kredensial untuk mengakses sistem POS</p>
           </div>
 
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
@@ -248,7 +248,7 @@ export default function LoginPage() {
 
           {/* Receipt-like footer */}
           <div className="mt-8 pt-4 border-t-4 border-dashed border-black">
-            <p className="font-mono text-center text-sm">SYSTEM v2.5 • SECURE POS • {new Date().toLocaleDateString()}</p>
+            <p className="font-mono text-center text-sm">SISTEM v2.5 • {new Date().toLocaleDateString()}</p>
           </div>
         </div>
       </div>

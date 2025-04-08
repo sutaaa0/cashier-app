@@ -46,7 +46,7 @@ export function ReturnedItems({ items, setItems, setTotalReturn }: ReturnedItems
 
   return (
     <div className="text-text border-2 border-border dark:border-darkBorder shadow-light dark:shadow-dark hover:translate-x-boxShadowX hover:translate-y-boxShadowY hover:shadow-none dark:hover:shadow-none transition-all p-3">
-      <h2 className="text-2xl font-bold mb-4 transform -rotate-1 inline-block">Returned Products</h2>
+      <h2 className="text-2xl font-bold mb-4 transform -rotate-1 inline-block">Produk yang Dikembalikan</h2>
       <div className="space-y-4">
         {items.map((item) => (
           <div key={item.produkId} className="flex items-center justify-between p-2 border-2 border-black">

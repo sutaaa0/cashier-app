@@ -100,13 +100,13 @@ export function UserManagement() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-3xl font-black">USER MANAGEMENT</h2>
+        <h2 className="text-3xl font-black">MANAJEMEN PENGGUNA</h2>
         <button
           onClick={() => setIsAddModalOpen(true)}
           className="px-4 py-2 bg-[#93B8F3] font-bold border-[3px] border-black rounded shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none transition-all flex items-center gap-2"
         >
           <Plus size={20} />
-          Add New User
+          Tambah Pengguna Baru
         </button>
       </div>
 
@@ -114,7 +114,7 @@ export function UserManagement() {
       <div className="relative">
         <input
           type="text"
-          placeholder="Search users by username or level"
+          placeholder="Mencari pengguna berdasarkan nama pengguna atau level"
           value={searchTerm}
           onChange={handleSearchChange}
           className="w-full px-4 py-2 border-[3px] border-black rounded shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] focus:outline-none focus:ring-2 focus:ring-[#93B8F3]"
@@ -156,7 +156,7 @@ export function UserManagement() {
 
         {users.length === 0 && !isLoading && (
           <div className="bg-white border-[3px] border-black p-4 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-            <p className="text-center text-gray-500">{searchTerm ? `No user found for "${searchTerm}"` : "No user found "}</p>
+            <p className="text-center text-gray-500">{searchTerm ? `Pengguna tidak ditemukan untuk "${searchTerm}"` : "Pengguna tidak ditemukan"}</p>
           </div>
         )}
       </div>
@@ -184,7 +184,7 @@ export function UserManagement() {
       )}
 
       {/* Modal Konfirmasi Hapus */}
-      <DeleteConfirmModal isOpen={isDeleteModalOpen} onClose={() => setIsDeleteModalOpen(false)} onConfirm={handleDeleteConfirm} itemName={userToDelete?.username || ""} subject="User" />
+      <DeleteConfirmModal isOpen={isDeleteModalOpen} onClose={() => setIsDeleteModalOpen(false)} onConfirm={handleDeleteConfirm} itemName={userToDelete?.username || ""} subject="Pengguna" />
 
       <NeoProgressIndicator isLoading={isLoading || deleteUserMutation.isPending} message={loadingMessage} />
     </div>

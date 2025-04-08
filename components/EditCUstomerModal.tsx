@@ -73,8 +73,8 @@ export function EditCustomerModal({ isOpen, onClose, customer, onEditCustomer }:
 
       if (result.status === "Success") {
         toast({
-          title: "Success",
-          description: "Customer updated successfully",
+          title: "Berhasil",
+          description: "Member berhasil diperbarui",
         });
         onEditCustomer(updatedCustomer);
         onClose();
@@ -83,12 +83,12 @@ export function EditCustomerModal({ isOpen, onClose, customer, onEditCustomer }:
         if (result.message && result.message.includes("duplicate")) {
           toast({
             title: "Error",
-            description: "Phone number already registered",
+            description: "Nomor telepon sudah terdaftar",
             variant: "destructive",
           });
           form.setError("phoneNumber", {
             type: "manual",
-            message: "Phone number already in use",
+            message: "Nomor telepon yang sudah digunakan",
           });
         } else {
           toast({
@@ -114,7 +114,7 @@ export function EditCustomerModal({ isOpen, onClose, customer, onEditCustomer }:
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white border-[3px] border-black p-6 rounded-lg shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] w-full max-w-md">
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-2xl font-bold">Edit Customer</h2>
+          <h2 className="text-2xl font-bold">Edit Member</h2>
           <button onClick={onClose} className="p-1 hover:bg-gray-200 rounded">
             <X size={24} />
           </button>
@@ -127,7 +127,7 @@ export function EditCustomerModal({ isOpen, onClose, customer, onEditCustomer }:
               name="name"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="font-bold">Name</FormLabel>
+                  <FormLabel className="font-bold">Nama</FormLabel>
                   <FormControl>
                     <Input {...field} className="p-2 border-[3px] border-black rounded focus:outline-none focus:ring-2 focus:ring-[#93B8F3]" />
                   </FormControl>
@@ -141,7 +141,7 @@ export function EditCustomerModal({ isOpen, onClose, customer, onEditCustomer }:
               name="address"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="font-bold">Address</FormLabel>
+                  <FormLabel className="font-bold">Alamat</FormLabel>
                   <FormControl>
                     <Input {...field} className="p-2 border-[3px] border-black rounded focus:outline-none focus:ring-2 focus:ring-[#93B8F3]" />
                   </FormControl>
@@ -155,7 +155,7 @@ export function EditCustomerModal({ isOpen, onClose, customer, onEditCustomer }:
               name="phoneNumber"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="font-bold">Phone Number</FormLabel>
+                  <FormLabel className="font-bold">Nomor Telepon</FormLabel>
                   <FormControl>
                     <Input {...field} type="tel" className="p-2 border-[3px] border-black rounded focus:outline-none focus:ring-2 focus:ring-[#93B8F3]" placeholder="Format: 08xxxxxxxxxx" />
                   </FormControl>
@@ -169,7 +169,7 @@ export function EditCustomerModal({ isOpen, onClose, customer, onEditCustomer }:
               disabled={isLoading}
               className="w-full px-4 py-2 bg-[#93B8F3] font-bold border-[3px] border-black rounded shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none transition-all disabled:opacity-50"
             >
-              Update Customer
+              Perbarui member
             </Button>
           </form>
         </Form>

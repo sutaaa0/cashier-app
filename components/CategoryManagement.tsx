@@ -21,17 +21,17 @@ export function CategoryManagement() {
   const [isLoading, setIsLoading] = useState(false);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [originalCategories, setOriginalCategories] = useState<Category[]>([]); // Store original state
-  const [iconPreview, setIconPreview] = useState<{[key: number]: string}>({});
+  const [iconPreview, setIconPreview] = useState<{ [key: number]: string }>({});
   const [newIconFile, setNewIconFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
-  const [loadingMessage, setLoadingMessage] = useState("Loading categories...")
+  const [loadingMessage, setLoadingMessage] = useState("Loading kategori...");
 
   const loadCategories = async () => {
     setIsLoading(true);
-    setLoadingMessage("Loading categories...")
+    setLoadingMessage("Loading kategori...");
     try {
       const response = await fetchCategories();
       if (response.status === "Success" && response.data) {
@@ -45,7 +45,7 @@ export function CategoryManagement() {
       }
     } catch (error) {
       console.error(error);
-      toast({ title: "Error", description: "Failed to fetch categories", variant: "destructive" });
+      toast({ title: "Error", description: "Gagal mengambil kategori", variant: "destructive" });
     } finally {
       setIsLoading(false);
     }
@@ -59,12 +59,12 @@ export function CategoryManagement() {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
       setNewIconFile(file);
-      
+
       // Create an object URL for preview
       const objectUrl = URL.createObjectURL(file);
-      setIconPreview(prev => ({
+      setIconPreview((prev) => ({
         ...prev,
-        [categoryId]: objectUrl
+        [categoryId]: objectUrl,
       }));
     }
   };
@@ -74,9 +74,9 @@ export function CategoryManagement() {
     setOriginalCategories(JSON.parse(JSON.stringify(categories)));
     setEditingCategory(category);
     // Reset any previous icon preview
-    setIconPreview(prev => ({
+    setIconPreview((prev) => ({
       ...prev,
-      [category.kategoriId]: category.icon
+      [category.kategoriId]: category.icon,
     }));
   };
 
@@ -85,14 +85,14 @@ export function CategoryManagement() {
     setCategories(JSON.parse(JSON.stringify(originalCategories)));
     setEditingCategory(null);
     setNewIconFile(null);
-    
+
     // Clean up any object URLs to prevent memory leaks
     if (editingCategory) {
-      if (iconPreview[editingCategory.kategoriId] && iconPreview[editingCategory.kategoriId].startsWith('blob:')) {
+      if (iconPreview[editingCategory.kategoriId] && iconPreview[editingCategory.kategoriId].startsWith("blob:")) {
         URL.revokeObjectURL(iconPreview[editingCategory.kategoriId]);
       }
-      setIconPreview(prev => {
-        const newPreview = {...prev};
+      setIconPreview((prev) => {
+        const newPreview = { ...prev };
         delete newPreview[editingCategory.kategoriId];
         return newPreview;
       });
@@ -102,19 +102,19 @@ export function CategoryManagement() {
   const handleSaveCategory = async (categoryToUpdate: Category) => {
     // Improved validation: check if category name is empty or only contains whitespace
     if (!categoryToUpdate.nama.trim()) {
-      toast({ title: "Validation Error", description: "Category name cannot be empty", variant: "destructive" });
+      toast({ title: "Kesalahan Validasi", description: "Nama kategori tidak boleh kosong", variant: "destructive" });
       return;
     }
-  
+
     // Validation: Make sure an icon is provided
     // If there's no new file uploaded and the current icon is a placeholder, show error
     if (!newIconFile && (!categoryToUpdate.icon || categoryToUpdate.icon === "/placeholder.svg")) {
-      toast({ title: "Validation Error", description: "Please upload a category icon", variant: "destructive" });
+      toast({ title: "Kesalahan Validasi", description: "Silakan unggah ikon kategori", variant: "destructive" });
       return;
     }
-  
+
     setIsLoading(true);
-    setLoadingMessage("Updating category...")
+    setLoadingMessage("Memperbarui kategori...");
     try {
       let iconUrl = categoryToUpdate.icon;
       if (newIconFile) {
@@ -124,48 +124,48 @@ export function CategoryManagement() {
           method: "POST",
           body: formData,
         });
-        
+
         if (!uploadResponse.ok) {
-          throw new Error("Failed to upload category icon");
+          throw new Error("Gagal mengunggah ikon kategori");
         }
-        
+
         const uploadResult = await uploadResponse.json();
         iconUrl = uploadResult.secure_url;
       }
-  
+
       const updateResponse = await updateCategory({
         kategoriId: categoryToUpdate.kategoriId,
         nama: categoryToUpdate.nama,
         icon: iconUrl,
       });
-  
+
       if (updateResponse.status === "Success") {
-        toast({ title: "Success", description: "Category updated successfully" });
-        
+        toast({ title: "Berhasil", description: "Kategori berhasil diperbarui" });
+
         // Clean up any object URLs
-        if (iconPreview[categoryToUpdate.kategoriId] && iconPreview[categoryToUpdate.kategoriId].startsWith('blob:')) {
+        if (iconPreview[categoryToUpdate.kategoriId] && iconPreview[categoryToUpdate.kategoriId].startsWith("blob:")) {
           URL.revokeObjectURL(iconPreview[categoryToUpdate.kategoriId]);
         }
-        
+
         setEditingCategory(null);
         setNewIconFile(null);
         setIconPreview({});
         loadCategories(); // Reload categories to get updated data
       } else {
         toast({
-          title: "Update Error",
-          description: updateResponse.message || "Failed to update category",
+          title: "Error",
+          description: updateResponse.message || "Gagal memperbarui kategori",
           variant: "destructive",
         });
       }
     } catch (error) {
       console.error(error);
-      toast({ title: "Error", description: "An error occurred while updating the category", variant: "destructive" });
+      toast({ title: "Error", description: "Terjadi kesalahan saat memperbarui kategori", variant: "destructive" });
     } finally {
       setIsLoading(false);
     }
   };
-  
+
   const handleDeleteClick = (category: Category) => {
     setSelectedCategory(category);
     setIsDeleteModalOpen(true);
@@ -174,22 +174,22 @@ export function CategoryManagement() {
   const handleDeleteCategory = async () => {
     if (selectedCategory) {
       setIsLoading(true);
-      setLoadingMessage("Deleting category...")
+      setLoadingMessage("Deleting category...");
       try {
         const deleteResponse = await deleteCategory(selectedCategory.kategoriId);
         if (deleteResponse.status === "Success") {
-          toast({ title: "Success", description: "Category deleted successfully" });
+          toast({ title: "Berhasil", description: "Kategori berhasil dihapus" });
           loadCategories();
         } else {
           toast({
-            title: "Delete Error",
-            description: deleteResponse.message || "Failed to delete category",
+            title: "Error",
+            description: deleteResponse.message || "Gagal menghapus kategori",
             variant: "destructive",
           });
         }
       } catch (error) {
         console.error(error);
-        toast({ title: "Error", description: "An error occurred while deleting the category", variant: "destructive" });
+        toast({ title: "Error", description: "Terjadi kesalahan saat menghapus kategori", variant: "destructive" });
       } finally {
         setIsLoading(false);
         setIsDeleteModalOpen(false);
@@ -202,8 +202,8 @@ export function CategoryManagement() {
   useEffect(() => {
     return () => {
       // Clean up all object URLs
-      Object.values(iconPreview).forEach(url => {
-        if (url.startsWith('blob:')) {
+      Object.values(iconPreview).forEach((url) => {
+        if (url.startsWith("blob:")) {
           URL.revokeObjectURL(url);
         }
       });
@@ -213,7 +213,7 @@ export function CategoryManagement() {
   return (
     <div className="p-6 bg-[#F3F3F3] min-h-screen">
       <div className="flex justify-between items-center mb-8">
-        <h2 className="text-4xl font-black transform -rotate-2">CATEGORY MANAGEMENT</h2>
+        <h2 className="text-4xl font-black transform -rotate-2">MANAJEMEN KATEGORI</h2>
         <button
           onClick={() => setIsModalOpen(true)}
           className="px-6 py-3 bg-[#FFD700] font-bold text-lg border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] 
@@ -221,7 +221,7 @@ export function CategoryManagement() {
                      transition-all flex items-center gap-2"
         >
           <Plus size={24} />
-          Add Category
+          Tambah Kategori
         </button>
       </div>
 
@@ -250,46 +250,24 @@ export function CategoryManagement() {
                     />
                     <div className="flex items-center gap-4">
                       <div className="relative">
-                        <Image 
-                          src={iconPreview[cat.kategoriId] || cat.icon || "/placeholder.svg"} 
-                          alt={cat.nama} 
-                          width={60} 
-                          height={60} 
-                          className="border-4 border-black"
-                        />
-                        {newIconFile && (
-                          <div className="absolute -top-2 -right-2 bg-green-500 text-white text-xs font-bold px-1 rounded-full border-2 border-black">
-                            NEW
-                          </div>
-                        )}
+                        <Image src={iconPreview[cat.kategoriId] || cat.icon || "/placeholder.svg"} alt={cat.nama} width={60} height={60} className="border-4 border-black" />
+                        {newIconFile && <div className="absolute -top-2 -right-2 bg-green-500 text-white text-xs font-bold px-1 rounded-full border-2 border-black">BARU</div>}
                       </div>
-                      <input 
-                        type="file" 
-                        onChange={(e) => handleIconChange(e, cat.kategoriId)} 
-                        accept="image/*" 
-                        ref={fileInputRef} 
-                        className="hidden" 
-                      />
+                      <input type="file" onChange={(e) => handleIconChange(e, cat.kategoriId)} accept="image/*" ref={fileInputRef} className="hidden" />
                       <button
                         type="button"
                         onClick={() => fileInputRef.current?.click()}
                         className="px-4 py-2 bg-[#FFD700] font-bold border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] 
                                    hover:translate-x-[3px] hover:translate-y-[3px] hover:shadow-none transition-all"
                       >
-                        Change Icon
+                        Ubah Ikon
                       </button>
                     </div>
                   </>
                 ) : (
                   <>
                     <div className="flex items-center gap-6">
-                      <Image 
-                        src={cat.icon || "/placeholder.svg"} 
-                        alt={cat.nama} 
-                        width={60} 
-                        height={60} 
-                        className="border-4 border-black" 
-                      />
+                      <Image src={cat.icon || "/placeholder.svg"} alt={cat.nama} width={60} height={60} className="border-4 border-black" />
                       <span className="text-2xl font-bold">{cat.nama}</span>
                     </div>
                   </>
@@ -305,7 +283,7 @@ export function CategoryManagement() {
                                  flex items-center gap-2"
                     >
                       <Save size={24} />
-                      Save
+                      Simpan
                     </button>
                     <button
                       onClick={handleCancelEdit}
@@ -339,7 +317,7 @@ export function CategoryManagement() {
         ))}
       </div>
 
-      <DeleteConfirmModal isOpen={isDeleteModalOpen} onClose={() => setIsDeleteModalOpen(false)} onConfirm={handleDeleteCategory} itemName={selectedCategory?.nama || ""} subject="Category" />
+      <DeleteConfirmModal isOpen={isDeleteModalOpen} onClose={() => setIsDeleteModalOpen(false)} onConfirm={handleDeleteCategory} itemName={selectedCategory?.nama || ""} subject="Kategori" />
 
       <AddCategoryModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onCategoryAdded={loadCategories} />
     </div>

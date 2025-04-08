@@ -171,7 +171,7 @@ export function ReplacementItems({
 
   return (
     <div className="text-text border-2 border-border dark:border-darkBorder shadow-light dark:shadow-dark hover:translate-x-boxShadowX hover:translate-y-boxShadowY hover:shadow-none dark:hover:shadow-none transition-all p-3">
-      <h2 className="text-2xl font-bold mb-4 transform -rotate-1 inline-block">Replacement Products</h2>
+      <h2 className="text-2xl font-bold mb-4 transform -rotate-1 inline-block">Produk Pengganti</h2>
       
       <div className="mb-4 flex">
         <input
