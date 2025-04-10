@@ -155,7 +155,7 @@ export default function LoginPage() {
               </div>
             </div>
             <h1 className="text-4xl font-black font-mono text-black">KASIR LOGIN</h1>
-            <p className="text-lg font-mono border-b-4 border-[#FF6B35] pb-2 inline-block">Masukkan kredensial untuk mengakses sistem POS</p>
+            <p className="text-lg font-mono border-b-4 border-[#FF6B35] pb-2 inline-block">Masukkan kredensial untuk mengakses sistem</p>
           </div>
 
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
