@@ -1,5 +1,4 @@
-import BackupBtn from '@/app/(administrator)/dashboard-admin/components/BackupBtn'
-import { Users, ShoppingBag, UsersIcon as Customers, FileText, Package, BarChart, BarChart2, LayoutDashboardIcon, CalendarRange, Tag } from 'lucide-react'
+import { Users, ShoppingBag, UsersIcon as Customers, FileText, Package, BarChart, BarChart2, LayoutDashboardIcon, CalendarRange, Tag, DatabaseBackupIcon, UndoIcon } from 'lucide-react'
 
 const menuItems = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboardIcon },
@@ -12,6 +11,8 @@ const menuItems = [
   { id: 'promotion', label: 'Promosi', icon:  CalendarRange },
   { id: 'reports', label: 'Laporan', icon: BarChart },
   { id: 'analytics', label: 'Analisis', icon: BarChart2 },
+  { id: 'backup', label: 'Backup Database', icon: DatabaseBackupIcon },
+  { id: 'reset', label: 'Reset Database', icon: UndoIcon },
 ]
 
 interface AdminSidebarProps {
@@ -39,7 +40,6 @@ export function AdminSidebar({ activeSection, setActiveSection }: AdminSidebarPr
               </button>
             </li>
           ))}
-          <BackupBtn/>
         </ul>
       </nav>
     </aside>

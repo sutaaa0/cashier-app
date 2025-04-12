@@ -1,0 +1,26 @@
+nama,stok,produkId,image,createdAt,updatedAt,isDeleted,minimumStok,statusStok,kategoriId,hargaModal,harga
+Chocolate Donuts,392,6,https://res.cloudinary.com/df6cjcebj/image/upload/v1741794843/products/fucp1xeo6u6emxcee98s.jpg,2025-03-12 15:54:03.669,2025-03-13 06:56:15.282,f,100,NORMAL,6,30000,45000
+Neapolitan Pizza Dough,284,17,https://res.cloudinary.com/df6cjcebj/image/upload/v1741797123/products/f5v2wxdy0rospkenkuyc.jpg,2025-03-12 16:32:03.99,2025-03-13 06:56:15.285,f,200,NORMAL,7,70000,100000
+Cheese Sandwich,400,21,https://res.cloudinary.com/df6cjcebj/image/upload/v1742227015/products/jsovsdu7jaykuexr1amx.png,2025-03-17 15:56:55.371,2025-03-17 15:58:03.436,t,200,NORMAL,4,20000,40000
+produktes,284,3,https://res.cloudinary.com/df6cjcebj/image/upload/v1741400103/products/cndp1oallsnumduddxge.jpg,2025-03-08 02:15:03.774,2025-03-12 16:07:44.375,t,200,NORMAL,1,20000,30000
+Chocolate Chip Cookies,292,5,https://res.cloudinary.com/df6cjcebj/image/upload/v1741833087/products/wgth1vtyycoziku6fd6e.jpg,2025-03-12 15:52:51.936,2025-03-13 02:31:29.495,f,100,NORMAL,5,15000,35000
+Maple Donuts,300,9,https://res.cloudinary.com/df6cjcebj/image/upload/v1741795700/products/su4jywo8axdnk0eb43q2.jpg,2025-03-12 16:08:21.371,2025-03-12 16:08:54.245,t,100,NORMAL,4,20000,40000
+Cheesy Garlic Bread,39,1,https://res.cloudinary.com/df6cjcebj/image/upload/v1741271971/products/p82w1sg3dubmagcgnqqw.jpg,2025-03-06 14:39:32.116,2025-03-22 06:07:44.282,f,100,LOW,1,20000,30000
+dddddw,1000,10,https://res.cloudinary.com/df6cjcebj/image/upload/v1741795770/products/mwdixhiwonzd7lhyu7xa.webp,2025-03-12 16:09:30.94,2025-03-12 16:10:04.299,t,100,NORMAL,6,100,1000
+sds,343434,22,https://res.cloudinary.com/df6cjcebj/image/upload/v1742227665/products/wm8ie93lagcfvjxsus66.png,2025-03-17 16:07:45.097,2025-03-17 16:08:03.404,t,434343,LOW,4,43434,34343434
+tes2s,300,15,https://res.cloudinary.com/df6cjcebj/image/upload/v1741796756/products/zzuimhrdngaejhdljgds.png,2025-03-12 16:25:57.12,2025-03-12 16:29:02.496,t,200,NORMAL,5,1000,20000
+tes,200,14,https://res.cloudinary.com/df6cjcebj/image/upload/v1741796726/products/qhxjn2wnlqlryxrexxjp.png,2025-03-12 16:25:27.376,2025-03-12 16:29:06.297,t,100,NORMAL,4,20000,30000
+Stowbery,300,13,https://res.cloudinary.com/df6cjcebj/image/upload/v1741796421/products/cwdyk379swfqpyp6y4dw.png,2025-03-12 16:20:22.142,2025-03-12 16:29:09.593,t,200,NORMAL,4,30000,90000
+Stowbery,300,11,https://res.cloudinary.com/df6cjcebj/image/upload/v1741796238/products/pfrrmqcotc6zrk3a97uf.jpg,2025-03-12 16:17:19.309,2025-03-12 16:29:12.765,t,100,NORMAL,5,10000,30000
+Homemade Bread,284,16,https://res.cloudinary.com/df6cjcebj/image/upload/v1741797050/products/pbjrtd5xwfdihxi2suwn.jpg,2025-03-12 16:30:50.631,2025-03-12 18:29:04.425,f,100,NORMAL,1,20000,30000
+Maple Donuts,300,12,https://res.cloudinary.com/df6cjcebj/image/upload/v1741796396/products/zprzxfagkraiwfvygzhr.png,2025-03-12 16:19:57.014,2025-03-12 16:29:16.487,t,100,NORMAL,4,20000,90000
+Cheese Sandwich,279,8,https://res.cloudinary.com/df6cjcebj/image/upload/v1741794987/products/q8iqs74ernwkp91zmrhk.jpg,2025-03-12 15:56:28.442,2025-03-22 05:39:45.799,f,100,NORMAL,2,30000,45000
+Grilled Cheese Sandwich ,105,2,https://res.cloudinary.com/df6cjcebj/image/upload/v1741273581/products/jjgazamb0expjlqnrbax.jpg,2025-03-06 15:06:21.535,2025-03-22 06:07:44.283,f,100,NORMAL,2,30000,50000
+Mie Ayam,199,25,https://res.cloudinary.com/df6cjcebj/image/upload/v1742271797/products/hlmpngeevfahkogqazve.png,2025-03-18 04:23:19.091,2025-03-26 23:10:30.189,t,100,NORMAL,13,10000,20000
+Cheesecake with Oreo,278,4,https://res.cloudinary.com/df6cjcebj/image/upload/v1741794601/products/hp3vcotpbjs94fcgwjeh.jpg,2025-03-12 15:50:03.034,2025-03-22 04:09:04.903,f,100,NORMAL,4,20000,30000
+Cheesecake chocolate chip cookies,0,18,https://res.cloudinary.com/df6cjcebj/image/upload/v1741818305/products/c86snvvjuazofzxugu0i.jpg,2025-03-12 22:25:06.989,2025-03-12 22:25:52.518,f,100,CRITICAL,5,15000,25000
+Stowberyd,300,23,https://res.cloudinary.com/df6cjcebj/image/upload/v1742227749/products/jn4aizoe44wxp1y8cnnf.png,2025-03-17 16:08:53.738,2025-03-17 16:10:26.274,t,100,NORMAL,5,4000,400000
+Maple Donuts Update,300,19,https://res.cloudinary.com/df6cjcebj/image/upload/v1742224293/products/ink0lz4ghx4sayhreyl0.png,2025-03-17 15:11:33.467,2025-03-17 15:12:45.102,t,100,NORMAL,4,50000,90000
+Homemade Breadee,4000,24,https://res.cloudinary.com/df6cjcebj/image/upload/v1742229079/products/cyrkhonbgauy1fxze7mn.png,2025-03-17 16:31:19.92,2025-03-17 17:04:57.324,t,400,NORMAL,1,40000,30000
+Grilled Beef Sandwich,278,7,https://res.cloudinary.com/df6cjcebj/image/upload/v1741794899/products/v7xe6n0yn17hhpnvnqbq.jpg,2025-03-12 15:54:59.755,2025-03-22 04:19:09.545,f,100,NORMAL,2,35000,50000
+produktes,30000,20,https://res.cloudinary.com/df6cjcebj/image/upload/v1742225448/products/nhrnp7oxn4x1mqnjindx.png,2025-03-17 15:30:49.026,2025-03-17 15:42:53.051,t,100,NORMAL,7,40000,90000

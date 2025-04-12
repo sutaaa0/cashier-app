@@ -1,0 +1,80 @@
+Restore database dimulai pada: 2025-04-12T14:29:50.334Z
+File backup: pre-reset-backup-2025-04-12T13-13-10-915Z.backup
+Mode restore: Preserve Master Data
+Truncate sebelum restore: Ya
+Flag restore dibuat: C:\Users\dodi\OneDrive\Desktop\projects\fullstack\nextjs\cashier\restore-in-progress.flag
+Membuat backup terlebih dahulu sebelum restore: pre-restore-2025-04-12T14-29-50.backup
+Backup sebelum restore berhasil dibuat
+Prisma connections disconnected
+Semua koneksi database diputus
+Mengekstrak data master sebelum restore...
+Data master berhasil diekstrak ke C:\Users\dodi\OneDrive\Desktop\projects\fullstack\nextjs\cashier\backup\temp
+Temp database lama dihapus (jika ada)
+Temp database berhasil dibuat: db_cashier_restore_temp
+Mengembalikan backup ke database temporary...
+Backup berhasil dikembalikan ke database temporary
+Data master dari backup berhasil diekstrak ke C:\Users\dodi\OneDrive\Desktop\projects\fullstack\nextjs\cashier\backup\temp\temp
+Membuat script untuk merge data master...
+Menjalankan script restore utama...
+DBLink extension diaktifkan
+Output restore:
+CREATE EXTENSION
+SET
+TRUNCATE TABLE
+TRUNCATE TABLE
+TRUNCATE TABLE
+TRUNCATE TABLE
+TRUNCATE TABLE
+TRUNCATE TABLE
+TRUNCATE TABLE
+TRUNCATE TABLE
+ALTER SEQUENCE
+ALTER SEQUENCE
+ALTER SEQUENCE
+ALTER SEQUENCE
+ALTER SEQUENCE
+ALTER SEQUENCE
+ALTER SEQUENCE
+ALTER SEQUENCE
+SET
+SELECT 5
+SELECT 5
+INSERT 0 0
+                 ?column?                 
+------------------------------------------
+ User merge completed: 0 new users added.
+(1 row)
+
+DROP TABLE
+DROP TABLE
+SELECT 13
+DROP TABLE
+SELECT 25
+SELECT 25
+                   ?column?                    
+-----------------------------------------------
+ Produk merge completed: 0 new products added.
+(1 row)
+
+DROP TABLE
+DROP TABLE
+INSERT 0 0
+INSERT 0 1
+SELECT 9
+SELECT 5
+SELECT 0
+SELECT 27
+SELECT 0
+INSERT 0 6
+SELECT 6
+INSERT 0 6
+             result              | pelanggan_count | penjualan_count | detail_penjualan_count | refund_count | detail_refund_count | promotion_count | promotion_product_count 
+---------------------------------+-----------------+-----------------+------------------------+--------------+---------------------+-----------------+-------------------------
+ Restore completed successfully! |               0 |               0 |                      0 |            0 |                   0 |               6 |                       6
+(1 row)
+
+
+Membersihkan database temporary...
+Database temporary berhasil dihapus
+Restore database selesai pada: 2025-04-12T14:29:56.027Z
+Flag restore dihapus

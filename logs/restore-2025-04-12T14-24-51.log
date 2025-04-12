@@ -1,0 +1,17 @@
+Restore database dimulai pada: 2025-04-12T14:24:51.770Z
+File backup: pre-reset-backup-2025-04-12T13-13-10-915Z.backup
+Mode restore: Preserve Master Data
+Truncate sebelum restore: Tidak
+Flag restore dibuat: C:\Users\dodi\OneDrive\Desktop\projects\fullstack\nextjs\cashier\restore-in-progress.flag
+Membuat backup terlebih dahulu sebelum restore: pre-restore-2025-04-12T14-24-51.backup
+Backup sebelum restore berhasil dibuat
+Prisma connections disconnected
+Semua koneksi database diputus
+Mengekstrak data master sebelum restore...
+Data master berhasil diekstrak ke C:\Users\dodi\OneDrive\Desktop\projects\fullstack\nextjs\cashier\backup\temp
+Warning: Command failed: psql -U postgres -h localhost -p 5432 -d postgres -c "DROP DATABASE IF EXISTS db-cashier_restore_temp;"
+ERROR:  syntax error at or near "-"
+LINE 1: DROP DATABASE IF EXISTS db-cashier_restore_temp;
+                                  ^
+
+Flag restore dihapus setelah error

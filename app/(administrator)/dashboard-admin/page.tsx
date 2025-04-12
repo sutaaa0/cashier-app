@@ -17,6 +17,9 @@ import { getCurrentUser } from "@/server/actions";
 import { redirect } from "next/navigation";
 import { useRouter } from "next/navigation";
 import { NeoProgressIndicator } from "@/components/NeoProgresIndicator";
+import BackupPage from "@/components/BackupPage";
+import ResetDatabasePanel from "./components/ResetDatabasePanel";
+// import DatabaseManagementPage from "./components/DatabaseManagement";
 
 export default function AdminPage() {
   const router = useRouter();
@@ -80,6 +83,10 @@ export default function AdminPage() {
         return <ReportManagement />;
       case "analytics":
         return <AnalyticsPage />;
+      case "backup":
+        return <BackupPage />;
+      case "reset":
+        return <ResetDatabasePanel />;
       default:
         return <UserManagement />;
     }

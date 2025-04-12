@@ -1,0 +1,32 @@
+[
+  {
+    "level": "ADMIN",
+    "password": "$2a$10$0MELbLgfT27ectuAUvdSZ.NRyb9.9Xx.mFceL5d.YXsbAAprdVTPS",
+    "username": "admin",
+    "id": 2
+  },
+  {
+    "level": "PETUGAS",
+    "password": "$2a$10$8oP/XvL4ULBHom1FsPdfiu4t73DXQc.k0IOwVtTx0Tp.H8HW8oQsO",
+    "username": "budi",
+    "id": 17
+  },
+  {
+    "level": "PETUGAS",
+    "password": "$2a$10$djQ8ramdaPEquQQ1sG1ceem9pJBRlmkEUHIjqraNyyAiX4Rr4Cln2",
+    "username": "beni",
+    "id": 18
+  },
+  {
+    "level": "PETUGAS",
+    "password": "$2a$10$.hD3v1O6Ll6qejsfiqt2tuvvSRKWGjBU/XWhz8m/.fPEFb3gVpN2G",
+    "username": "siti",
+    "id": 19
+  },
+  {
+    "level": "PETUGAS",
+    "password": "$2a$10$RK6x10tzX641/Yx7wnIFyONhn53OppB07c5azAPD6tdtnTqh0hEFS",
+    "username": "petugas",
+    "id": 1
+  }
+]

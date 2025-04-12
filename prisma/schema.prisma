@@ -156,3 +156,12 @@ enum PromotionType {
   PRODUCT_SPECIFIC
   QUANTITY_BASED
 }
+
+
+model ResetSettings {
+  id                 Int       @id @default(autoincrement())
+  confirmationCode   String    @default("RESET-DB")
+  preserveMasterData Boolean   @default(true)
+  lastResetDate      DateTime?
+  updatedAt          DateTime  @updatedAt
+}
