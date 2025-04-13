@@ -1,0 +1,5 @@
+Reset database dimulai pada: 2025-04-12T14:40:54.792Z
+Mode reset: Full Reset
+Backup sebelum reset dibuat: pre-reset-backup-2025-04-12T14-40-54-792Z.backup
+Menggunakan mode full reset (hapus semua data)
+Menjalankan: psql -U postgres -h localhost -p 5432 -d postgres -c "SELECT pg_terminate_backend(pg_stat_activity.pid) FROM pg_stat_activity WHERE pg_stat_activity.datname = 'db-cashier' AND pid <> pg_backend_pid();"

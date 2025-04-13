@@ -52,8 +52,8 @@ export async function POST(request: Request) {
     const backupFilename = `pre-reset-backup-${timestamp}.backup`;
     const backupPath = path.join(backupDir, backupFilename);
     
-    // Backup terlebih dahulu sebelum reset
-    const backupCommand = `pg_dump -Fc -U ${user} -h ${host} -p ${port} ${database} > "${backupPath}"`;
+    // Backup terlebih dahulu sebelum reset - PENTING: Gunakan quotes untuk nama database
+    const backupCommand = `pg_dump -Fc -U ${user} -h ${host} -p ${port} "${database}" > "${backupPath}"`;
     execSync(backupCommand, { env });
     
     fs.appendFileSync(logPath, `Backup sebelum reset dibuat: ${backupFilename}\n`);
@@ -77,8 +77,8 @@ export async function POST(request: Request) {
       fs.writeFileSync(backupSQLPath, masterDataBackupSQL);
       
       try {
-        // Jalankan backup data master
-        const backupMasterCmd = `psql -U ${user} -h ${host} -p ${port} -d ${database} -f "${backupSQLPath}"`;
+        // Jalankan backup data master - PENTING: Gunakan quotes untuk nama database
+        const backupMasterCmd = `psql -U ${user} -h ${host} -p ${port} -d "${database}" -f "${backupSQLPath}"`;
         execSync(backupMasterCmd, { env });
         fs.appendFileSync(logPath, `Backup data master berhasil menggunakan SQL\n`);
       } catch (error) {
@@ -98,7 +98,8 @@ export async function POST(request: Request) {
           (SELECT COUNT(*) FROM "Refund") AS refund_count
         `;
         
-        const countCmd = `psql -U ${user} -h ${host} -p ${port} -d ${database} -c "${countSQL}"`;
+        // PENTING: Gunakan quotes untuk nama database
+        const countCmd = `psql -U ${user} -h ${host} -p ${port} -d "${database}" -c "${countSQL}"`;
         const countResult = execSync(countCmd, { env }).toString();
         fs.appendFileSync(logPath, `Data yang akan dihapus:\n${countResult}\n`);
       } catch (error) {
@@ -152,7 +153,8 @@ export async function POST(request: Request) {
       
       // Jalankan SQL reset
       try {
-        const resetCmd = `psql -U ${user} -h ${host} -p ${port} -d ${database} -f "${resetSQLPath}"`;
+        // PENTING: Gunakan quotes untuk nama database
+        const resetCmd = `psql -U ${user} -h ${host} -p ${port} -d "${database}" -f "${resetSQLPath}"`;
         const result = execSync(resetCmd, { env }).toString();
         fs.appendFileSync(logPath, `Reset data berhasil, hasil:\n${result}\n`);
       } catch (error) {
@@ -163,16 +165,17 @@ export async function POST(request: Request) {
         fs.appendFileSync(logPath, `Mencoba pendekatan alternatif dengan query individual...\n`);
         
         const alternativeDeleteCmds = [
-          `psql -U ${user} -h ${host} -p ${port} -d ${database} -c "SET session_replication_role = 'replica';"`,
-          `psql -U ${user} -h ${host} -p ${port} -d ${database} -c "DELETE FROM \\\"DetailRefund\\\";"`,
-          `psql -U ${user} -h ${host} -p ${port} -d ${database} -c "DELETE FROM \\\"DetailPenjualan\\\";"`,
-          `psql -U ${user} -h ${host} -p ${port} -d ${database} -c "DELETE FROM \\\"PromotionProduct\\\";"`,
-          `psql -U ${user} -h ${host} -p ${port} -d ${database} -c "DELETE FROM \\\"Promotion\\\";"`,
-          `psql -U ${user} -h ${host} -p ${port} -d ${database} -c "DELETE FROM \\\"Refund\\\";"`,
-          `psql -U ${user} -h ${host} -p ${port} -d ${database} -c "DELETE FROM \\\"Penjualan\\\";"`,
-          `psql -U ${user} -h ${host} -p ${port} -d ${database} -c "DELETE FROM \\\"Guest\\\";"`,
-          `psql -U ${user} -h ${host} -p ${port} -d ${database} -c "DELETE FROM \\\"Pelanggan\\\";"`,
-          `psql -U ${user} -h ${host} -p ${port} -d ${database} -c "SET session_replication_role = 'origin';"`,
+          // PENTING: Gunakan quotes untuk nama database
+          `psql -U ${user} -h ${host} -p ${port} -d "${database}" -c "SET session_replication_role = 'replica';"`,
+          `psql -U ${user} -h ${host} -p ${port} -d "${database}" -c "DELETE FROM \\\"DetailRefund\\\";"`,
+          `psql -U ${user} -h ${host} -p ${port} -d "${database}" -c "DELETE FROM \\\"DetailPenjualan\\\";"`,
+          `psql -U ${user} -h ${host} -p ${port} -d "${database}" -c "DELETE FROM \\\"PromotionProduct\\\";"`,
+          `psql -U ${user} -h ${host} -p ${port} -d "${database}" -c "DELETE FROM \\\"Promotion\\\";"`,
+          `psql -U ${user} -h ${host} -p ${port} -d "${database}" -c "DELETE FROM \\\"Refund\\\";"`,
+          `psql -U ${user} -h ${host} -p ${port} -d "${database}" -c "DELETE FROM \\\"Penjualan\\\";"`,
+          `psql -U ${user} -h ${host} -p ${port} -d "${database}" -c "DELETE FROM \\\"Guest\\\";"`,
+          `psql -U ${user} -h ${host} -p ${port} -d "${database}" -c "DELETE FROM \\\"Pelanggan\\\";"`,
+          `psql -U ${user} -h ${host} -p ${port} -d "${database}" -c "SET session_replication_role = 'origin';"`,
         ];
         
         for (const cmd of alternativeDeleteCmds) {
@@ -199,7 +202,8 @@ export async function POST(request: Request) {
           (SELECT COUNT(*) FROM "Produk") AS produk_count
         `;
         
-        const verifyCmd = `psql -U ${user} -h ${host} -p ${port} -d ${database} -c "${verifySQL}"`;
+        // PENTING: Gunakan quotes untuk nama database
+        const verifyCmd = `psql -U ${user} -h ${host} -p ${port} -d "${database}" -c "${verifySQL}"`;
         const verifyResult = execSync(verifyCmd, { env }).toString();
         fs.appendFileSync(logPath, `Verifikasi hasil reset:\n${verifyResult}\n`);
       } catch (error) {
@@ -214,9 +218,9 @@ export async function POST(request: Request) {
       const resetCommands = [
         // Disconnect semua koneksi
         `psql -U ${user} -h ${host} -p ${port} -d postgres -c "SELECT pg_terminate_backend(pg_stat_activity.pid) FROM pg_stat_activity WHERE pg_stat_activity.datname = '${database}' AND pid <> pg_backend_pid();"`,
-        // Drop dan buat ulang database
-        `psql -U ${user} -h ${host} -p ${port} -d postgres -c "DROP DATABASE IF EXISTS ${database};"`,
-        `psql -U ${user} -h ${host} -p ${port} -d postgres -c "CREATE DATABASE ${database} WITH OWNER ${user};"`,
+        // Drop dan buat ulang database - PENTING: Gunakan quotes untuk nama database dengan tanda hubung
+        `psql -U ${user} -h ${host} -p ${port} -d postgres -c "DROP DATABASE IF EXISTS \\"${database}\\";"`,
+        `psql -U ${user} -h ${host} -p ${port} -d postgres -c "CREATE DATABASE \\"${database}\\" WITH OWNER \\"${user}\\";"`,
       ];
       
       // Jalankan perintah reset
@@ -228,7 +232,8 @@ export async function POST(request: Request) {
       // Cek jika ada file schema.sql untuk menginisialisasi database
       const schemaPath = path.join(process.cwd(), "schema.sql");
       if (fs.existsSync(schemaPath)) {
-        const initCommand = `psql -U ${user} -h ${host} -p ${port} -d ${database} -f "${schemaPath}"`;
+        // PENTING: Gunakan quotes untuk nama database
+        const initCommand = `psql -U ${user} -h ${host} -p ${port} -d "${database}" -f "${schemaPath}"`;
         execSync(initCommand, { env });
         fs.appendFileSync(logPath, `Menjalankan inisialisasi schema: ${initCommand}\n`);
       } else {

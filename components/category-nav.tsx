@@ -24,7 +24,7 @@ interface FetchedCategory {
 }
 
 export function CategoryNav({ 
-  selected = "All Menu", 
+  selected = "Semua", 
   onSelect 
 }: { 
   selected: string; 
@@ -38,10 +38,10 @@ export function CategoryNav({
       try {
         const { categoryCounts, totalCount } = await getCategoryCounts();
         
-        // Create categories array starting with All Menu
+        // Create categories array starting with Semua
         const categories: FetchedCategory[] = [
           {
-            name: "All Menu",
+            name: "Semua",
             icon: "",  // Empty string as we'll use Cloud icon
             color: "#7aa2f7",
             count: totalCount,
@@ -106,10 +106,10 @@ export function CategoryNav({
               selected === category.name ? "bg-white" : category.color
             )}
           >
-            {category.name === "All Menu" ? (
+            {category.name === "Semua" ? (
               <Image 
                 src={"/allmenu.png"}
-                alt="All Menu"
+                alt="Semua"
                 width={60}
                 height={60} 
               />
@@ -134,7 +134,7 @@ export function CategoryNav({
               selected === category.name ? "bg-black text-white" : "bg-white"
             )}
           >
-            {isLoading ? "..." : `${category.count} Items`}
+            {isLoading ? "..." : `${category.count} Item`}
           </span>
         </button>
       ))}

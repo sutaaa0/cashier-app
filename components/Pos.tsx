@@ -86,7 +86,7 @@ interface OrderSummaryRef {
 }
 
 const Pos = (): JSX.Element => {
-  const [selectedCategory, setSelectedCategory] = useState<string>("All Menu");
+  const [selectedCategory, setSelectedCategory] = useState<string>("Semua");
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [showReceiptModal, setShowReceiptModal] = useState<boolean>(false);
   const router = useRouter();
@@ -480,7 +480,7 @@ const Pos = (): JSX.Element => {
     );
   }
 
-  const filteredProducts = products.filter((product) => (product?.nama || "").toLowerCase().includes(searchQuery.toLowerCase()) && (selectedCategory === "All Menu" || product?.kategori?.nama === selectedCategory));
+  const filteredProducts = products.filter((product) => (product?.nama || "").toLowerCase().includes(searchQuery.toLowerCase()) && (selectedCategory === "Semua" || product?.kategori?.nama === selectedCategory));
 
   return (
     <div className="h-screen flex flex-col bg-white">
@@ -506,12 +506,7 @@ const Pos = (): JSX.Element => {
         />
       )}
 
-      {/* Refund Button */}
-      {/* <div className="fixed bottom-4 right-4">
-        <Button onClick={() => router.push("/kasir/return")} className="mb-3 px-4 py-2 bg-red-500 text-white font-bold border-2 border-black hover:bg-black hover:text-red-500">
-          Pengembalian
-        </Button>
-      </div> */}
+     
     </div>
   );
 };

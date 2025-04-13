@@ -3,5 +3,6 @@
   "schedule": "0 2 * * 0",
   "createBackup": true,
   "initSchema": true,
-  "confirmationCode": "RESET-DB"
+  "confirmationCode": "RESET-DB",
+  "preserveMasterData": true
 }

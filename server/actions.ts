@@ -161,7 +161,7 @@ export async function getCurrentUser() {
 
 // Get all products
 export async function getProducts(category: string) {
-  if (category === "All Menu") {
+  if (category === "Semua") {
     const products = await prisma.produk.findMany({
       orderBy: { nama: "asc" },
       where: {

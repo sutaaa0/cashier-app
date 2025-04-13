@@ -273,7 +273,7 @@ export function ReplacementItems({
         ))}
         
         {items.length === 0 && (
-          <p className="text-center text-gray-500 py-4">There is no replacement product yet. Search the above products to add.</p>
+          <p className="text-center text-gray-500 py-4">Belum ada produk pengganti. Cari produk di atas untuk ditambahkan.</p>
         )}
       </div>
     </div>
