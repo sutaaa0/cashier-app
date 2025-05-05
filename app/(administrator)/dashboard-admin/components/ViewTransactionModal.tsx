@@ -52,7 +52,7 @@ export function ViewTransactionModal({ isOpen, onClose, transaction }: ViewTrans
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white border-[3px] border-black p-6 rounded-lg shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] w-full max-w-3xl">
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-2xl font-bold">Transaction Details</h2>
+          <h2 className="text-2xl font-bold">Detail Transaksi</h2>
           <button onClick={onClose} className="p-1 hover:bg-gray-200 rounded">
             <X size={24} />
           </button>
@@ -63,7 +63,7 @@ export function ViewTransactionModal({ isOpen, onClose, transaction }: ViewTrans
           <div className="grid grid-cols-2 gap-4">
             <div className="flex items-center gap-2">
               <Calendar size={20} />
-              <span>Date: {new Date(transaction.tanggalPenjualan).toLocaleString()}</span>
+              <span>Tanggal: {new Date(transaction.tanggalPenjualan).toLocaleString()}</span>
             </div>
             <div className="flex items-center gap-2">
               <DollarSign size={20} />
@@ -71,16 +71,16 @@ export function ViewTransactionModal({ isOpen, onClose, transaction }: ViewTrans
             </div>
             <div className="flex items-center gap-2">
               <User size={20} />
-              <span>Customer: {transaction.pelanggan ? transaction.pelanggan.nama : `Guest ${transaction.guest?.guestId}`}</span>
+              <span>Pelanggan: {transaction.pelanggan ? transaction.pelanggan.nama : `Guest ${transaction.guest?.guestId}`}</span>
             </div>
             <div className="flex items-center gap-2">
               <User size={20} />
-              <span>Cashier: {transaction.user ? transaction.user.username : "Unknown"}</span>
+              <span>Kasir: {transaction.user ? transaction.user.username : "Unknown"}</span>
             </div>
             { (transaction.diskonPoin ?? 0) > 0 && (
               <div className="flex items-center gap-2 text-green-600">
                 <CreditCard size={20} />
-                <span>Points Discount: {formatRupiah(transaction.diskonPoin ?? 0)}</span>
+                <span>Poin Diskon: {formatRupiah(transaction.diskonPoin ?? 0)}</span>
               </div>
             )}
           </div>
@@ -89,15 +89,15 @@ export function ViewTransactionModal({ isOpen, onClose, transaction }: ViewTrans
           <div>
             <h3 className="font-bold mb-2 flex items-center gap-2">
               <ShoppingBag size={20} />
-              Items:
+              Item:
             </h3>
             <table className="w-full border-collapse">
               <thead>
                 <tr className="bg-gray-100 border-b">
-                  <th className="p-2 text-left">Product</th>
-                  <th className="p-2 text-right">Quantity</th>
+                  <th className="p-2 text-left">Produk</th>
+                  <th className="p-2 text-right">Jumlah</th>
                   <th className="p-2 text-right">Subtotal</th>
-                  <th className="p-2 text-left">Promotion</th>
+                  <th className="p-2 text-left">Promosi</th>
                 </tr>
               </thead>
               <tbody>
@@ -114,7 +114,7 @@ export function ViewTransactionModal({ isOpen, onClose, transaction }: ViewTrans
                           {detail.promotion.discountAmount && ` (${formatRupiah(detail.promotion.discountAmount)} off)`}
                         </div>
                       ) : (
-                        <span className="text-gray-500">No promotion</span>
+                        <span className="text-gray-500">Tidak ada promosi</span>
                       )}
                     </td>
                   </tr>
@@ -128,10 +128,10 @@ export function ViewTransactionModal({ isOpen, onClose, transaction }: ViewTrans
             <div className="bg-green-50 p-3 border border-green-200 rounded">
               <div className="flex items-center gap-2">
                 <CreditCard size={20} className="text-green-600" />
-                <h3 className="font-bold text-green-700">Points Discount Applied</h3>
+                <h3 className="font-bold text-green-700">Diskon Poin Diterapkan</h3>
               </div>
               <p className="mt-1 text-green-700">
-                {formatRupiah(transaction.diskonPoin ?? 0)} discount from redeemed points
+                {formatRupiah(transaction.diskonPoin ?? 0)} diskon dari poin yang ditukarkan
               </p>
             </div>
           )}
@@ -141,15 +141,15 @@ export function ViewTransactionModal({ isOpen, onClose, transaction }: ViewTrans
             <div>
               <h3 className="font-bold mb-2 flex items-center gap-2">
                 <RefreshCw size={20} className="text-red-500" />
-                Refund History:
+                Riwayat Pengembalian:
               </h3>
               <table className="w-full border-collapse">
                 <thead>
                   <tr className="bg-gray-100 border-b">
-                    <th className="p-2 text-left">Refund ID</th>
-                    <th className="p-2 text-left">Date</th>
-                    <th className="p-2 text-right">Total Refund</th>
-                    <th className="p-2 text-left">Refunded Items</th>
+                    <th className="p-2 text-left">Id Pengembalian</th>
+                    <th className="p-2 text-left">Tanggal</th>
+                    <th className="p-2 text-right">Total Pengembalian</th>
+                    <th className="p-2 text-left">Barang yang Dikembalikan</th>
                   </tr>
                 </thead>
                 <tbody>

@@ -98,17 +98,9 @@ export default function ProfitAnalytics() {
     staleTime: 2000,
   });
 
-  console.log("data dari server", data);
 
   // Set default empty data array if data is not available yet
   const profitData: ProfitData[] = data || [];
-
-  /**
-   * Menghitung statistik untuk periode saat ini (data terbaru).
-   * Jika terdapat data dalam profitData, ambil elemen terakhir (data terbaru)
-   * untuk mendapatkan nilai sales, profit, dan transactions.
-   * Jika tidak ada data, kembalikan nilai default (0) untuk semua metrik.
-   */
 
   const currentPeriodStats =
     profitData.length > 0
@@ -118,13 +110,6 @@ export default function ProfitAnalytics() {
           transactions: profitData[profitData.length - 1].transactions,
         }
       : { sales: 0, profit: 0, transactions: 0 };
-
-  /**
-   * Menghitung statistik untuk periode sebelumnya.
-   * Jika profitData memiliki lebih dari satu data, ambil elemen kedua dari terakhir
-   * yang merepresentasikan data periode sebelumnya.
-   * Jika tidak ada data yang cukup, kembalikan nilai default (0) untuk semua metrik.
-   */
 
   const previousPeriodStats =
     profitData.length > 1

@@ -42,7 +42,6 @@ export function RevenueByCategoryChart() {
     return <RevenueByCategoryLoading />;
   }
 
-  // Format currency dengan simbol mata uang dan satuan k/M untuk ribu/juta
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('id-ID', {
       style: 'currency',

@@ -1,5 +1,6 @@
 {
-  "autoBackup": true,
-  "schedule": "0 0 1 * *",
-  "retention": 4
+  "autoBackup": false,
+  "schedule": "0 0 1 1 *",
+  "retention": 3,
+  "backupDestination": "local"
 }

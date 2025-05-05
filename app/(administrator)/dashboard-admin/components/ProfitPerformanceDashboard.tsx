@@ -14,7 +14,7 @@ const PROFIT_COLOR = "#FFE66D";
 const PROFIT_MARGIN_COLOR = "#45B7D1";
 
 // Helper function to calculate growth rate between periods
-interface CalculateGrowthFn {
+interface CalculateGrowthFn {        
   (current: number, previous: number): number | null;
 }
 
@@ -183,18 +183,18 @@ const ProfitPerformanceDashboard: React.FC<MonthlyProfitReportProps> = ({ report
       }))
     );
 
-    // Generate projected data based on historical trend
+    // Menghasilkan data yang diproyeksikan berdasarkan tren historis 
     if (report.data.length >= 3) {
       const lastThreePeriods = report.data.slice(-3);
 
-      // Calculate average growth rate
+      // Menghitung tingkat pertumbuhan rata-rata 
       const growthRates = [];
       for (let i = 1; i < lastThreePeriods.length; i++) {
         const growth = calculateGrowth(lastThreePeriods[i].profit, lastThreePeriods[i - 1].profit);
         if (growth !== null) growthRates.push(growth / 100); // Convert to decimal
       }
 
-      const avgGrowthRate = growthRates.length ? growthRates.reduce((sum, rate) => sum + rate, 0) / growthRates.length : 0.05; // Default to 5% if we can't calculate
+      const avgGrowthRate = growthRates.length ? growthRates.reduce((sum, rate) => sum + rate, 0) / growthRates.length : 0.05; // Default ke 5% jika tidak dapat menghitung 
 
       // Get last period data
       const lastPeriod = lastThreePeriods[lastThreePeriods.length - 1];
@@ -205,13 +205,13 @@ const ProfitPerformanceDashboard: React.FC<MonthlyProfitReportProps> = ({ report
       let lastProjectedSales = lastPeriod.totalSales;
 
       for (let i = 1; i <= 3; i++) {
-        // Project with some slight randomness for natural-looking growth
+        // Proyek dengan sedikit keacakan untuk pertumbuhan yang terlihat alami 
         const randomFactor = 0.9 + Math.random() * 0.2; // 0.9-1.1 randomness factor
         const projectedProfit = lastProjectedProfit * (1 + avgGrowthRate * randomFactor);
-        const projectedSales = lastProjectedSales * (1 + avgGrowthRate * randomFactor * 0.8); // Sales grow slower than profit
+        const projectedSales = lastProjectedSales * (1 + avgGrowthRate * randomFactor * 0.8);//Penjualan tumbuh lebih lambat dari profit
         const projectedCost = projectedSales - projectedProfit;
 
-        // Estimate date for next period based on last two periods
+        // Perkiraan tanggal untuk periode berikutnya berdasarkan dua periode terakhir 
         let nextPeriodDate;
         if (report.periodType === "monthly") {
           const lastDate = new Date(lastPeriod.periodDate);
@@ -233,7 +233,7 @@ const ProfitPerformanceDashboard: React.FC<MonthlyProfitReportProps> = ({ report
               : report.periodType === "weekly"
               ? `Week ${Math.ceil(nextPeriodDate.getDate() / 7)}, ${nextPeriodDate.toLocaleDateString("id-ID", { month: "long", year: "numeric" })}`
               : nextPeriodDate.getFullYear().toString()
-          } (Projected)`,
+          } (Proyeksi)`,
           totalSales: projectedSales,
           totalModal: projectedCost,
           profit: projectedProfit,
@@ -250,14 +250,14 @@ const ProfitPerformanceDashboard: React.FC<MonthlyProfitReportProps> = ({ report
     }
   }, [report.data, report.periodType]);
 
-  // Prepare data for charts with proper formatting
+  // Menyiapkan data untuk grafik dengan format yang tepat 
   const chartData = [...report.data].map((period) => ({
     ...period,
     periodLabel: period.periodLabel,
     formattedDate: formatDateString(period.periodDate),
   }));
 
-  // Include projected data in trend chart
+  // Menyertakan data yang diproyeksikan dalam grafik tren 
   const trendChartData = [
     ...chartData,
     ...projectedData.map((period) => ({
@@ -266,7 +266,7 @@ const ProfitPerformanceDashboard: React.FC<MonthlyProfitReportProps> = ({ report
     })),
   ];
 
-  // Calculate Period-over-Period growth rates
+  // Menghitung tingkat pertumbuhan dari periode ke periode 
   const popGrowthData = chartData.map((period, index, array) => {
     if (index === 0) return { ...period, popGrowth: null };
 
@@ -282,10 +282,10 @@ const ProfitPerformanceDashboard: React.FC<MonthlyProfitReportProps> = ({ report
     };
   });
 
-  // Find periods with significant performance changes
+  // Temukan periode dengan perubahan kinerja yang signifikan 
   const significantChanges = popGrowthData
     .filter((period) => period.popGrowth !== null && Math.abs(period.popGrowth) > 10) // 10% threshold
-    .sort((a, b) => Math.abs(b.popGrowth as number) - Math.abs(a.popGrowth as number))
+    .sort((a, b) => Math.abs(b.popGrowth as number) - Math.abs(a.popGrowth as number)) 
     .slice(0, 3) // Top 3 most significant changes
     .map((period) => ({
       ...period,
@@ -305,96 +305,35 @@ const ProfitPerformanceDashboard: React.FC<MonthlyProfitReportProps> = ({ report
   // Handle Excel download function
   const handleDownloadExcel = () => {
     const wb = XLSX.utils.book_new();
+    console.log("data :",report.data)
 
-    // Create Profit Summary sheet
-    const summaryData = [
-      {
-        "Nama Laporan": report.name,
-        Periode: report.period,
-        "Tanggal Dibuat": new Date(report.generatedDate).toLocaleString(),
-        "Total Penjualan": formatRupiah(report.totalAmount),
-        "Total Biaya": formatRupiah(report.totalAmount - report.totalProfit),
-        "Total Keuntungan": formatRupiah(report.totalProfit),
-        "Rata-rata Margin Keuntungan": `${(report.profitMargin * 100).toFixed(2)}%`,
-        "Pertumbuhan Keseluruhan": overallGrowth ? `${overallGrowth.toFixed(2)}%` : "0%",
-        "Periode Keuntungan Tertinggi": highestProfitPeriod.periodLabel || "0%",
-        "Jumlah Keuntungan Tertinggi": formatRupiah(highestProfitPeriod.profit || 0),
-        "Periode Keuntungan Terendah": lowestProfitPeriod.periodLabel || "0%",
-        "Jumlah Keuntungan Terendah": formatRupiah(lowestProfitPeriod.profit || 0),
-      },
-    ];
-
-    const ws1 = XLSX.utils.json_to_sheet(summaryData);
-    XLSX.utils.book_append_sheet(wb, ws1, "Summary");
-
-    // Create detailed profit data sheet
-    interface IReportPeriod {
-      periodLabel: string;
-      totalSales: number;
-      totalModal: number;
-      profit: number;
-      profitMargin: number;
-      totalOrders: number;
-      popGrowth?: number | null;
-    }
-
-    interface DataEntriRinci {
-      Periode: string;
-      "Total Penjualan": string;
-      "Total Biaya": string;
-      Keuntungan: string;
-      "Margin Keuntungan": string;
-      Pesanan: number;
-      "Pertumbuhan (vs Sebelumnya)": string;
-    }
-
-    const dataRinci: DataEntriRinci[] = report.data.map((period: IReportPeriod) => ({
-      Periode: period.periodLabel,
+    // Buat lembar data keuntungan rinci
+    const dataRinci = popGrowthData.map((period) => ({
+      "Periode": period.periodLabel,
       "Total Penjualan": formatRupiah(period.totalSales),
       "Total Biaya": formatRupiah(period.totalModal),
-      Keuntungan: formatRupiah(period.profit),
-      "Margin Keuntungan": `${period.profitMargin.toFixed(2)}%`,
-      Pesanan: period.totalOrders,
-      "Pertumbuhan (vs Sebelumnya)": period.popGrowth ? `${period.popGrowth.toFixed(2)}%` : "0%",
+      "Keuntungan": formatRupiah(period.profit),
+      "Margin": `${period.profitMargin.toFixed(2)}%`,
+      "Pesanan": period.totalOrders,
+      "Pertumbuhan": period.popGrowth ? `${period.popGrowth.toFixed(2)}%` : "0%",
     }));
 
-    const ws2 = XLSX.utils.json_to_sheet(dataRinci);
-    XLSX.utils.book_append_sheet(wb, ws2, "Data Keuntungan Rinci");
+    const ws = XLSX.utils.json_to_sheet(dataRinci);
+    
+    // Atur lebar kolom
+    ws['!cols'] = [
+      { wch: 15 },  // Periode
+      { wch: 20 },  // Total Penjualan
+      { wch: 20 },  // Total Biaya
+      { wch: 15 },  // Keuntungan
+      { wch: 10 },  // Margin
+      { wch: 10 },  // Pesanan
+      { wch: 15 }   // Pertumbuhan
+    ];
 
-    // Membuat sheet proyeksi jika tersedia
-    if (projectedData.length > 0) {
-      const dataProyeksi = projectedData.map((period) => ({
-        Periode: period.periodLabel,
-        "Proyeksi Penjualan": formatRupiah(period.totalSales),
-        "Proyeksi Biaya": formatRupiah(period.totalModal),
-        "Proyeksi Keuntungan": formatRupiah(period.profit),
-        "Proyeksi Margin": `${period.profitMargin.toFixed(2)}%`,
-        Berdasarkan: "Analisis tren historis",
-      }));
+    XLSX.utils.book_append_sheet(wb, ws, "Data Keuntungan");
 
-      const ws3 = XLSX.utils.json_to_sheet(dataProyeksi);
-      XLSX.utils.book_append_sheet(wb, ws3, "Proyeksi");
-    }
-
-    // Membuat sheet perubahan signifikan jika tersedia
-    if (significantChanges.length > 0) {
-      const dataPerubahan = significantChanges.map((period) => ({
-        Periode: period.periodLabel,
-        "Jenis Perubahan": period.changeType === "positive" ? "Peningkatan" : "Penurunan",
-        "Perubahan Keuntungan": `${period.popGrowth?.toFixed(2)}%`,
-        "Perubahan Penjualan": `${period.salesGrowth ? period.salesGrowth.toFixed(2) : "0"}%`,
-        "Perubahan Biaya": `${period.costGrowth ? period.costGrowth.toFixed(2) : "0"}%`,
-        "Perubahan Margin": `${period.marginGrowth ? period.marginGrowth.toFixed(2) : "0"}%`,
-        "Total Penjualan": formatRupiah(period.totalSales),
-        "Total Biaya": formatRupiah(period.totalModal),
-        Keuntungan: formatRupiah(period.profit),
-      }));
-
-      const ws4 = XLSX.utils.json_to_sheet(dataPerubahan);
-      XLSX.utils.book_append_sheet(wb, ws4, "Perubahan Signifikan");
-    }
-
-    // Write the file
+    // Tulis file
     const excelBuffer = XLSX.write(wb, { bookType: "xlsx", type: "array" });
     const data = new Blob([excelBuffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
 

@@ -25,9 +25,9 @@ const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?:
         <div className="relative bg-white border-4 border-black p-4 transform rotate-1 shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]">
           <div className="flex items-center gap-2 mb-2">
             {label === 'Regular' ? <Users className="text-[#FF6B6B]" size={20} /> : <Crown className="text-[#4ECDC4]" size={20} />}
-            <h3 className="font-black text-xl">{label} Customers</h3>
+            <h3 className="font-black text-xl">{label}</h3>
           </div>
-          <div className="font-mono bg-black text-white p-2 transform -rotate-1">{payload[0].value} TRANSACTIONS</div>
+          <div className="font-mono bg-black text-white p-2 transform -rotate-1">{payload[0].value} TRANSAKSI</div>
         </div>
       </div>
     );

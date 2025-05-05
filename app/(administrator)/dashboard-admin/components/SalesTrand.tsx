@@ -79,7 +79,7 @@ export function SalesTrend() {
   }
 
   // Memastikan data hanya untuk satu minggu
-  const weekDays = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab']
+  const weekDays = ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min']
   const combinedData = weekDays.map((day, index) => ({
     day,
     thisWeek: data.thisWeek[index]?.sales || 0,

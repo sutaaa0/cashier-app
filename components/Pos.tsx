@@ -13,7 +13,7 @@ import { NeoProgressIndicator } from "./NeoProgresIndicator";
 import { ReceiptModal } from "./ReceiptModal";
 // import { Button } from "./ui/button";
 import { useRouter } from "next/navigation";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 interface Produk extends PrismaProduk {
   kategori: { nama: string; kategoriId: number };
@@ -111,6 +111,8 @@ const Pos = (): JSX.Element => {
     totalBeforePromotionDiscount: 0,
   };
 
+  const queryClient = useQueryClient();
+
   const [order, setOrder] = useState<PenjualanWithDetails>(initialOrder);
   const orderSummaryRef = useRef<OrderSummaryRef | null>(null);
 
@@ -122,8 +124,8 @@ const Pos = (): JSX.Element => {
   } = useQuery({
     queryKey: ["products", selectedCategory],
     queryFn: () => getProducts(selectedCategory),
-    refetchInterval: 10000,
-    staleTime: 10000,
+    refetchInterval: 500,
+    staleTime: 500,
     retry: 3,
     enabled: !isAuthChecking, // Hanya aktifkan query setelah autentikasi selesai
   });
@@ -365,7 +367,7 @@ const Pos = (): JSX.Element => {
     if (orderData.detailPenjualan.length === 0) {
       toast({
         title: "Error",
-        description: "Please add products first",
+        description: "Silakan tambahkan produk terlebih dahulu",
         variant: "destructive",
       });
       return;
@@ -392,6 +394,11 @@ const Pos = (): JSX.Element => {
       const penjualan = await createOrder(orderPayload);
 
       if (penjualan && "total_harga" in penjualan) {
+
+        await queryClient.invalidateQueries({ 
+          queryKey: ["products", selectedCategory] 
+        });
+
         // Hitung total diskon promosi
         const totalPromotionDiscount = orderData.promotionDiscounts ? Object.values(orderData.promotionDiscounts).reduce((sum, discount) => sum + discount, 0) : 0;
 
@@ -474,7 +481,7 @@ const Pos = (): JSX.Element => {
     return (
       <div className="h-screen flex items-center justify-center bg-white">
         <div className="text-center">
-          <NeoProgressIndicator isLoading={true} message={"Checking authentication..."} />
+          <NeoProgressIndicator isLoading={true} message={"Memeriksa autentikasi..."} />
         </div>
       </div>
     );

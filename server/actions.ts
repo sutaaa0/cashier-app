@@ -2,7 +2,7 @@
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/db";
 import bcrypt from "bcryptjs";
-import * as jose from "jose";     
+import * as jose from "jose";
 import { DetailPenjualan, Pelanggan, Produk, Prisma } from "@prisma/client";
 import { CreateOrderDetail, CustomerTransactionData } from "@/types/types";
 import { revalidatePath } from "next/cache";
@@ -547,18 +547,10 @@ interface Category {
   nama: string;
 }
 
-export async function addProduct(formData: { 
-  name: string; 
-  harga: number; 
-  hargaModal: number; 
-  stock: number; 
-  minimumStok: number; 
-  categoryId: number; 
-  imageUrl: string 
-}): Promise<{ status: string; message: string; data?: Produk | null }> {
+export async function addProduct(formData: { name: string; harga: number; hargaModal: number; stock: number; minimumStok: number; categoryId: number; imageUrl: string }): Promise<{ status: string; message: string; data?: Produk | null }> {
   try {
     const { name, harga, hargaModal, stock, minimumStok, categoryId, imageUrl } = formData;
-    
+
     // Validasi data yang diperlukan
     if (!name || !harga || !hargaModal || !stock || !minimumStok || !categoryId || !imageUrl) {
       return {
@@ -566,7 +558,7 @@ export async function addProduct(formData: {
         message: "All product data must be filled in",
       };
     }
-    
+
     // Validasi nilai-nilai numerik
     if (harga <= 0 || hargaModal < 0 || stock < 0 || minimumStok < 0) {
       return {
@@ -574,22 +566,22 @@ export async function addProduct(formData: {
         message: "Selling price, capital price, stock, and minimum stock must be positive ",
       };
     }
-    
+
     // Cek apakah produk dengan nama yang sama (dan tidak dihapus) sudah ada
     const existingProduct = await prisma.produk.findFirst({
       where: {
         nama: name,
-        isDeleted: false
-      }
+        isDeleted: false,
+      },
     });
-    
+
     if (existingProduct) {
       return {
         status: "Error",
         message: "Products with the same name already exist",
       };
     }
-    
+
     // Tentukan status stok berdasarkan jumlah stok dan minimum stok
     let statusStok: "CRITICAL" | "LOW" | "NORMAL";
     if (stock <= minimumStok * 0.5) {
@@ -599,7 +591,7 @@ export async function addProduct(formData: {
     } else {
       statusStok = "NORMAL";
     }
-    
+
     // Buat produk baru
     const product = await prisma.produk.create({
       data: {
@@ -613,9 +605,9 @@ export async function addProduct(formData: {
         statusStok: statusStok,
       },
     });
-    
+
     revalidatePath("/dashboard-admin");
-    
+
     return {
       status: "Success",
       message: "Product added successfully ",
@@ -670,16 +662,16 @@ export async function updateCategory(data: { kategoriId: number; nama: string; i
         nama: data.nama,
         isDeleted: false,
         NOT: {
-          kategoriId: data.kategoriId // Exclude the current category being updated
-        }
-      }
+          kategoriId: data.kategoriId, // Exclude the current category being updated
+        },
+      },
     });
 
     // If an active category with the same name exists, return an error
     if (existingCategory) {
-      return { 
-        status: "Error", 
-        message: "Categories with the same name already exist" 
+      return {
+        status: "Error",
+        message: "Categories with the same name already exist",
       };
     }
 
@@ -691,24 +683,24 @@ export async function updateCategory(data: { kategoriId: number; nama: string; i
         icon: data.icon || "",
       },
     });
-    
+
     return { status: "Success", data: updatedCategory };
   } catch (error) {
     console.error("Error updating category:", error);
-    return { 
-      status: "Error", 
-      message: error instanceof Error ? error.message : "Failed to update category" 
+    return {
+      status: "Error",
+      message: error instanceof Error ? error.message : "Failed to update category",
     };
   }
 }
 
-export async function addCategory(data: { nama: string; icon?: string; color?: string }) {
+export async function addCategory(data: { nama: string; icon?: string }) {
   try {
     // Check if a non-deleted category with the same name already exists
     const existingCategory = await prisma.kategori.findFirst({
-      where: { 
+      where: {
         nama: data.nama,
-        isDeleted: false // Only check against non-deleted categories
+        isDeleted: false, // Only check against non-deleted categories
       },
     });
 
@@ -721,7 +713,7 @@ export async function addCategory(data: { nama: string; icon?: string; color?: s
       data: {
         nama: data.nama,
         icon: data.icon || "",
-        isDeleted: false // Explicitly set as not deleted
+        isDeleted: false, // Explicitly set as not deleted
       },
     });
 
@@ -771,31 +763,31 @@ export async function deleteCategory(kategoriId: number): Promise<DeleteCategory
   return { status: "Success", message: "Kategori berhasil dihapus (soft delete)", data: deletedCategory };
 }
 
-export async function updateProduct(formData: {   
-  id: number;   
-  name: string;   
-  price: number;   
+export async function updateProduct(formData: {
+  id: number;
+  name: string;
+  price: number;
   costPrice: number;
-  stock: number;   
-  minimumStok: number;   
-  category: string;   
-  imageUrl: string; 
-}): Promise<{ status: string; message: string; data?: Produk }> {   
+  stock: number;
+  minimumStok: number;
+  category: string;
+  imageUrl: string;
+}): Promise<{ status: string; message: string; data?: Produk }> {
   try {
     // First, check if the product name already exists and is active
     const existingProduct = await prisma.produk.findFirst({
       where: {
         nama: formData.name,
         isDeleted: false,
-        produkId: { not: formData.id } // Exclude the current product being updated
-      }
+        produkId: { not: formData.id }, // Exclude the current product being updated
+      },
     });
 
     // If an active product with the same name exists, throw an error
     if (existingProduct) {
       return {
         status: "Error",
-        message: "Products with the same name already exist"
+        message: "Products with the same name already exist",
       };
     }
 
@@ -808,16 +800,16 @@ export async function updateProduct(formData: {
     } else {
       statusStok = "NORMAL";
     }
-    
+
     // Find the category to connect
     const category = await prisma.kategori.findFirst({
-      where: { nama: formData.category }
+      where: { nama: formData.category },
     });
 
     if (!category) {
       return {
         status: "Error",
-        message: "Category not found."
+        message: "Category not found.",
       };
     }
 
@@ -836,14 +828,14 @@ export async function updateProduct(formData: {
         isDeleted: false, // Ensure the product is marked as active
       },
     });
-    
+
     // Use the proper revalidatePath with options
     revalidatePath("/dashboard-admin");
-    
-    return { 
-      status: "Success", 
-      message: "Product updated successfully", 
-      data: product 
+
+    return {
+      status: "Success",
+      message: "Product updated successfully",
+      data: product,
     };
   } catch (error) {
     console.error("Error updating product:", error);
@@ -851,7 +843,7 @@ export async function updateProduct(formData: {
       status: "Error",
       message: error instanceof Error ? error.message : "Failed to update product",
     };
-  } 
+  }
 }
 
 interface ActionResponse {
@@ -1330,19 +1322,19 @@ export async function generateProfitReport(periodType: "weekly" | "monthly" | "y
   // Configure date ranges and formats based on period type
   switch (periodType) {
     case "weekly": {
-      reportName = "Weekly Profit Report";
+      reportName = "Laporan Keuntungan Mingguan";
 
-      // Calculate number of weeks between first transaction and now
+      // Hitung jumlah minggu antara transaksi pertama dan sekarang
       const startDate = startOfWeek(firstTransactionDate);
       const endDateWeek = endOfWeek(endDate);
 
-      // Calculate the difference in weeks
+      // Hitung selisihnya dalam beberapa minggu
       const diffTime = Math.abs(endDateWeek.getTime() - startDate.getTime());
       const diffWeeks = Math.ceil(diffTime / (7 * 24 * 60 * 60 * 1000)) + 1;
 
       periodLabel = `${format(startDate, "dd MMM yyyy")} - ${format(endDate, "dd MMM yyyy")}`;
 
-      // Create segments for each week (limit to max 52 weeks/1 year to prevent too many segments)
+      // Buat segmen untuk setiap minggu (batasi hingga maksimal 52 minggu/1 tahun untuk mencegah terlalu banyak segmen)
       const weeksToShow = Math.min(diffWeeks, 52);
 
       for (let i = 0; i < weeksToShow; i++) {
@@ -1350,14 +1342,14 @@ export async function generateProfitReport(periodType: "weekly" | "monthly" | "y
         weekEnd.setDate(weekEnd.getDate() - 7 * i);
         const weekStart = startOfWeek(weekEnd);
 
-        // Don't go earlier than the first transaction
+        // tidak lebih awal dari transaksi pertama
         if (weekStart < startDate) {
           break;
         }
 
         const weekData = await getProfitDataForRange(weekStart, i === 0 ? endDate : endOfWeek(weekEnd));
 
-        // Skip weeks with no transactions
+        // Melewatkan minggu tanpa transaksi
         if (weekData.totalOrders === 0) {
           continue;
         }
@@ -1373,7 +1365,7 @@ export async function generateProfitReport(periodType: "weekly" | "monthly" | "y
     }
 
     case "monthly": {
-      reportName = "Monthly Profit Report";
+      reportName = "Laporan Keuntungan Bulanan";
 
       // Use the start of the month for the first transaction
       const startDate = startOfMonth(firstTransactionDate);
@@ -1381,7 +1373,7 @@ export async function generateProfitReport(periodType: "weekly" | "monthly" | "y
       // Calculate number of months between first transaction and now
       const monthDiff = (endDate.getFullYear() - startDate.getFullYear()) * 12 + (endDate.getMonth() - startDate.getMonth()) + 1;
 
-      periodLabel = `${format(startDate, "MMM yyyy")} - ${format(endDate, "MMM yyyy")}`;
+      periodLabel = `${format(startDate, "MMM yyyy", { locale: id })} - ${format(endDate, "MMM yyyy", { locale: id })}`;
 
       // Create segments for each month (limit to max 36 months/3 years to prevent too many segments)
       const monthsToShow = Math.min(monthDiff, 36);
@@ -1416,7 +1408,7 @@ export async function generateProfitReport(periodType: "weekly" | "monthly" | "y
     }
 
     case "yearly": {
-      reportName = "Annual Profit Report";
+      reportName = "Laporan Keuntungan Tahunan";
 
       // Use the start of the year for the first transaction
       const startDate = startOfYear(firstTransactionDate);
@@ -1631,7 +1623,6 @@ export const getRevenue = async () => {
     const thisMonthChange = calculatePercentageChange(thisMonthRevenue._sum.total_harga || 0, lastMonthRevenue._sum.total_harga || 0);
 
     const thisYearChange = calculatePercentageChange(thisYearRevenue._sum.total_harga || 0, lastYearRevenue._sum.total_harga || 0);
-
     // Mengembalikan data revenue
     return {
       today: todayRevenue._sum.total_harga || 0,
@@ -1796,7 +1787,7 @@ export async function getRevenueChartData(period: "daily" | "weekly" | "monthly"
           d.setDate(d.getDate() + i);
           const key = format(toZonedTime(d, "Asia/Jakarta"), "yyyy-MM-dd");
           // Gunakan format hari singkat (misalnya: Mon, Tue, dst)
-          const dayName = format(toZonedTime(d, "Asia/Jakarta"), "EEE");
+          const dayName = format(toZonedTime(d, "Asia/Jakarta"), "EEE", { locale: id });
           weeklyMap[key] = { name: dayName, amount: 0 };
         }
 
@@ -1847,7 +1838,7 @@ export async function getRevenueChartData(period: "daily" | "weekly" | "monthly"
 
         // Buat array 12 bulan (0: Jan, 11: Dec)
         const yearlyData = Array.from({ length: 12 }, (_, i) => ({
-          name: formatInTimeZone(new Date(now.getFullYear(), i, 1), "Asia/Jakarta", "MMM"),
+          name: formatInTimeZone(new Date(now.getFullYear(), i, 1), "Asia/Jakarta", "MMM", { locale: id }),
           amount: 0,
         }));
 
@@ -1924,7 +1915,6 @@ export async function getCategorySales() {
   }
 }
 
-// In /server/actions.js
 export async function getPeakHours() {
   try {
     const now = new Date();
@@ -2103,30 +2093,30 @@ export async function getSalesTrendData() {
 
 // In your server/actions.js or similar file
 
-export async function getTopSellingProducts(startDateStr = '', endDateStr = '') {
+export async function getTopSellingProducts(startDateStr = "", endDateStr = "") {
   try {
     // Set default dates if not provided
     let startDate = new Date();
     let endDate = new Date();
-    
+
     if (startDateStr) {
       startDate = new Date(startDateStr);
     } else {
       // Default: 30 days ago
       startDate.setDate(startDate.getDate() - 30);
     }
-    
+
     if (endDateStr) {
       endDate = new Date(endDateStr);
       // Set to end of day
       endDate.setHours(23, 59, 59, 999);
     }
-    
+
     // Calculate previous period (same length as selected period)
     const periodLength = endDate.getTime() - startDate.getTime();
     const previousPeriodEndDate = new Date(startDate.getTime() - 1); // 1ms before start date
     const previousPeriodStartDate = new Date(previousPeriodEndDate.getTime() - periodLength);
-    
+
     // Debugging logs
     console.log(`Current period: ${startDate.toISOString()} to ${endDate.toISOString()}`);
     console.log(`Previous period: ${previousPeriodStartDate.toISOString()} to ${previousPeriodEndDate.toISOString()}`);
@@ -2185,7 +2175,7 @@ export async function getTopSellingProducts(startDateStr = '', endDateStr = '') 
 
         const currentSales = item._sum.kuantitas || 0;
         const previousSales = previousPeriodSales[0]?._sum.kuantitas || 0;
-        
+
         // Calculate growth percentage
         let growth = 0;
         if (previousSales === 0) {
@@ -2249,16 +2239,16 @@ export async function getTopCustomers(period: "all" | "month" | "year" = "all") 
       const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
       dateFilter = {
         tanggalPenjualan: {
-          gte: firstDayOfMonth
-        }
+          gte: firstDayOfMonth,
+        },
       };
     } else if (period === "year") {
       const today = new Date();
       const firstDayOfYear = new Date(today.getFullYear(), 0, 1);
       dateFilter = {
         tanggalPenjualan: {
-          gte: firstDayOfYear
-        }
+          gte: firstDayOfYear,
+        },
       };
     }
 
@@ -2269,8 +2259,8 @@ export async function getTopCustomers(period: "all" | "month" | "year" = "all") 
           nama: "Guest", // Mengabaikan pelanggan Guest
         },
         penjualan: {
-          some: dateFilter // Hanya pelanggan dengan transaksi & filter periode
-        }
+          some: dateFilter, // Hanya pelanggan dengan transaksi & filter periode
+        },
       },
       select: {
         pelangganId: true,
@@ -2283,30 +2273,25 @@ export async function getTopCustomers(period: "all" | "month" | "year" = "all") 
             tanggalPenjualan: true,
           },
           orderBy: {
-            tanggalPenjualan: "desc"
-          }
+            tanggalPenjualan: "desc",
+          },
         },
         _count: {
           select: {
             penjualan: {
-              where: dateFilter
-            }
-          }
-        }
+              where: dateFilter,
+            },
+          },
+        },
       },
       take: 5, // Mengambil 5 pelanggan teratas
     });
 
     // Memproses data untuk mendapatkan format yang diinginkan
     const processedCustomers = customers.map((customer) => {
-      const totalSpent = customer.penjualan.reduce(
-        (sum, sale) => sum + Number(sale.total_harga), 
-        0
-      );
-      
-      const lastPurchaseDate = customer.penjualan.length > 0 
-        ? formatDate(customer.penjualan[0].tanggalPenjualan)
-        : "Tidak ada";
+      const totalSpent = customer.penjualan.reduce((sum, sale) => sum + Number(sale.total_harga), 0);
+
+      const lastPurchaseDate = customer.penjualan.length > 0 ? formatDate(customer.penjualan[0].tanggalPenjualan) : "Tidak ada";
 
       return {
         id: customer.pelangganId,
@@ -2314,7 +2299,7 @@ export async function getTopCustomers(period: "all" | "month" | "year" = "all") 
         totalSpent,
         points: customer.points,
         transactionCount: customer._count.penjualan,
-        lastPurchaseDate
+        lastPurchaseDate,
       };
     });
 
@@ -2329,20 +2314,20 @@ export async function getTopCustomers(period: "all" | "month" | "year" = "all") 
 // Helper function untuk format tanggal
 function formatDate(date: string | Date) {
   if (!date) return "Tidak ada";
-  
+
   const d = new Date(date);
-  return new Intl.DateTimeFormat('id-ID', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric'
+  return new Intl.DateTimeFormat("id-ID", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
   }).format(d);
 }
 
-export async function getCashierPerformance(startDate?: Date, endDate?: Date) {
+export async function getCashierPerformance() {
   try {
     // Default ke 30 hari terakhir jika tanggal tidak dispesifikasi
-    const start = startDate || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-    const end = endDate || new Date();
+    const start = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const end = new Date();
 
     const cashierStats = await prisma.user.findMany({
       where: {
@@ -3112,6 +3097,7 @@ export async function getAllProducts() {
 // types.ts
 import { PromotionType } from "@prisma/client";
 import { calculateAverage, groupBy } from "@/lib/helper";
+import { id } from "date-fns/locale";
 
 export interface CreatePromotionInput {
   title: string;
@@ -3568,11 +3554,23 @@ export async function getCategories() {
 
 export async function getTopProducts() {
   try {
+    // Mendapatkan tanggal 30 hari yang lalu dari hari ini
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    // Mendapatkan tanggal 60 hari yang lalu (untuk periode perbandingan)
+    const sixtyDaysAgo = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000);
+    
     // Get all sales details grouped by product with total quantity
     const productSales = await prisma.detailPenjualan.groupBy({
       by: ["produkId"],
       _sum: {
         kuantitas: true,
+      },
+      where: {
+        penjualan: {
+          tanggalPenjualan: {
+            gte: thirtyDaysAgo,
+          },
+        },
       },
       orderBy: {
         _sum: {
@@ -3581,7 +3579,7 @@ export async function getTopProducts() {
       },
       take: 5,
     });
-
+    
     // Get the product details and calculate growth
     const topProducts = await Promise.all(
       productSales.map(async (sale) => {
@@ -3589,14 +3587,14 @@ export async function getTopProducts() {
           where: { produkId: sale.produkId },
           select: { nama: true },
         });
-
-        // Calculate sales growth by comparing with previous period
+        
+        // Calculate sales growth by comparing with previous 30-day period
         const currentPeriodSales = await prisma.detailPenjualan.aggregate({
           where: {
             produkId: sale.produkId,
             penjualan: {
               tanggalPenjualan: {
-                gte: new Date(new Date().setMonth(new Date().getMonth() - 1)),
+                gte: thirtyDaysAgo,
               },
             },
           },
@@ -3604,14 +3602,14 @@ export async function getTopProducts() {
             kuantitas: true,
           },
         });
-
+        
         const previousPeriodSales = await prisma.detailPenjualan.aggregate({
           where: {
             produkId: sale.produkId,
             penjualan: {
               tanggalPenjualan: {
-                gte: new Date(new Date().setMonth(new Date().getMonth() - 2)),
-                lt: new Date(new Date().setMonth(new Date().getMonth() - 1)),
+                gte: sixtyDaysAgo,
+                lt: thirtyDaysAgo,
               },
             },
           },
@@ -3619,15 +3617,17 @@ export async function getTopProducts() {
             kuantitas: true,
           },
         });
-
+        
         const currentSales = currentPeriodSales._sum.kuantitas || 0;
         const previousSales = previousPeriodSales._sum.kuantitas || 0;
-
+        
         let growthPercentage = 0;
         if (previousSales > 0) {
           growthPercentage = ((currentSales - previousSales) / previousSales) * 100;
+        } else if (currentSales > 0) {
+          growthPercentage = 100; // Pertumbuhan 100% jika sebelumnya tidak ada penjualan
         }
-
+        
         return {
           name: product?.nama || "Unknown Product",
           sales: sale._sum.kuantitas || 0,
@@ -3635,7 +3635,7 @@ export async function getTopProducts() {
         };
       })
     );
-
+    
     return topProducts;
   } catch (error) {
     console.error("Error fetching top products:", error);
@@ -3645,65 +3645,65 @@ export async function getTopProducts() {
 
 export async function getCustomerTransactionsAnalytic() {
   try {
-    // Get current date and date 1 month ago
-    const currentDate = new Date();
-    const lastMonth = new Date(currentDate);
-    lastMonth.setMonth(lastMonth.getMonth() - 1);
-
-    // Create a separate variable for the previous month start date
-    const previousMonthStart = new Date(lastMonth);
-    previousMonthStart.setMonth(previousMonthStart.getMonth() - 1);
-
-    // Get guest transactions (Regular customers)
+    // Mendapatkan tanggal 30 hari yang lalu dari hari ini
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    // Mendapatkan tanggal 60 hari yang lalu (untuk periode perbandingan)
+    const sixtyDaysAgo = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000);
+    
+    // Get guest transactions (Regular customers) for the last 30 days
     const guestTransactions = await prisma.penjualan.count({
       where: {
         guestId: { not: null },
         tanggalPenjualan: {
-          gte: lastMonth,
+          gte: thirtyDaysAgo,
         },
       },
     });
-
-    // Get previous month guest transactions for growth calculation
+    
+    // Get previous 30 days guest transactions for growth calculation
     const previousGuestTransactions = await prisma.penjualan.count({
       where: {
         guestId: { not: null },
         tanggalPenjualan: {
-          gte: previousMonthStart,
-          lt: lastMonth,
+          gte: sixtyDaysAgo,
+          lt: thirtyDaysAgo,
         },
       },
     });
-
-    // Get member transactions (Registered customers)
+    
+    // Get member transactions (Registered customers) for the last 30 days
     const memberTransactions = await prisma.penjualan.count({
       where: {
         pelangganId: { not: null },
         tanggalPenjualan: {
-          gte: lastMonth,
+          gte: thirtyDaysAgo,
         },
       },
     });
-
-    // Get previous month member transactions for growth calculation
+    
+    // Get previous 30 days member transactions for growth calculation
     const previousMemberTransactions = await prisma.penjualan.count({
       where: {
         pelangganId: { not: null },
         tanggalPenjualan: {
-          gte: previousMonthStart,
-          lt: lastMonth,
+          gte: sixtyDaysAgo,
+          lt: thirtyDaysAgo,
         },
       },
     });
-
+    
     // Calculate total transactions
     const totalTransactions = guestTransactions + memberTransactions;
-
+    
     // Calculate growth percentages
-    const guestGrowth = previousGuestTransactions > 0 ? ((guestTransactions - previousGuestTransactions) / previousGuestTransactions) * 100 : 0;
-
-    const memberGrowth = previousMemberTransactions > 0 ? ((memberTransactions - previousMemberTransactions) / previousMemberTransactions) * 100 : 0;
-
+    const guestGrowth = previousGuestTransactions > 0 
+      ? ((guestTransactions - previousGuestTransactions) / previousGuestTransactions) * 100 
+      : 0;
+    
+    const memberGrowth = previousMemberTransactions > 0 
+      ? ((memberTransactions - previousMemberTransactions) / previousMemberTransactions) * 100 
+      : 0;
+    
     // Format the response
     return [
       {
@@ -4087,20 +4087,18 @@ export async function generateProductPerformanceReport(periodType: "weekly" | "m
       // Set start date to beginning of this week
       startDate = startOfWeek(currentDate);
       periodLabel = `${format(startDate, "dd MMM yyyy")} - ${format(currentDate, "dd MMM yyyy")}`;
-      reportName = "Weekly Product Performance Report";
+      reportName = "Laporan Kinerja Produk Mingguan";
 
       // Previous period (last week)
       prevPeriodEndDate = subDays(startDate, 1);
       prevPeriodStartDate = startOfWeek(prevPeriodEndDate);
       break;
-
-     
     }
     case "monthly": {
       // Set start date to beginning of this month
       startDate = startOfMonth(currentDate);
       periodLabel = format(startDate, "MMMM yyyy");
-      reportName = "Monthly Product Performance Report";
+      reportName = "Laporan Kinerja Produk Bulanan";
 
       // Previous period (last month)
       prevPeriodEndDate = subDays(startDate, 1);
@@ -4111,7 +4109,7 @@ export async function generateProductPerformanceReport(periodType: "weekly" | "m
       // Set start date to beginning of this year
       startDate = startOfYear(currentDate);
       periodLabel = format(startDate, "yyyy");
-      reportName = "Yearly Product Performance Report";
+      reportName = "Laporan Kinerja Produk Tahunan";
 
       // Previous period (last year)
       prevPeriodEndDate = subDays(startDate, 1);
@@ -4418,8 +4416,6 @@ export async function generateProductPerformanceReport(periodType: "weekly" | "m
   };
 }
 
-
-
 // Function to generate the inventory stock report
 export interface InventoryReportData {
   name: string;
@@ -4473,7 +4469,6 @@ export interface InventoryAlerts {
 // Type for period
 type PeriodType = "weekly" | "monthly" | "yearly";
 
-
 // Function to generate the inventory stock report
 export async function generateInventoryStockReport(periodType: PeriodType = "monthly"): Promise<InventoryReportData> {
   // Fetch all products with their categories
@@ -4500,18 +4495,18 @@ export async function generateInventoryStockReport(periodType: PeriodType = "mon
     case "weekly":
       startDate = new Date(today);
       startDate.setDate(today.getDate() - 7);
-      periodLabel = `Last 7 days (${startDate.toLocaleDateString()} - ${today.toLocaleDateString()})`;
+      periodLabel = `7 hari terakhir (${startDate.toLocaleDateString()} - ${today.toLocaleDateString()})`;
       break;
     case "yearly":
       startDate = new Date(today);
       startDate.setFullYear(today.getFullYear() - 1);
-      periodLabel = `Last 12 months (${startDate.toLocaleDateString()} - ${today.toLocaleDateString()})`;
+      periodLabel = `12 bulan terakhir (${startDate.toLocaleDateString()} - ${today.toLocaleDateString()})`;
       break;
     case "monthly":
     default:
       startDate = new Date(today);
       startDate.setMonth(today.getMonth() - 1);
-      periodLabel = `Last 30 days (${startDate.toLocaleDateString()} - ${today.toLocaleDateString()})`;
+      periodLabel = `30 hari terakhir (${startDate.toLocaleDateString()} - ${today.toLocaleDateString()})`;
       break;
   }
 
@@ -4638,7 +4633,7 @@ export async function generateInventoryStockReport(periodType: PeriodType = "mon
 
   // Assemble the report
   return {
-    name: "Inventory Stock Analysis",
+    name: "Analisis Stok Persediaan",
     period: periodLabel,
     generatedDate: new Date().toISOString(),
     totalProducts,
@@ -4657,13 +4652,12 @@ export async function generateInventoryStockReport(periodType: PeriodType = "mon
   };
 }
 
-
 export const getUserById = async (userId: number) => {
   try {
-    const user = await prisma.user.findUnique({ where: { id: userId }, });
+    const user = await prisma.user.findUnique({ where: { id: userId } });
     return user;
   } catch (error) {
     console.error("Failed to fetch user:", error);
     return null;
   }
-}
+};

@@ -130,7 +130,6 @@ function BackupPage() {
       retention: 7, // Keep backups for 7 days
       backupDestination: "local", // Location: local storage
     },
-    isLoading: isLoadingSettings,
   } = useQuery({
     queryKey: ['backupSettings'],
     queryFn: api.getSettings,
@@ -286,7 +285,7 @@ useEffect(() => {
   }, [queryClient]);
 
   // Handle setting changes locally without immediate save
-  const handleSettingChange = (name: string, value: any) => {
+  const handleSettingChange = (name: keyof BackupSettings, value: boolean | string | number) => {
     setLocalSettings(prev => ({
       ...prev,
       [name]: value
@@ -367,11 +366,11 @@ useEffect(() => {
       {/* Progress indicators */}
       <NeoProgressIndicator 
         isLoading={showProgressIndicator.backup} 
-        message="Creating Backup..." 
+        message="Membuat Backup..." 
       />
       <NeoProgressIndicator 
         isLoading={showProgressIndicator.download} 
-        message="Downloading Backup..." 
+        message="Download Backup..." 
       />
       <DeleteConfirmModal 
         isOpen={deleteModal.isOpen}

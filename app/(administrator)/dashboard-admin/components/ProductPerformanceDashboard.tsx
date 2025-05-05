@@ -87,7 +87,7 @@ const PieChartTooltip = ({ active, payload }: PieChartTooltipProps) => {
             <h3 className="font-black text-xl">{categorySummary.categoryName}</h3>
           </div>
           <div className="font-mono bg-black text-white p-2 transform rotate-1 mb-2">{formatRupiah(categorySummary.totalSales)}</div>
-          <div className="font-mono bg-white text-black p-2 border-2 border-black transform -rotate-1">{categorySummary.salesContribution.toFixed(1)}% of total sales</div>
+          <div className="font-mono bg-white text-black p-2 border-2 border-black transform -rotate-1">{categorySummary.salesContribution.toFixed(1)}% dari total penjualan</div>
         </div>
       </div>
     );
@@ -457,12 +457,12 @@ const ProductPerformanceDashboard: React.FC<ProductPerformanceDashboardProps> = 
                         fontWeight: "bold",
                       }}
                     />
-                    <Bar dataKey="totalSales" name="Current Sales" radius={[0, 4, 4, 0]}>
+                    <Bar dataKey="totalSales" name="Penjualan Saat Ini" radius={[0, 4, 4, 0]}>
                       {report.data.slice(0, 5).map((entry, index) => (
                         <Cell key={`totalSales-${index}`} fill={COLORS[0]} stroke="#000" strokeWidth={2} />
                       ))}
                     </Bar>
-                    <Bar dataKey="prevPeriodSales" name="Previous Period Sales" radius={[0, 4, 4, 0]}>
+                    <Bar dataKey="prevPeriodSales" name="Penjualan Periode Sebelumnya" radius={[0, 4, 4, 0]}>
                       {report.data.slice(0, 5).map((entry, index) => (
                         <Cell key={`prevPeriodSales-${index}`} fill={COLORS[1]} stroke="#000" strokeWidth={2} />
                       ))}
@@ -549,7 +549,7 @@ const ProductPerformanceDashboard: React.FC<ProductPerformanceDashboardProps> = 
           {/* Summary Metrics - Neo-Brutalist Cards */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-8">
             <div className="bg-white border-4 border-black p-6 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] transform rotate-1">
-              <h3 className="text-xl font-black mb-4">Total Sales</h3>
+              <h3 className="text-xl font-black mb-4">Total Penjualan</h3>
               <p className="text-3xl font-black">{formatRupiah(report.totalSales)}</p>
               {report.salesGrowth && (
                 <div className={`flex items-center mt-2 ${report.salesGrowth >= 0 ? "text-green-500" : "text-red-500"}`}>

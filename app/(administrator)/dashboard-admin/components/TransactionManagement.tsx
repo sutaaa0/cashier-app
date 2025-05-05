@@ -1,5 +1,4 @@
 "use client";
-
 import { useState, useEffect } from "react";
 import { FileText, Eye, Download, Calendar, RefreshCw, CreditCard } from "lucide-react";
 import { getTransactions } from "@/server/actions";
@@ -103,12 +102,12 @@ export function TransactionManagement() {
       //   "No Points Discount";
 
       return {
-        "Transaction ID": transaction.penjualanId,
-        Date: new Date(transaction.tanggalPenjualan).toLocaleString(),
+        "Id Transaksi": transaction.penjualanId,
+        Tanggal: new Date(transaction.tanggalPenjualan).toLocaleString(),
         Total: formatRupiah(transaction.total_harga),
-        Customer: transaction.pelanggan ? transaction.pelanggan.nama : `Guest ${transaction.guest?.guestId}`,
-        "Points Discount": transaction.diskonPoin ? formatRupiah(transaction.diskonPoin) : "0",
-        Items: itemsWithPromotion,
+        Pelanggan: transaction.pelanggan ? transaction.pelanggan.nama : `Guest ${transaction.guest?.guestId}`,
+        "Diskon Poin": transaction.diskonPoin ? formatRupiah(transaction.diskonPoin) : "0",
+        Item: itemsWithPromotion,
         Refunds: refundInfo
       };
     });

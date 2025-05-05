@@ -264,7 +264,7 @@ const InventoryStockDashboard: React.FC<InventoryStockDashboardProps> = ({ repor
       theme: 'grid',
       headStyles: { 
         fillColor: [77, 182, 172], 
-        textColor: 255,
+        textColor: 111,
         fontStyle: 'bold',
         fontSize: 8,
         halign: 'center'

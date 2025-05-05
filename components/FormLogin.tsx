@@ -15,9 +15,9 @@ import Image from "next/image";
 
 const FormSchema = z.object({
   username: z.string().min(2, {
-    message: "Username must be at least 2 characters.",
+    message: "Username harus minimal 2 karekter.",
   }),
-  password: z.string().min(8, { message: "Password must be at least 8 characters." }),
+  password: z.string().min(8, { message: "Password harus minimal 8 karakter." }),
 });
 
 export default function LoginPage() {
@@ -113,7 +113,7 @@ export default function LoginPage() {
 
   // If still checking authentication status, show loading
   if (isAuthChecking) {
-    return <NeoProgressIndicator isLoading={isAuthChecking} message="Checking authentication..." />;
+    return <NeoProgressIndicator isLoading={isAuthChecking} message="Memeriksa autentikasi..." />;
   }
 
   return (

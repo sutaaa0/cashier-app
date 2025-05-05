@@ -22,7 +22,7 @@ export function UserManagement() {
   const [selectedUser, setSelectedUser] = useState<UserData | null>(null);
   const [userToDelete, setUserToDelete] = useState<UserData | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const [loadingMessage, setLoadingMessage] = useState("Loading Users...");
+  const [loadingMessage, setLoadingMessage] = useState("Loading Pengguna...");
 
   // Get QueryClient instance
   const queryClient = useQueryClient();

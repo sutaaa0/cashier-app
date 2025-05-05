@@ -52,16 +52,14 @@ export function PromotionManagement(): React.ReactElement {
     queryKey: ['products', selectedPromotion?.promotionId],
     queryFn: async () => {
       // If we're editing, include the promotion ID to get the right products
-      const res = await getProductsForPromotions(
-        selectedPromotion ? selectedPromotion.promotionId : null
-      );
+      const res = await getProductsForPromotions();
+
       
       console.log("Products fetched for promotion management:", res);
       
       if (res.status === "success") {
         return {
-          products: res.data || [],
-          editInfo: res.editInfo || null
+          products: res.status === 'success' ? res.data || [] : [],
         };
       }
       return { products: [], editInfo: null };

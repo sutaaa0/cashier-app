@@ -220,7 +220,7 @@ export function CustomerManagement() {
         }}
       />
       {selectedCustomer && <EditCustomerModal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} customer={selectedCustomer} onEditCustomer={handleEditCustomer} />}
-      <DeleteConfirmModal isOpen={isDeleteModalOpen} onClose={() => setIsDeleteModalOpen(false)} onConfirm={handleDeleteCustomer} itemName={selectedCustomer?.nama || ""} subject="Customer" />
+      <DeleteConfirmModal isOpen={isDeleteModalOpen} onClose={() => setIsDeleteModalOpen(false)} onConfirm={handleDeleteCustomer} itemName={selectedCustomer?.nama || ""} subject="Member" />
       <NeoProgressIndicator isLoading={isLoading} message={loadingMessage} />
     </div>
   );

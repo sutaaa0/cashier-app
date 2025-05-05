@@ -49,7 +49,11 @@ export function ProductManagement() {
         },
       }));
     },
-    staleTime: 5 * 60 * 1000, // Consider data fresh for 5 minutes
+    refetchInterval: 500, // Polling setiap 500ms
+  staleTime: 500, 
+  // Opsional: tambahkan retry untuk koneksi yang tidak stabil
+  retry: 2,
+
   });
 
   // Filtered and searched products
@@ -73,7 +77,7 @@ export function ProductManagement() {
       const result = await getCategory();
       return result ?? [];
     },
-    staleTime: 30 * 60 * 1000, // Categories change less frequently, cache for 30 minutes
+    staleTime: 500, // Categories change less frequently, cache for 30 minutes
   });
 
   // Delete product mutation

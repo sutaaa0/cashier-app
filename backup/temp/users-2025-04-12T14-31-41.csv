@@ -1,6 +1,0 @@
-level,password,username,id
-ADMIN,$2a$10$0MELbLgfT27ectuAUvdSZ.NRyb9.9Xx.mFceL5d.YXsbAAprdVTPS,admin,2
-PETUGAS,$2a$10$8oP/XvL4ULBHom1FsPdfiu4t73DXQc.k0IOwVtTx0Tp.H8HW8oQsO,budi,17
-PETUGAS,$2a$10$djQ8ramdaPEquQQ1sG1ceem9pJBRlmkEUHIjqraNyyAiX4Rr4Cln2,beni,18
-PETUGAS,$2a$10$.hD3v1O6Ll6qejsfiqt2tuvvSRKWGjBU/XWhz8m/.fPEFb3gVpN2G,siti,19
-PETUGAS,$2a$10$RK6x10tzX641/Yx7wnIFyONhn53OppB07c5azAPD6tdtnTqh0hEFS,petugas,1

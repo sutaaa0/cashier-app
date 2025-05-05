@@ -179,12 +179,14 @@ function ResetDatabasePanel() {
       
       setTimeout(() => setMessage({ type: "", text: "" }), 5000);
     },
-    onError: (error: any) => {
+    onError: (error: Error | unknown) => {
       setShowConfirmation(false);
       setConfirmationInput("");
       
       console.error("Error performing reset:", error);
-      const errorMessage = error.response?.data?.error || "Gagal melakukan reset database manual";
+      const errorMessage = axios.isAxiosError(error) && error.response?.data?.error 
+        ? error.response.data.error 
+        : "Gagal melakukan reset database manual";
       setMessage({ 
         type: "error", 
         text: `Reset manual gagal: ${errorMessage}` 
@@ -213,7 +215,7 @@ function ResetDatabasePanel() {
   }, [queryClient]);
 
   // Handle setting changes locally without immediate save
-  const handleSettingChange = (name: string, value: any) => {
+  const handleSettingChange = (name: string, value: string | boolean) => {
     setLocalSettings(prev => ({
       ...prev,
       [name]: value
@@ -507,47 +509,6 @@ function ResetDatabasePanel() {
             <span>MEMPERBARUI DATA...</span>
           </div>
         )}
-      </div>
-
-      {/* Panduan penggunaan */}
-      <div className="mt-8 bg-[#F1F6F9] p-5 rounded-none border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)]">
-        <h2 className="text-2xl font-bold uppercase mb-4 text-black">PANDUAN RESET DATABASE</h2>
-
-        <div className="bg-[#FFD966] p-4 border-2 border-black">
-          <ul className="space-y-3">
-            <li className="font-bold text-black">
-              <span className="bg-black text-white px-2 py-0.5 mr-2 inline-block">1</span>
-              <strong>RESET MANUAL</strong> - Reset database kapan saja dengan konfirmasi keamanan
-            </li>
-            <li className="font-bold text-black">
-              <span className="bg-black text-white px-2 py-0.5 mr-2 inline-block">2</span>
-              <strong>PERTAHANKAN DATA MASTER</strong> - Opsi untuk menyimpan User, Kategori, dan Produk saat reset
-            </li>
-            <li className="font-bold text-black">
-              <span className="bg-black text-white px-2 py-0.5 mr-2 inline-block">3</span>
-              <strong>BACKUP OTOMATIS</strong> - Setiap reset selalu membuat backup terlebih dahulu
-            </li>
-            <li className="font-bold text-black">
-              <span className="bg-black text-white px-2 py-0.5 mr-2 inline-block">4</span>
-              <strong>INISIALISASI SCHEMA</strong> - Otomatis menginisialisasi database setelah reset
-            </li>
-          </ul>
-
-          <div className="mt-6 p-4 bg-white text-black border-2 border-white">
-            <p className="font-bold uppercase">DATA YANG DIPERTAHANKAN (JIKA OPSI DIAKTIFKAN):</p>
-            <div className="grid grid-cols-3 gap-3 mt-2">
-              <div className="flex items-center p-2 bg-[#6C9BCF] rounded-none border-2 border-white">
-                <span className="text-sm font-bold text-white">USER (PENGGUNA)</span>
-              </div>
-              <div className="flex items-center p-2 bg-[#6C9BCF] rounded-none border-2 border-white">
-                <span className="text-sm font-bold text-white">KATEGORI</span>
-              </div>
-              <div className="flex items-center p-2 bg-[#6C9BCF] rounded-none border-2 border-white">
-                <span className="text-sm font-bold text-white">PRODUK</span>
-              </div>
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   );
